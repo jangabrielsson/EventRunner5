@@ -1,0 +1,13 @@
+--%%name=EventRunner5
+--%%type=com.fibaro.genericDevice
+--%%debug=refresh:false
+
+--%%file=../fibemu/examples/fibaroExtra.lua,extra;
+--%%file=Engine.lua,engine;
+--%%file=Parser.lua,parser;
+--%%file=Tokenizer.lua,tokenizer;
+--%%file=Compiler.lua,compiler;
+--%%file=VM.lua,vm;
+--%%file=Rule.lua,rule;
+--%%file=Builtins.lua,builtins;
+--%%file=Utils.lua,utils;
