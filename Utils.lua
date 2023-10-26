@@ -40,19 +40,77 @@ function QuickApp.__ER.modules.utilities(ER)
     return self
   end
   
+  function Utils.LOG(f,...)
+    if #{...} > 0 then
+      local msg = f:format(...)
+      fibaro.trace(ER.settings.systemLogTag or __TAG,msg)
+    else fibaro.trace(ER.settings.systemLogTag or __TAG,f) end
+  end
+
   function Utils.PrintBuffer(...)
-    local self = {}
-    local buff = {...}
+    local self = { buff = {...} }
+    local buff = self.buff
     function self:printf(...) buff[#buff+1] = string.format(...) end
+    function self:add(v) buff[#buff+1] = string.format(v) end
     function self:print(...)
       local r={} for _,v in ipairs({...}) do r[#r+1] = tostring(v) end
       buff[#buff+1] = table.concat(r," ")
     end
-    function self:tostring() return table.concat(buff,"\n") end
-    return self
+    function self:tostring(div) return table.concat(buff,div or "\n") end
+    return setmetatable(self,{__tostring=function(obj) return obj:tostring() end})
   end
   
-  getmetatable("").__idiv = function(str,len) return (#str < len or #str < 4 and str) or str:sub(1,len-2)..".." end
+  local function maxLen(list) local m = 0 for _,e in ipairs(list) do m=math.max(m,e:len()) end return m end
+  if hc3_emulator then 
+    function Utils.htmlTable(list,opts)
+      opts = opts or {}
+      local pr,cols,rows=Utils.PrintBuffer(),{},{}
+      for i,e in ipairs(list) do list[i]=type(e)=='table' and e or {e} end
+      for i=1,#list do
+        for j=1,#list[i] do
+          local e = list[i][j]
+          local s = e:split("\n")
+          list[i][j]=s
+          cols[j]=math.max(cols[j] or 0,maxLen(s))
+          rows[i]=math.max(rows[i] or 0,#s)
+        end
+      end
+      local s = "+"
+      for j=1,#cols do s=s..("-"):rep(cols[j]+2).."+" end -- Create line divider
+      pr:add(s)
+      for i=1,#list do  -- rows
+        for r=1,rows[i] do
+          local l = {}
+          for j=1,#list[i] do -- cols
+            local ll = list[i][j][r] or ""
+            l[#l+1]=ll..(" "):rep(cols[j]-ll:len())
+            --sp=" |"
+          end
+          pr:add("| "..table.concat(l," | ").." |")
+        end
+        pr:add(s)
+      end
+      return "\n"..pr:tostring("\n")
+    end
+  else
+    function Utils.htmlTable(list,opts)
+      opts = opts or {}
+      local pr = Utils.PrintBuffer
+      pr:printf("<table %s>",opts.table or "")
+      for _,l in ipairs(list) do
+        pr:printf("<tr %s>",opts.tr or "")
+        l = type(l)=='table' and l or {l}
+        for _,e in ipairs(l) do
+          pr:printf("<td %s>",opts.td or "") pr:add(tostring(e)) pr:add("</td>") 
+        end
+        pr:add("</tr>")
+      end
+      pr:add("</table>")
+      return pr:tostring()
+    end
+  end
+
+  getmetatable("").__idiv = function(str,len) return (#str < len or #str < 4) and str or str:sub(1,len-2)..".." end
   
   function Utils.argsStr(...)
     local args = {...}
@@ -223,14 +281,14 @@ function QuickApp.__ER.modules.utilities(ER)
   ER.utilities.export = {
     Utils.stack, Utils.stream, Utils.errorMsg, Utils.isErrorMsg, Utils.xerror, Utils.pcall, Utils.errorLine,
     Utils.marshallFrom, Utils.marshallTo, toTime, midnight, encodeFast, Utils.argsStr, Utils.eventStr,
-    Utils.PrintBuffer, Utils.sunData
+    Utils.PrintBuffer, Utils.sunData, Utils.LOG, Utils.htmlTable
   }
   for _,f in ipairs(extraSetups) do f() end
   
   
   -- stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   -- marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
-  -- PrintBuffer,sunData =
+  -- PrintBuffer,sunData,LOG,htmlTable =
   -- table.unpack(ER.utilities.export)
   
 end

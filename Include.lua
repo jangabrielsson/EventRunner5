@@ -1,6 +1,6 @@
 --%%name=EventRunner5
 --%%type=com.fibaro.genericDevice
---%%debug=refresh:false
+--%%debug=refresh:true
 
 --%%file=../fibemu/examples/fibaroExtra.lua,extra;
 --%%file=Engine.lua,engine;

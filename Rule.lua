@@ -3,18 +3,20 @@ QuickApp.__ER  = QuickApp.__ER or { modules={} }
 function QuickApp.__ER.modules.rule(ER)
   
   local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
-  marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,PrintBuffer =
+  marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
+  PrintBuffer,sunData,LOG =
   table.unpack(ER.utilities.export)
   
+  local Rule = ER.Rule
   local stdPropObject,isPropObject = ER.stdPropObject,ER.isPropObject
+  local htmlTable = ER.utilities.htmlTable
   
   local fmt=string.format
   local vars,triggerVars = ER.ruleValues,ER.triggerVars
   local function now() local t = os.date("*t") return t.hour*3600+t.min*60+t.sec end
   
   local function printf(...) print(fmt(...)) end
-  
-  local function LOG(...) fibaro.trace(__TAG,fmt(...)) end
+
   
   -- {prop='value',operator='eq',value='value'}
   -- {gv='value',operator='eq',qv='value'}
@@ -26,32 +28,18 @@ function QuickApp.__ER.modules.rule(ER)
   -- {interv={from='value',to='value'},event='value'}
   
   local triggerHandlers={}
-  local function triggerVar(name) return triggerVars[name] end
   
   local function compute(p) local c = ER:compile(p,{src = ER.__lastParsed}) return c() end
   local function compile(p) return ER:compile(p,{src = ER.__lastParsed}) end
   local function hms(t) return os.date("%H:%M:%S",t < 24*3600 and t+fibaro.midnight() or t) end -- TBD: move to Utils.lua
   local function trim(str,n) return #str <= n and str or str:sub(1,n).."..." end
   
+  local currRule
   local function errorf(tk,fm,...)
     if tk.d then tk = tk.d end
-    local err = errorMsg{type="Rule",msg=fmt(fm,...),from=tk.from,to=tk.to,src=ER.__lastParsed}
+    local err = errorMsg{type="Rule",msg=fmt(fm,...),from=tk.from,to=tk.to,rule=currRule,src=ER.__lastParsed}
     e_error(err) 
   end
-  
-  local ruleCtx = {}
-  function ruleCtx.get(name) return vars[name] or {_G[name]} end
-  function ruleCtx.set(name,value) 
-    local v,old = vars[name],nil
-    if v then old=v[1] v[1]=value else vars[name]={value} end
-    return true,old
-  end
-  function ruleCtx.post(event) fibaro.post(event) end
-  function ruleCtx.setTimeout(p,fun,delay,descr) return p.rule._setTimeout(fun,delay,descr) end
-  function ruleCtx.clearTimeout(p,ref) return p.rule._clearTimeout(ref) end
-  ruleCtx.triggerVar = triggerVar
-  function ruleCtx.print(...) print(...) end
-  ER.ctx = ruleCtx
   
   local CATCHUP = math.maxinteger
   
@@ -81,7 +69,7 @@ function QuickApp.__ER.modules.rule(ER)
       t.srct[prop..tostring(id)] = id[1]:getTrigger(id[2],prop)
     end
   end
-  function triggerHandlers.var(p,t) if triggerVar(p.name) then t.srct["TV:"..p.name]={type='trigger-variable', name=p.name} end end
+  function triggerHandlers.var(p,t) if triggerVars[p.name] then t.srct["TV:"..p.name]={type='trigger-variable', name=p.name} end end
   function triggerHandlers.gv(p,t) t.srct["GV:"..p.name]={type='global-variable', name=p.name} end
   function triggerHandlers.qv(p,t) t.srct["QV:"..p.name]={type='quickvar', name=p.name} end
   local eid = 0
@@ -133,7 +121,7 @@ function QuickApp.__ER.modules.rule(ER)
     end
   end
   
-  local ruleID = 0
+  local ruleID,rules = 0,{}
   local function setupDailys(rule,catchup)
     rule._clearDailyTimers()  -- clear any previous outstanding daily timer
     local scheduled,n = {},now()
@@ -154,7 +142,13 @@ function QuickApp.__ER.modules.rule(ER)
     end
   end
   
-  local rules =  {}
+  ER.midnightScheduler(function()  -- Reschedule all dailys at midnight
+    for _,rule in pairs(rules) do
+      if rule.isEnabled() then
+        setupDailys(rule,true)
+      end
+    end
+  end)
   
   local function ruleNameStr(r) return r.rname end
   local function ruleDescriptionStr(d,rule) return fmt("%s description:\n%s",rule.rname,tostring(rule.triggers)) end
@@ -163,7 +157,7 @@ function QuickApp.__ER.modules.rule(ER)
     for _,t in ipairs(rule.dailys) do
       local v = t()
       if type(v)=='table' then 
-        for _,t in ipairs(v) do s[#s+1] = fmt("->Timer:%s",hms(t)) end
+        for _,t in ipairs(v) do if t ~= math.maxinteger then s[#s+1] = fmt("->Timer:%s",hms(t)) end end
       else s[#s+1] = fmt("->Timer:%s",hms(v)) end
     end
     return table.concat(s,"\n")
@@ -180,15 +174,41 @@ function QuickApp.__ER.modules.rule(ER)
     return table.concat(res,"\n")
   end
   
-  function ER.listRules()
+  function ER.listRules(extended)
     local pr,n = PrintBuffer(),0
     pr:printf("\nRules:")
     for i,r in pairs(rules) do
       n = n+1
-      pr:printf("%d:%-60s [%s]",i,r.longName,r._enabled and "enabled" or "disabled")
+      if extended then
+        pr:printf("%s",r.description)
+      else
+        pr:printf("%d:%-60s [%s]",i,r.longName,r._enabled and "enabled" or "disabled")
+      end
     end 
     pr:printf("Number of rules: %d",n)
-    print(pr:tostring())
+    print(htmlTable{pr:tostring()})
+  end
+
+  function ER.listTimers()
+    local pr,n = PrintBuffer(),0
+    local timers = {}
+    pr:printf("\nTimers:")
+    for id,r in pairs(rules) do
+      for _,t in pairs(r._timers) do
+        local time = t[2]
+        timers[time] = timers[time] or {}
+        timers[time][#timers[time]+1] = fmt("%s%s",t[1],r)
+      end
+      for _,t in pairs(r._dailyTimers) do
+        local time = t[2]
+        timers[time] = timers[time] or {}
+        timers[time][#timers[time]+1] = fmt("@%s",r)
+      end
+    end
+    for time,rs in pairs(timers) do
+      pr:print(hms(time),"->",table.unpack(rs))
+    end
+    print(htmlTable{pr:tostring()})
   end
   
   function ER.listVariables(name)
@@ -202,25 +222,19 @@ function QuickApp.__ER.modules.rule(ER)
       end
     end 
     pr:printf("Number of variables: %d",n)
-    print(pr:tostring())
+    print(htmlTable{pr:tostring()})
   end
   
-  local midnightFuns = {}
-  local function midnightScheduler(fun) midnightFuns[#midnightFuns+1] = fun end
-  local midnxt = (os.time() // 3600 +1)*3600
-  local function midnightLoop()
-    for _,f in ipairs(midnightFuns) do f() end
-    midnxt = midnxt+3600
-    setTimeout(midnightLoop,(midnxt-os.time())*1000)
-  end
-  setTimeout(midnightLoop,(midnxt-os.time())*1000)
-  
-  function ER:createRule(cond,action,ctx,p)
+  function ER:nextRuleID() return ruleID+1 end
+
+  function ER:createRule(cond,action,p)
     local rule = {type='%RULE%'}
+    local defOpts = p.co.options
+    currRule = rule
     ruleID = ruleID+1
     rule.id = ruleID
-    rule._name = p.co.options.name or tostring(rule.id)
-    rule._ltag = p.co.options.ltag -- or er.logtag?
+    rule._name = defOpts.name or tostring(rule.id)
+    rule._ltag = defOpts.ltag -- or er.logtag?
     rule.instance = 0
     rule._enabled = true
     rule.src = ER.__lastParsed
@@ -232,14 +246,14 @@ function QuickApp.__ER.modules.rule(ER)
     end
     nameRule()
     
-    LOG("Defining [Rule:%s:%s]...",rule._name,trim(rule.src,40))
+    if not defOpts.silent then LOG("Defining [Rule:%s:%s]...",rule._name,trim(rule.src,40)) end
     local triggers = { daily=nil, interv=nil, timers={}, srct={} }
     getTriggers(cond,triggers)
     local trs = triggers.srct
     
     rule.triggers = trs
     rule.catchup = triggers.catchup
-    rule.dailys = {}         -- daily times and between times
+    rule.dailys = {}          -- daily times and between times
     rule._dailyTimers = {}    -- refs to emitted daily timers (for cancellation)
     rule._timers = {}         -- refs to emitted timers, ex posts (for cancellation)
     rule.evhandlers = {}
@@ -255,14 +269,25 @@ function QuickApp.__ER.modules.rule(ER)
     rule.dailys = dailys
     
     if triggers.interv then
+      local ev = {type='%interval%',id=rule.id}
+      local fun = function(env) return rule.start(env.event,nil,env.p) end
+      local handler = fibaro.event(ev,fun)
+      rule.evhandlers[ev] = {fun,handler}
+      rule.autostart = function()
+        local t,delay = triggers.interv(),0
+        if t < 0 then t=-t delay = (os.time() // t + 1)*t - os.time() end
+        setTimeout(function() rule._post(ev,delay,"@@") end,0)
+        return rule
+      end
+      if rule._enabled then rule.autostart() end
+    else -- interval trigger disables all other triggers for rule
+      for evid,t in pairs(trs) do
+        local fun = function(env) return rule.start(env.event,evid,env.p) end
+        local handler = fibaro.event(t,fun)
+        rule.evhandlers[t] = {fun,handler}
+      end
     end
-    
-    for evid,t in pairs(trs) do
-      local fun = function(env) return rule.start(env.event,evid,env.p) end
-      local handler = fibaro.event(t,fun)
-      rule.evhandlers[t] = {fun,handler}
-    end
-    
+
     -- public rule functions
     function rule.name(name) rule._name = name; nameRule() return rule end
     function rule.rtag(tag) rule._rtag = tag; return rule end
@@ -270,18 +295,14 @@ function QuickApp.__ER.modules.rule(ER)
     function rule.enable() 
       if rule._enabled then return end
       rule._enabled = true
-      for _,eh in pairs(rule.evhandlers) do
-        eh[2].enable()
-      end
-      return rule 
+      for _,eh in pairs(rule.evhandlers) do eh[2].enable() end
+      return rule.autostart and rule.autostart() or rule
     end
     function rule.disable()
       if not rule._enabled then return end
       rule._enabled = false
       rule.stop()
-      for _,eh in pairs(rule.evhandlers) do
-        eh[2].disable()
-      end
+      for _,eh in pairs(rule.evhandlers) do eh[2].disable() end
       return rule 
     end
     function rule.isEnabled() return rule._enabled end
@@ -323,13 +344,12 @@ function QuickApp.__ER.modules.rule(ER)
     -- rule.src = <string>         -- rule source definition
     -- rule.code == <string>       -- compiled rule code
     
-    
-    rule.fun.ctx = ruleCtx
     rule.runners = {}
     local coroutine = ER.coroutine 
     local runCoroutine = ER.runCoroutine
     
     function rule.start(ev,id,vars)
+      ev = ev or {type='nop'}
       local co = coroutine.create(rule.fun)
       rule.instance = rule.instance+1
       local instname = fmt("[Rule:%s:%s]",rule._name,rule.instance)
@@ -344,15 +364,18 @@ function QuickApp.__ER.modules.rule(ER)
       function co._action(ok,msg)
         co.LOG("condition %s",ok and "true - action" or "false - cancelled")
       end
-      function co.LOG(...) LOG("%s>> %s",co.name,fmt(...)) end
+      function co.LOG(...)
+        local a = {...}
+        LOG("%s>> %s",co.name,fmt(...)) 
+      end
       
       local options = {
-        trace=rule._trace,debug=rule._debug,ctx=rule.fun.ctx,
+        trace=rule._trace,debug=rule._debug,
       }
       
       local suspendMsg = {
         ['%wait%'] = function(delay,msg) return fmt("wait %s %s",hms(delay/1000),msg or "") end,
-        ['%callback%'] = function(delay,msg) end,
+        ['%callback%'] = function(delay,msg) return msg or "callback" end,
       }
       
       function options.suspended(success,typ,...)
@@ -380,12 +403,24 @@ function QuickApp.__ER.modules.rule(ER)
     end
     
     -- Internal rule housekeeping functions
-    function rule._setTimeout(fun,delay,descr) 
-      local ref = setTimeout(fun,delay)
-      rule._timers[ref] = {descr or "timer",os.time()+delay}
+    function rule._setTimeout(fun,time,descr) 
+      local ref = setTimeout(fun,time)
+      rule._timers[ref] = {descr or "timer",os.time()+time/1000}
       return ref
     end
     function rule._clearTimeout(ref)
+      local doc = rule._timers[ref]
+      if doc then clearTimeout(ref) end
+    end
+    function rule._post(ev,time,descr)
+      local ref,t = nil,nil
+      local f = function() rule._timers[ref]=nil fibaro.post(ev) end
+      ref,t = fibaro.post(f,time)
+      if ref then 
+        rule._timers[ref] = {descr or "post",t} 
+      end
+    end
+    function rule._cancelPost(ref)
       local doc = rule._timers[ref]
       if doc then clearTimeout(ref) end
     end
@@ -404,13 +439,13 @@ function QuickApp.__ER.modules.rule(ER)
         rule.start({type='daily',id=rule.id,time=time})
         rule._dailyTimers[ref]=nil
       end,delay*1000)
-      rule._dailyTimers[ref]=true
+      rule._dailyTimers[ref]={'daily',time}
     end
     function rule._setupDailys(catch) setupDailys(rule,catch) end
     
     if #dailys>0 then rule._setupDailys(true) end
     
-    function rule.evalPrint() nameRule() LOG(rule.rname.." defined") end
+    function rule.evalPrint() nameRule() if not defOpts.silent then LOG(rule.rname.." defined") end end
     setmetatable(rule,{__tostring = ruleNameStr})
     setmetatable(rule.triggers,{__tostring = function(t) return ruleTriggersStr(t,rule) end })
     rule.description = setmetatable({},{__tostring = function(d) return ruleDescriptionStr(d,rule) end })

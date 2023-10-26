@@ -10,27 +10,6 @@ function QuickApp:main(er)
   PrintBuffer,sunData =
   table.unpack(er._utilities.export)
   
-  local function prbuff()
-    local self = {}
-    local buff = {}
-    function self:printf(...) buff[#buff+1] = string.format(...) end
-    function self:print(...)
-      local r={} for _,v in ipairs({...}) do r[#r+1] = tostring(v) end
-      buff[#buff+1] = table.concat(r," ")
-    end
-    function self:tostring() return table.concat(buff,"\n") end
-    return self
-  end
-  
-  local ctx,vars = {},{}
-  function ctx.get(name) return vars[name] or {_G[name]} end
-  function ctx.set(name,value) local old; local v = vars[name] if v then old = v[1] v[1]=value else vars[name]={value} end  return true,old end
-  function ctx.post(event) fibaro.post(event) end
-  function ctx.triggerVar(name) return false end
-  function ctx.setTimeout(p,fun,delay) return setTimeout(fun,delay) end
-  function ctx.clearTimeout(p,ref) return clearTimeout(ref) end
-  function ctx.print(...) ctx._pr:print(...) end
-  
   if false then -- test coroutines
     function multval() return 1,2,3 end
     local fun = er.compile("x,y = _args; log('values %s %s',x,y); log(7); yield(2); z = yield(3); return 3+z,88")
@@ -48,21 +27,14 @@ function QuickApp:main(er)
     local a = 0
   end
   
-  local function argsStr(...)
-    local args = {...}
-    local r = {} for i=1,table.maxn(args) do r[i] = tostring(args[i]) end
-    return table.concat(r,",")
-  end
-  
   local function runExpr(expr,opts)
     local testf = opts.test or table.equal
     local r = expr
-    local pr = prbuff()
-    ctx._pr = pr
+    local pr = PrintBuffer()
     local str = r[1]
     local answer = r[2]
     local name = string.format("%s",str)
-    local options = {ctx=opts.ctx or ctx,codeList=true,trace=opts.trace}
+    local options = {codeList=true,trace=opts.trace}
     
     function options.suspended(...)
       local res = {...}
@@ -99,13 +71,13 @@ function QuickApp:main(er)
     for i,r in ipairs(exprs) do
       local rule
       local function test(res,answer) if type(res)=='table' and er.isRule(res[1]) then rule = res[1] return true else return false end end
-      runExpr(r,{ctx=er.ctx,test=test})
+      runExpr(r,{test=test})
       if rule==nil then 
         --fibaro.error(__TAG,"rule did not compile")
       else
         --rule.trace(true)
         rules[rule] = {}
-        local pr = prbuff()
+        local pr = PrintBuffer()
         print("rule",rule,"defined")
         rule.resultHook = function(success,...)
           local res = {success,...}
@@ -121,7 +93,7 @@ function QuickApp:main(er)
           elseif type(e)=='function' then 
             setTimeout(function() e() end,0)
           elseif type(e)=="string" then
-            setTimeout(function() er.eval(e,{ctx=er.ctx}) end,0)
+            setTimeout(function() er.eval(e) end,0)
           end
         end
       end
@@ -147,6 +119,7 @@ function QuickApp:main(er)
   er.defTriggerVar("tv1",nil)
   function Foo() return 7 end
   local exprs1 = {
+    {"$A=9",{9}},
     {"Foo()-4",{3}},
     {"5* -4",{-20}},
     {"7;8;9",{9}},
@@ -218,15 +191,31 @@ function QuickApp:main(er)
     {"fmt('%d-%d',4,5)",{"4-5"}},
     {"x=0; for i=1,5 do x = x+1 end; x",{5}},
     {"x=0; for k,v in ipairs({2,3,4}) do x = x+v end; x",{9 }},
+    {"wait(1); 7",{7}},
+    {"{1,2,3,4,5}:average",{3}},
+    {"{1,2,3,4,5}:sum",{15}},
+    {"{true,true,true}:allTrue",{true}},   
+    {"{true,true,true}:someTrue",{true}},   
+    {"{true,true,false}:someTrue",{true}},   
+    {"{false,true,true}:allTrue",{false}},
+    {"{false,false,false}:allFalse",{true}},   
+    {"{true,false,true}:someFalse",{true}},   
+    {"{true,true,false}:someFalse",{true}},   
+    {"{false,false,true}:allFalse",{false}},   
+    {"{false,false,true}:mostlyFalse",{true}},   
+    {"{false,true,true}:mostlyTrue",{true}},   
+    {"{true,false,true}:bin:sum",{2}}, 
+    {"local a99,b = 8,9; b99=77; a99*b",{72}},     
+    {"a99==nil & b99==77",{true}}, -- verify that local is removed, and er global remains
   }
   
   runExprs(exprs1)
   
   local errorExprs = {
-    "a = = 3",
-    "+ 8",
-    "8 8",
-    "$33"
+    {"a = = 3",nil},
+    {"+ 8",nil},
+    {"8 8",nil},
+    {"$33",nil},
   }
   
   --runExprs(errorExprs) -- should fail
@@ -255,19 +244,19 @@ function QuickApp:main(er)
   end
   
   local rules3 = {
-    -- {"$rt1=='x' => 55",{true,55},{GV('rt1','x')}},
-    -- {"$rt1=='y' => 55",{false,false},{GV('rt1','x')}},
-    -- {"$$qv1=='x' => 56",{true,56},{QV('qv1','x')}},
-    -- {"tv1==2 => 44",{true,44},{"tv1=2"}},
-    -- {"@now+1 => log('ENV:%s',env.test);42",{true,42}},
-    -- {"#foo1 => 77",{true,77},{{type='foo1'}}},
-    -- {"#foo2{a='$x'} => x",{true,88},{{type='foo2',a=88}}},
-    -- {"ms1:value==33 => 99",{true,99},{"ms1:value=33"}},
-    -- {"myObj:hello==33 => 99",{true,99},{"myObj:hello=33"}},
-    -- {"{bs1,bs2}:isOn => 101",{true,101},{"bs2:on"}},
-    -- {"ms2:value => wait(1); {ms2,ms3}:value",{true,{19,0}},{"ms2:value=19"}},
+    {"$rt1=='x' => 55",{true,55},{GV('rt1','x')}},
+    {"$rt1=='y' => 55",{false,false},{GV('rt1','x')}},
+    {"$$qv1=='x' => 56",{true,56},{QV('qv1','x')}},
+    {"tv1==2 => 44",{true,44},{"tv1=2"}},
+    {"@now+1 => log('ENV:%s',env.test);42",{true,42}},
+    {"#foo1 => 77",{true,77},{{type='foo1'}}},
+    {"#foo2{a='$x'} => x",{true,88},{{type='foo2',a=88}}},
+    {"ms1:value==33 => 99",{true,99},{"ms1:value=33"}},
+    {"myObj:hello==33 => 99",{true,99},{"myObj:hello=33"}},
+    {"{bs1,bs2}:isOn => 101",{true,101},{"bs2:on"}},
+    {"ms2:value => wait(1); {ms2,ms3}:value",{true,{19,0}},{"ms2:value=19"}},
     {"@{catch,10:00} => 66",{true,66}},
-    --{"@now+1 => a = asyncfun(2,3);a",{true,5}},
+    {"@now+1 => a = asyncfun(2,3);a",{true,5}},
   }
   
   -- print(er.eval("@{02:00,03:00} & ms1:value & 01:00..02:00 => 99").description)
@@ -277,12 +266,12 @@ function QuickApp:main(er)
   
   --er.defVar('fopp',function() print("fopp") end)
   local rulesError = {
-    -- {"noid:value => 55",{true,55}},
+    {"foo noid:value => 55",{true,55}},
     -- {"noid:foo => 55",{true,55}},
     -- {"#foo => 55:onIfOff; 55",{true,55},{{type='foo'}}},
-    {"#foo2 => fopp(); 55",{true,55},{{type='foo2'}}},   
+    -- {"#foo2 => fopp(); 55",{true,55},{{type='foo2'}}},   
   }
-  --runRules(rulesError)
+  -- runRules(rulesError)
   -- er.eval("log('Hello %s',42)")
   -- local a = er.eval("#foo => wait(10:00); log('OK')")
   -- print(a)

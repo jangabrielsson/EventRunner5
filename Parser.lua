@@ -414,25 +414,36 @@ function QuickApp.__ER.modules.parser(ER)
     else return {type='op', op='neg', args={t1}} end
   end
   
-  local function isRvalue(p) return p.type == 'var' or p.op == 'aref' or p.op == 'prop' end
-  local function LtoRvalue(p,value)
-    if p.type == 'var' then
-      return {type='setvar', name=p.name, value=value, d=DB(p)}
-    elseif p.type == 'aref' then
-      return {type='aset', tab=p.tab, key=p.key, value=value,d=DB(p)}
-    elseif p.op == 'prop' then
-      return {type='putprop', device=p.args[1], prop=p.args[2], value=value, d=DB(p)}
-    end
-  end
-  
+  local _rvalues = {var='var',aref='aref',prop='prop',gv='gv',qv='qv'}
+  local function isRvalue(p) return _rvalues[p.type] or _rvalues[p.op] end
+  local _l2rvalue = {
+    var = function(p,value) return {type='setvar', name=p.name, value=value, d=DB(p)} end,
+    gv = function(p,value) return {type='setgv', name=p.name, value=value, d=DB(p)} end,
+    qv = function(p,value) return {type='setqv', name=p.name, value=value, d=DB(p)} end,
+    aref = function(p,value) return {type='aset', tab=p.tab, key=p.key, value=value,d=DB(p)} end,
+    prop = function(p,value) return {type='putprop', device=p.args[1], prop=p.args[2], value=value, d=DB(p)} end,
+  }
+  local function LtoRvalue(p,value) local l=isRvalue(p) return l and _l2rvalue[l](p,value) end
+
   local cID = 1
   function trans_op.assign(p)
     local  t1 = transform(p.args[1])
     local  t2 = transform(p.args[2])
-    if t1.type == 'aref' then return LtoRvalue(t1,t2)
+    local lv = LtoRvalue(t1,t2)
+    if lv then return lv
     elseif t1.type == 'op' then
-      if t1.op=='prop' then return LtoRvalue(t1,t2)
-      elseif t1.op=='elist' then -- multiple value, make right hand a collect statement
+      local createLocal
+      if t1.op=='prop' then return LtoRvalue(t1,t2) end
+      if t1.op=='f_local' then
+        if t1.args[1].type=='var' then 
+          return {type='setvar', name=t1.args[1].name, value=t2, createLocal=true, d=DB(p)}
+        elseif t1.args[1].op == 'elist' then
+          t1.op = 'elist' -- treat it as an elist
+          t1.args = t1.args[1].args
+          createLocal = true
+        end
+      end
+      if t1.op=='elist' then -- multiple value, make right hand a collect statement
         local tag = "c"..cID; cID = cID +1
         if t2.op=='elist' then
           t2 = {type='collect', args=t2.args, tag=tag}
@@ -442,14 +453,14 @@ function QuickApp.__ER.modules.parser(ER)
         local dest,n = {},#t1.args
         for i,d in ipairs(t1.args) do
           if not isRvalue(d) then errorf(p,'Left hand side of multiple assignment must be a variable or table accessor') end
-          dest[#dest+1] = LtoRvalue(d,{type='mv', id=i, tag=tag, size=n, free=i==n})
+          local lv = LtoRvalue(d,{type='mv', id=i, tag=tag, size=n, free=i==n})
+          lv.createLocal = createLocal
+          dest[#dest+1] = lv
         end
         return {type='massign', dest=dest, arg=t2}
       end
-    elseif t1.type== 'var' then
-      return {type='setvar', name=t1.name, value=t2}
     end
-    return {type='assign', dest=t1, arg=t2}
+    errorf(p,'Left hand side of assignment unsupported')
   end
   
   function trans_op.rule(p) 
@@ -462,7 +473,7 @@ function QuickApp.__ER.modules.parser(ER)
     p.args[1] = transform(p.args[1])
     local arg = p.args[1]
     if arg.type ~= 'table' then
-      local narg = {type='table', args={transform(arg)}, d=arg.d}
+      local narg = transform({type='table', args={arg}, d=arg.d})
       p.args[1] = narg
     end
     return p

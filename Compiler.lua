@@ -110,6 +110,8 @@ function QuickApp.__ER.modules.compiler(ER)
     out.instr(p,'prop',prop) 
   end
   
+  function comp_op.elist(p,out) comp_op.progn({type='op',args=p.args},out) end
+
   function comp.aref(p,out)
     local k = isParseConst(p.key)
     if k then
@@ -222,6 +224,7 @@ function QuickApp.__ER.modules.compiler(ER)
   -- x = t1; y = t2
   
   function comp.setvar(p,out)
+    if p.createLocal then out.instr(p,'local',p.name) end
     local c = isParseConst(p.value)
     if c then 
       out.instr(p,'setvar',p.name,c,false)
@@ -229,6 +232,28 @@ function QuickApp.__ER.modules.compiler(ER)
       compile(p.value,out)
       out.instr(p,'setvar',p.name,false,false)
     end
+  end
+  function comp.setgv(p,out)
+    local c = isParseConst(p.value)
+    if c then 
+      out.instr(p,'setgv',p.name,c,false)
+    else
+      compile(p.value,out)
+      out.instr(p,'setgv',p.name,false,false)
+    end
+  end
+  function comp.setqv(p,out)
+    local c = isParseConst(p.value)
+    if c then 
+      out.instr(p,'setqv',p.name,c,false)
+    else
+      compile(p.value,out)
+      out.instr(p,'setqv',p.name,false,false)
+    end
+  end
+  function comp_op.f_local(p,out)
+    compile(p.arg,out)
+    for i,v in ipairs(p.dest) do compile(v,out) end
   end
   function comp.massign(p,out)
     compile(p.arg,out)
@@ -262,6 +287,9 @@ function QuickApp.__ER.modules.compiler(ER)
   function comp.rule(p,out) out.instr(p,'rule',p.cond,p.action) end
   
   function compile(p,out)
+    if p == nil then
+      error("compile: nil parse node")
+    end
     --print(json.encode(p))
     if comp[p.type] then
       comp[p.type](p,out)

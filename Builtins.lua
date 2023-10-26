@@ -9,9 +9,13 @@ function QuickApp.__ER.modules.builtins(ER)
     
     local builtin = ER.builtins
     local args = ER.builtinArgs
+    local Script = ER.Script
     local defVars = ER.localDefVars
     local fmt = string.format
     
+    local definePropClass = ER.definePropClass
+    local PropObject = ER.PropObject
+
     local function errorf(p,fm,...)
         local dbg = p.fun.dbg[p.fun.code[p.pc]]
         dbg = dbg and dbg.d or {}
@@ -32,6 +36,12 @@ function QuickApp.__ER.modules.builtins(ER)
         wnum = function(_,st) st.push(fibaro.getWeekNumber(os.time())) end,
     }
     
+    local function alarmLoop()
+        local p = api.get("/alarms/v1/partitions/1")
+        --print(p.id,p.armed,p.secondsToArm,json.encodeFast(p)) 
+    end
+    setInterval(alarmLoop,2000)
+
     -------------- builtin props -------------------------
     function ER.setupProps()
         -- getProps helpers
@@ -47,85 +57,126 @@ function QuickApp.__ER.modules.builtins(ER)
         local function ace(id,_,e) e=e.event; return e.type=='device' and e.property=='accessControlEvent' and e.id==id and e.value or {} end
         local function sae(id,_,e) e=e.event; return e.type=='device' and e.property=='sceneActivationEvent' and e.id==id and e.value.sceneId end
         local mapOr,mapAnd,mapF=table.mapOr,table.mapAnd,function(f,l,s) table.mapf(f,l,s); return true end
+        local function partition(id) return api.get("/alarms/v1/partitions/" .. id) or {} end
+        local function arm(id,action)
+            local PIN = Script.get('PIN')[1]
+            if PIN == nil then return false end
+            local url = id == 0 and 'http://192.168.1.57/api/alarms/v1/partitions/actions/arm' or 'http://192.168.1.57/api/alarms/v1/partitions/' .. id .. '/actions/arm'
+            local method = action == 'arm' and 'POST' or 'DELETE'
+            net.HTTPClient():request(url, { 
+                options = { 
+                    method=method,
+                    headers = { 
+                        ['Fibaro-User-PIN'] = PIN,
+                        ['Authorization'] = fibaro.utils.basicAuthorization("admin","admin"),
+                        ['X-Fibaro-Version'] = '2',
+                        ['accept'] = '*/*'
+                     }
+                },
+                success = function(resp) end,
+                error = function(err) fibaro.post({type='alarm',id=id,action=action,property='error',value=err}) end
+            })
+        end
+        local function tryArm(id)
+            local PIN = Script.get('PIN')[1]
+            if PIN == nil then return false end
+            local url = id == 0 and 'http://192.168.1.57/api/alarms/v1/partitions/actions/tryArm' or 'http://192.168.1.57/api/alarms/v1/partitions/' .. id .. '/actions/tryArm'
+            net.HTTPClient():request(url, { 
+                options = { 
+                    method='POST',
+                    headers = { 
+                        ['Fibaro-User-PIN'] = PIN,
+                        ['Authorization'] = fibaro.utils.basicAuthorization("admin","admin"),
+                        ['X-Fibaro-Version'] = '2',
+                        ['accept'] = '*/*'
+                     }
+                },
+                success = function(resp)
+                    resp = json.decode(resp.data)
+                    if resp.result == 'armDelayed' then fibaro.post({type='alarm',id=id,action='tryArm',property='armDelayed',value=resp.breachedDevices}) end
+                end,
+                error = function(err) fibaro.post({type='alarm',id=id,action='tryArm',property='error',value=err}) end
+            })
+        end
         local helpers = { BN=BN, get=get, on=on, off=off, call=call, profile=profile, child=child, last=last, cce=cce, ace=ace, sae=sae, mapOr=mapOr, mapAnd=mapAnd, mapF=mapF }
         
         local getProps={}
-        -- { function to get prop, property name in sourceTrigger, reduce function, if props is a rule trigger }
-        getProps.value={get,'value',nil,true}
-        getProps.state={get,'state',nil,true}
-        getProps.bat={get,'batteryLevel',nil,true}
-        getProps.power={get,'power',nil,true}
-        getProps.isDead={get,'dead',mapOr,true}
-        getProps.isOn={on,'value',mapOr,true}
-        getProps.isOff={off,'value',mapAnd,true}
-        getProps.isAllOn={on,'value',mapAnd,true}
-        getProps.isAnyOff={off,'value',mapOr,true}
-        getProps.last={last,'value',nil,true}
-        getProps.alarm={alarm,nil,'alarm',true}
-        getProps.armed={function(id) return gp(id).armed end,'armed',mapOr,true}
-        getProps.allArmed={function(id) return gp(id).armed end,'armed',mapAnd,true,true}
-        getProps.disarmed={function(id,_,_) return not gp(id).armed end,'armed',mapAnd,true}
-        getProps.anyDisarmed={function(id,_,_) return not gp(id).armed end,'armed',mapOr,true,false}
-        getProps.alarmBreached={function(id) return gp(id).breached end,'breached',mapOr,true}
-        getProps.alarmSafe={function(id) return not gp(id).breached end,'breached',mapAnd,true}
-        getProps.allAlarmBreached={function(id) return gp(id).breached end,'breached',mapAnd,true}
-        getProps.anyAlarmSafe={function(id) return not gp(id).breached end,'breached',mapOr,true,false}
-        getProps.willArm={function(id) return armedPs[id] end,'willArm',mapOr,true}
-        getProps.allWillArm={function(id) return armedPs[id] end,'willArm',mapAnd,true}
-        getProps.child={child,nil,nil,false}
-        getProps.profile={profile,nil,nil,false}
-        getProps.scene={sae,'sceneActivationEvent',nil,true}
-        getProps.access={ace,'accessControlEvent',nil,true}
-        getProps.central={cce,'centralSceneEvent',nil,true}
-        getProps.safe={off,'value',mapAnd,true}
-        getProps.breached={on,'value',mapOr,true}
-        getProps.isOpen={on,'value',mapOr,true}
-        getProps.isClosed={off,'value',mapAnd,true}
-        getProps.lux={get,'value',nil,true}
-        getProps.volume={get,'volume',nil,true}
-        getProps.position={get,'position',nil,true}
-        getProps.temp={get,'value',nil,true}
-        getProps.coolingThermostatSetpoint={get,'coolingThermostatSetpoint',nil,true}
-        getProps.coolingThermostatSetpointCapabilitiesMax={get,'coolingThermostatSetpointCapabilitiesMax',nil,true}
-        getProps.coolingThermostatSetpointCapabilitiesMin={get,'coolingThermostatSetpointCapabilitiesMin',nil,true}
-        getProps.coolingThermostatSetpointFuture={get,'coolingThermostatSetpointFuture',nil,true}
-        getProps.coolingThermostatSetpointStep={get,'coolingThermostatSetpointStep',nil,true}
-        getProps.heatingThermostatSetpoint={get,'heatingThermostatSetpoint',nil,true}
-        getProps.heatingThermostatSetpointCapabilitiesMax={get,'heatingThermostatSetpointCapabilitiesMax',nil,true}
-        getProps.heatingThermostatSetpointCapabilitiesMin={get,'heatingThermostatSetpointCapabilitiesMin',nil,true}
-        getProps.heatingThermostatSetpointFuture={get,'heatingThermostatSetpointFuture',nil,true}
-        getProps.heatingThermostatSetpointStep={get,'heatingThermostatSetpointStep',nil,true}
-        getProps.thermostatFanMode={get,'thermostatFanMode',nil,true}
-        getProps.thermostatFanOff={get,'thermostatFanOff',nil,true}
-        getProps.thermostatMode={get,'thermostatMode',nil,true}
-        getProps.thermostatModeFuture={get,'thermostatModeFuture',nil,true}
-        getProps.on={call,'turnOn',mapF,true}
-        getProps.off={call,'turnOff',mapF,true}
-        getProps.play={call,'play',mapF,nil}
-        getProps.pause={call,'pause',mapF,nil}
-        getProps.open={call,'open',mapF,true}
-        getProps.close={call,'close',mapF,true}
-        getProps.stop={call,'stop',mapF,true}
-        getProps.secure={call,'secure',mapF,false}
-        getProps.unsecure={call,'unsecure',mapF,false}
-        getProps.isSecure={on,'secured',mapAnd,true}
-        getProps.isUnsecure={off,'secured',mapOr,true}
-        getProps.name={function(id) return fibaro.getName(id) end,nil,nil,false}
-        getProps.HTname={function(id) return Util.reverseVar(id) end,nil,nil,false}
-        getProps.roomName={function(id) return fibaro.getRoomNameByDeviceID(id) end,nil,nil,false}
-        getProps.trigger={function() return true end,'value',nil,true}
-        getProps.time={get,'time',nil,true}
-        getProps.manual={function(id) return quickApp:lastManual(id) end,'value',nil,true}
-        getProps.start={function(id) return fibaro.scene("execute",{id}) end,"",mapF,false}
-        getProps.kill={function(id) return fibaro.scene("kill",{id}) end,"",mapF,false}
-        getProps.toggle={call,'toggle',mapF,true}
-        getProps.wake={call,'wakeUpDeadDevice',mapF,true}
-        getProps.removeSchedule={call,'removeSchedule',mapF,true}
-        getProps.retryScheduleSynchronization={call,'retryScheduleSynchronization',mapF,true}
-        getProps.setAllSchedules={call,'setAllSchedules',mapF,true}
-        getProps.levelIncrease={call,'startLevelIncrease',mapF,nil}
-        getProps.levelDecrease={call,'startLevelDecrease',mapF,nil}
-        getProps.levelStop={call,'stopLevelChange',mapF,nil}
+        -- { type, function to get prop, property name in sourceTrigger, reduce function, if props is a rule trigger }
+        getProps.value={'device',get,'value',nil,true}
+        getProps.state={'device',get,'state',nil,true}
+        getProps.bat={'device',get,'batteryLevel',nil,true}
+        getProps.power={'device',get,'power',nil,true}
+        getProps.isDead={'device',get,'dead',mapOr,true}
+        getProps.isOn={'device',on,'value',mapOr,true}
+        getProps.isOff={'device',off,'value',mapAnd,true}
+        getProps.isAllOn={'device',on,'value',mapAnd,true}
+        getProps.isAnyOff={'device',off,'value',mapOr,true}
+        getProps.last={'device',last,'value',nil,true}
+        
+        getProps.tryArm={'alarm',tryArm,nil,'alarm',false}
+        getProps.armed={'alarm',function(id) return partition(id).armed end,'armed',mapOr,true}
+        getProps.allArmed={'alarm',function(id) return partition(id).armed end,'armed',mapAnd,true,true}
+        getProps.disarmed={'alarm',function(id) return partition(id).armed==false end,'armed',mapAnd,true}
+        getProps.anyDisarmed={'alarm',function(id) return partition(id).armed==false end,'armed',mapOr,true,false}
+        getProps.alarmBreached={'alarm',function(id) return partition(id).breached end,'breached',mapOr,true}
+        getProps.alarmSafe={'alarm',function(id) return partition(id).breached==false end,'breached',mapAnd,true}
+        getProps.allAlarmBreached={'alarm',function(id) return partition(id).breached end,'breached',mapAnd,true}
+        getProps.anyAlarmSafe={'alarm',function(id) return partition(id).breached==false end,'breached',mapOr,true,false}
+
+        getProps.child={'device',child,nil,nil,false}
+        getProps.profile={'device',profile,nil,nil,false}
+        getProps.scene={'device',sae,'sceneActivationEvent',nil,true}
+        getProps.access={'device',ace,'accessControlEvent',nil,true}
+        getProps.central={'device',cce,'centralSceneEvent',nil,true}
+        getProps.safe={'device',off,'value',mapAnd,true}
+        getProps.breached={'device',on,'value',mapOr,true}
+        getProps.isOpen={'device',on,'value',mapOr,true}
+        getProps.isClosed={'device',off,'value',mapAnd,true}
+        getProps.lux={'device',get,'value',nil,true}
+        getProps.volume={'device',get,'volume',nil,true}
+        getProps.position={'device',get,'position',nil,true}
+        getProps.temp={'device',get,'value',nil,true}
+        getProps.coolingThermostatSetpoint={'device',get,'coolingThermostatSetpoint',nil,true}
+        getProps.coolingThermostatSetpointCapabilitiesMax={'device',get,'coolingThermostatSetpointCapabilitiesMax',nil,true}
+        getProps.coolingThermostatSetpointCapabilitiesMin={'device',get,'coolingThermostatSetpointCapabilitiesMin',nil,true}
+        getProps.coolingThermostatSetpointFuture={'device',get,'coolingThermostatSetpointFuture',nil,true}
+        getProps.coolingThermostatSetpointStep={'device',get,'coolingThermostatSetpointStep',nil,true}
+        getProps.heatingThermostatSetpoint={'device',get,'heatingThermostatSetpoint',nil,true}
+        getProps.heatingThermostatSetpointCapabilitiesMax={'device',get,'heatingThermostatSetpointCapabilitiesMax',nil,true}
+        getProps.heatingThermostatSetpointCapabilitiesMin={'device',get,'heatingThermostatSetpointCapabilitiesMin',nil,true}
+        getProps.heatingThermostatSetpointFuture={'device',get,'heatingThermostatSetpointFuture',nil,true}
+        getProps.heatingThermostatSetpointStep={'device',get,'heatingThermostatSetpointStep',nil,true}
+        getProps.thermostatFanMode={'device',get,'thermostatFanMode',nil,true}
+        getProps.thermostatFanOff={'device',get,'thermostatFanOff',nil,true}
+        getProps.thermostatMode={'device',get,'thermostatMode',nil,true}
+        getProps.thermostatModeFuture={'device',get,'thermostatModeFuture',nil,true}
+        getProps.on={'device',call,'turnOn',mapF,true}
+        getProps.off={'device',call,'turnOff',mapF,true}
+        getProps.play={'device',call,'play',mapF,nil}
+        getProps.pause={'device',call,'pause',mapF,nil}
+        getProps.open={'device',call,'open',mapF,true}
+        getProps.close={'device',call,'close',mapF,true}
+        getProps.stop={'device',call,'stop',mapF,true}
+        getProps.secure={'device',call,'secure',mapF,false}
+        getProps.unsecure={'device',call,'unsecure',mapF,false}
+        getProps.isSecure={'device',on,'secured',mapAnd,true}
+        getProps.isUnsecure={'device',off,'secured',mapOr,true}
+        getProps.name={'device',function(id) return fibaro.getName(id) end,nil,nil,false}
+        getProps.HTname={'device',function(id) return Util.reverseVar(id) end,nil,nil,false}
+        getProps.roomName={'device',function(id) return fibaro.getRoomNameByDeviceID(id) end,nil,nil,false}
+        getProps.trigger={'device',function() return true end,'value',nil,true}
+        getProps.time={'device',get,'time',nil,true}
+        getProps.manual={'device',function(id) return quickApp:lastManual(id) end,'value',nil,true}
+        getProps.start={'device',function(id) return fibaro.scene("execute",{id}) end,"",mapF,false}
+        getProps.kill={'device',function(id) return fibaro.scene("kill",{id}) end,"",mapF,false}
+        getProps.toggle={'device',call,'toggle',mapF,true}
+        getProps.wake={'device',call,'wakeUpDeadDevice',mapF,true}
+        getProps.removeSchedule={'device',call,'removeSchedule',mapF,true}
+        getProps.retryScheduleSynchronization={'device',call,'retryScheduleSynchronization',mapF,true}
+        getProps.setAllSchedules={'device',call,'setAllSchedules',mapF,true}
+        getProps.levelIncrease={'device',call,'startLevelIncrease',mapF,nil}
+        getProps.levelDecrease={'device',call,'startLevelDecrease',mapF,nil}
+        getProps.levelStop={'device',call,'stopLevelChange',mapF,nil}
         
         -- setProps helpers
         local function set(id,cmd,val) fibaro.call(id,cmd,val); return val end
@@ -135,6 +186,7 @@ function QuickApp.__ER.modules.builtins(ER)
         local function setProps(id,cmd,val) fibaro.call(id,"updateProperty",cmd,val); return val end
         local function dim2(id,_,val) ER.utilities.dimLight(id,table.unpack(val)) end
         local function pushMsg(id,cmd,val) fibaro.alert(fibaro._pushMethod,{id},val,false,''); return val end
+        local function setAlarm(id,cmd,val) arm(id,val and 'arm' or 'disarm') return val end
         helpers.set, helpers.set2, helpers.setProfile, helpers.setState, helpers.setProps, helpers.dim2, helpers.pushMsg = set, set2, setProfile, setState, setProps, dim2, pushMsg
         
         local setProps = {}
@@ -145,8 +197,9 @@ function QuickApp.__ER.modules.builtins(ER)
         setProps.W={set,'setW'}
         setProps.value={set,'setValue'}
         setProps.state={setState,'setState'}
-        setProps.alarm={setAlarm,'setAlarm'}
+
         setProps.armed={setAlarm,'setAlarm'}
+
         setProps.profile={setProfile,'setProfile'}
         setProps.time={set,'setTime'}
         setProps.power={set,'setPower'}
@@ -180,22 +233,35 @@ function QuickApp.__ER.modules.builtins(ER)
                 fibaro.scene("execute",{id}) return true
             end
         end,""}
+
+        local filters = ER.propFilters
+        local function NB(x) if type(x)=='number' then return x~=0 and 1 or 0 else return x end end
+        local function mapAnd(l) for _,v in ipairs(l) do if not NB(v) then return false end end return true end
+        local function mapOr(l) for _,v in ipairs(l) do if NB(v) then return true end end return false end
+        function filters.average(list) local s = 0; for _,v in ipairs(list) do s=s+BN(v) end return s/#list end
+        function filters.sum(list) local s = 0; for _,v in ipairs(list) do s=s+BN(v) end return s end
+        function filters.allFalse(list) return not mapOr(list) end
+        function filters.someFalse(list) return not mapAnd(list)  end
+        function filters.allTrue(list) return mapAnd(list) end
+        function filters.someTrue(list) return mapOr(list)  end
+        function filters.mostlyTrue(list) local s = 0; for _,v in ipairs(list) do s=s+(NB(v) and 1 or 0) end return s>#list/2 end
+        function filters.mostlyFalse(list) local s = 0; for _,v in ipairs(list) do s=s+(NB(v) and 0 or 1) end return s>#list/2 end
+        function filters.bin(list) local s={}; for _,v in ipairs(list) do s[#s+1]=NB(v) and 1 or 0 end return s end
+
+
         return getProps,setProps,helpers
     end
-    
+
     -------------- builtin functions -------------------------
     args.post = {1,2}
     function builtin.post(i,st,p) 
         local e,t,env,r=st.pop(),0,p.args[1] or {},nil
         if i[3]==2 then t=e; e=st.pop() end
-        if t == 0 then r = fibaro.post(e,t,env.rule)
-        else
-            r = p.ctx.setTimeout(p,function() fibaro.post(e,0,env.rule) end,t*1000,"post")
-        end
+        r = Script.post(p,e,t,"post",env.rule)
         st.push(r)
     end
     args.cancel = {1,1}
-    function builtin.cancel(i,st,p) p.ctx.clearTimeout(p,st.pop()) st.push(nil) end
+    function builtin.cancel(i,st,p) Script.clearTimeout(p,st.pop()) st.push(nil) end
     
     local function encodeObj(o) if getmetatable(o) then return tostring(o) else return encodeFast(o) end end
     args.log = {1,99}
@@ -285,6 +351,7 @@ function QuickApp.__ER.modules.builtins(ER)
     end
     args.wait = {1,2}
     function builtin.wait(i,st,p)
+        if not p.co then errorf(p,"wait called outside of coroutine") end
         local args,n = st.popm(i[3]),i[3]
         p.yielded = true;
         args[1] = args[1] * 1000
@@ -295,8 +362,8 @@ function QuickApp.__ER.modules.builtins(ER)
         local n = i[3]            -- i[5] is optional timer to reset state
         if n==1 then local f; i[4],f = st.pop(),i[4]; st.push(not f and i[4]) 
         elseif n==2 then 
-            local f,g,e; e,i[4],f = st.pop(),st.pop(),i[4]; g=not f and i[4]; st.push(g) 
-            if g then fibaro.cancel(i[5]) i[5]=fibaro.post(function() i[4]=nil end,e) end
+            local f,g,e; e,i[4],f = st.pop(),st.pop(),i[4]; g=not f and i[4]; st.push(g) --ToDo verify args
+            if g then Script.cancel(p,i[5]) i[5]=Script.post(p,function() i[4]=nil end,e,"once") end
         else 
             local f; i[4],f=os.date("%x"),i[4] or ""; st.push(f ~= i[4]) -- once daily...
         end
@@ -327,20 +394,20 @@ function QuickApp.__ER.modules.builtins(ER)
                 return
             end
             if flags.timer then st.push(false); if log then print("trueFor waiting") end return end -- still wating
-            flags.timer = p.ctx.setTimeout(p,function()
+            flags.timer = Script.setTimeout(p,function()
                 flags.expired,flags.timer=true,nil; 
-                fibaro.post({type='trueFor',id=id,status='action',time=time,rule=rule,_sh=true})
+                Script.post(p,{type='trueFor',id=id,status='action',time=time,rule=rule,_sh=true})
                 rule.start(event)
-            end,1000*time);
+            end,1000*time,"trueFor");
             if log then env.co.LOG("trueFor started") end
             flags.event = event
-            fibaro.post({type='trueFor',id=id,status='started',time=time,rule=rule,_sh=true})
+            Script.post(p,{type='trueFor',id=id,status='started',time=time,rule=rule,_sh=true})
             st.push(false); return
         else -- value false, cancel timer
             if log then env.co.LOG("trueFor false") end
             if flags.timer then
-                flags.timer=p.ctx.clearTimeout(p,flags.timer)
-                fibaro.post({type='trueFor',id=id,status='cancelled',time=time,rule=rule,_sh=true})
+                flags.timer=Script.clearTimeout(p,flags.timer)
+                Script.post(p,{type='trueFor',id=id,status='cancelled',time=time,rule=rule,_sh=true})
             end
             st.push(false)
         end
@@ -469,4 +536,21 @@ function QuickApp.__ER.modules.builtins(ER)
     defVars.print = function(...) quickApp:printTagAndColor(...) end
     --defVars.QA = quickApp
     
+  definePropClass('Weather')
+  function Weather:__init() PropObject.__init(self) end
+  function Weather.getProp.temperature(id,prop,event) return fibaro.weather.temperature() end
+  function Weather.getProp.temperatureUnit(id,prop,event) return fibaro.weather.temperatureUnit() end
+  function Weather.getProp.humidity(id,prop,event) return fibaro.weather.humidity() end
+  function Weather.getProp.wind(id,prop,event) return fibaro.weather.wind() end
+  function Weather.getProp.condition(id,prop,event) return fibaro.weather.weatherCondition() end
+  function Weather.getProp.code(id,prop,event) return fibaro.weather.conditionCode() end
+
+  function Weather.trigger.temperature(id,prop) return {type='weather', property='Temperature'} end
+  function Weather.trigger.temperatureUnit(id,prop) return {type='weather', property='TemperatureUnit'} end
+  function Weather.trigger.humidity(id,prop) return {type='weather', property='Humidity'} end
+  function Weather.trigger.wind(id,prop) return {type='weather', property='Wind'} end
+  function Weather.trigger.condition(id,prop) return {type='weather', property='WeatherCondition'} end
+  function Weather.trigger.code(id,prop) return {type='weather', property='ConditionCode'} end
+
+  defVars.weather = Weather()
 end

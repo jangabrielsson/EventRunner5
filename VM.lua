@@ -6,7 +6,10 @@ function QuickApp.__ER.modules.vm(ER)
   marshallFrom,marshallTo,toTime,midnight,encodeFast =
   table.unpack(ER.utilities.export)
   
+---@diagnostic disable-next-line: deprecated
+  local maxn = table.maxn
   local coerce,vars = fibaro.EM.coerce,ER.ruleValues
+  local triggerVars = ER.triggerVars
   local fmt = string.format
   
   local function errorf(p,fm,...)
@@ -35,6 +38,26 @@ function QuickApp.__ER.modules.vm(ER)
     return self
   end
   
+  local Script = {}
+  local _DflSc = { 
+    _post = function(ev,t,dscr) return fibaro.post(ev,t) end, 
+    _cancelPost = function(ref) return fibaro.cancel(ref) end, 
+    _setTimeout = function(fun,delay,descr) return setTimeout(fun,delay) end,
+    _clearTimeout = function(ref) return clearTimeout(ref) end,
+  } -- default script context, delas with variables timers etc for rules, coroutines, and plain functions
+  function Script.get(name) return vars[name] or {_G[name]} end
+  function Script.set(name,value) 
+    local v,old = vars[name],nil
+    if v then old=v[1] v[1]=value else vars[name]={value} end
+    return true,old
+  end
+  function Script.post(p,event,time,descr) return (p.rule or p.co or _DflSc)._post(event,time,descr) end
+  function Script.cancel(p,event,time,descr) return (p.rule or p.co or _DflSc)._cancelPost(event) end
+  function Script.setTimeout(p,fun,time,descr) return (p.rule or p.co or _DflSc)._setTimeout(fun,time,descr) end
+  function Script.clearTimeout(p,ref) return (p.rule or p.co or _DflSc)._clearTimeout(ref) end
+  function Script.print(...) print(...) end
+  ER.Script = Script
+
   local instr,ilog,errh = {},{},{}
   local PA = {}
   function instr.push(i,st)     st.push(i[3]) end
@@ -64,12 +87,13 @@ function QuickApp.__ER.modules.vm(ER)
   function instr.t_plus(i,st)  local t = st.pop() PA={t} st.push(os.time()+t) end
   function instr.gv(i,st)      local name = i[3]; PA={name}   st.push((fibaro.getGlobalVariable(name))) end
   function instr.qv(i,st)      local name = i[3]; PA={name}   st.push(quickApp:getVariable(name)) end
-  function instr.var(i,st,p)   local name = i[3]; PA={name}   st.push((p.env.get(name) or p.ctx.get(name) or {})[1]) end
-  
+  function instr.var(i,st,p)   local name = i[3]; PA={name}   st.push((p.env.get(name) or Script.get(name) or {})[1]) end
+  instr['local'] = function(i,st,p) local name = i[3]; PA={name} p.env.push(name,nil) end
+
   function ER.returnMultipleValues(st,v0,...)
     st.push(v0)
     local args = {...}
-    for i=1,table.maxn(args) do st.push0(args[i]) end
+    for i=1,maxn(args) do st.push0(args[i]) end
     return 'multiple_values' 
   end
   
@@ -78,7 +102,7 @@ function QuickApp.__ER.modules.vm(ER)
     local name,f = i[3],nil
     if name then 
       PA={name}
-      f = (p.env.get(name) or p.ctx.get(name) or {})[1]
+      f = (p.env.get(name) or Script.get(name) or {})[1]
       if type(f)~="function" then errorf(p,"'%s' is not a function",name) end
     else 
       f = st.pop()
@@ -90,11 +114,11 @@ function QuickApp.__ER.modules.vm(ER)
       local timeout,tref = res[3] or 5000,nil   -- default timeout
       res[2][1] = function(...)                 -- second value returned is a basket we put the callback function in
         if tref == nil then return end        -- ignore callback if timeout has expired
-        p.ctx.clearTimeout(p,tref)
+        Script.clearTimeout(p,tref)
         local res2 = {ER.runCoroutine(p.co,nil,...)} --tbd add timeout
         if res2[1] then p.co.options.success(table.unpack(res2,2)) end
       end
-      tref = p.ctx.setTimeout(p,function() --  timeout handler
+      tref = Script.setTimeout(p,function() --  timeout handler
         tref = nil
         p.co.options.error("Timeout") 
       end,
@@ -150,11 +174,29 @@ function QuickApp.__ER.modules.vm(ER)
   elseif pop then v=st.pop()
   else v = st.peek() end
   if p.env.set(name,v) then return end -- set in (rule) local environment
-  local flag,old = p.ctx.set(name,v)   -- set in (rule) global environment
-  if flag and v~=old and p.ctx.triggerVar(name) then    -- trigger variable, emit event
+  local flag,old = Script.set(name,v)   -- set in (rule) global environment
+  if flag and v~=old and triggerVars[name] then    -- trigger variable, emit event
     local ev = {type='trigger-variable',name=name,value=v,old=old}
-    p.ctx.post(ev)
+    Script.post(p,ev,0,"trigger variable")
   end
+end
+function instr.setgv(i,st,p) 
+  local name,const,pop,v = i[3],i[4],i[5],nil
+  if const then 
+    v = const[1] 
+    if not pop then st.push(v) end
+  elseif pop then v=st.pop()
+  else v = st.peek() end
+  fibaro.setGlobalVariable(name,tostring(v))
+end
+function instr.setqv(i,st,p) 
+  local name,const,pop,v = i[3],i[4],i[5],nil
+  if const then 
+    v = const[1] 
+    if not pop then st.push(v) end
+  elseif pop then v=st.pop()
+  else v = st.peek() end
+  quickApp:setVariable(name,v)
 end
 function instr.aref(i,st,p) 
   local key; if i[4] then key = i[4][1] else key = st.pop() end
@@ -178,7 +220,7 @@ end
 function instr.prop(i,st,p)
   local ids,prop,env = st.pop(),i[3],p.args[1] or {}
   local isTable,n,mapf,v = type(ids) == 'table',1,nil,nil
-  if isTable then n = table.maxn(ids) end
+  if isTable then n = maxn(ids) end
   if ids==nil or n == 0 then errorf(p.args[1],"No devices found for :%s",prop) end
   local function itemFun(e) 
     local dev = ER.getDeviceObject(e)
@@ -186,10 +228,16 @@ function instr.prop(i,st,p)
     if not dev:isProp(prop) then errorf(p,":%s is not a valid device property for %s",prop,dev) end
     return dev.getProp[prop](dev,prop,env.event)
   end
+  if ER.propFilters[prop] then
+    local filter = ER.propFilters[prop]
+    ids = isTable and ids or {ids}
+    st.push(filter(ids))
+    return
+  end
   if isTable then
     local dev0 = ER.getDeviceObject(ids[1]) -- first item decides map function
     local mapf = dev0 and dev0.map[prop] or function(f,l) local r={} for i=1,n do r[#r+1]= f(l[i]) end return r end
-    v = mapf(itemFun,ids) 
+    v = mapf(itemFun,ids)
   else v = itemFun(ids) end
   st.push(v)
 end
@@ -197,7 +245,7 @@ end
 function instr.putprop(i,st,p)
   local value,ids,prop = st.pop(),st.pop(),i[3]
   local isTable,n,v = type(ids) == 'table',1,nil
-  if isTable then n = table.maxn(ids) end
+  if isTable then n = maxn(ids) end
   if ids==nil or n == 0 then errorf(p.args[1],"No devices found for :%s",prop) end
   local function itemFun(e) 
     local dev = ER.getDeviceObject(e)
@@ -224,9 +272,15 @@ function instr.betw(i,st,p)
   end
 end
 function instr.betwo(i,st) end
-function instr.daily(i,st) 
+function instr.daily(i,st,p) 
+  local env = p.args[1]
+  st.push(env.event.type == 'daily' and env.event.id == env.rule.id)
 end
-function instr.interv(i,st) end
+function instr.interv(i,st,p)
+  local t = math.abs(st.pop())
+  Script.post(p,{type='%interval%',id=p.rule.id},t,'@@')
+  st.push(true)
+end
 function instr.match(i,st) end
 function instr.assign(i,st) end
 function instr.addto(i,st) local v = st.pop(); PA={v}; st.push(v+i[3]) end
@@ -235,10 +289,10 @@ function instr.multo(i,st) local v = st.pop(); PA={v}; st.push(v*i[3]) end
 function instr.divto(i,st) local v = st.pop(); PA={v}; st.push(i[4] and v/i[3] or i[3]/v) end 
 function instr.modto(i,st) local v = st.pop(); PA={v}; st.push(i[4] and v%i[3] or i[3]%v) end
 
-function instr.redaily(i,st)      st.push(Rule.restartDaily(st.pop())) end
-function instr.eval(i,st)         st.push(Rule.eval(st.pop(),{print=false})) end
+--function instr.redaily(i,st)      st.push(Rule.restartDaily(st.pop())) end
+function instr.eval(i,st)           st.push(ER.eval(st.pop(),{silent=true})) end
 
-function instr.rule(i,st,p) st.push(ER:createRule(i[3],i[4],p.ctx,p)) end
+function instr.rule(i,st,p) st.push(ER:createRule(i[3],i[4],p)) end
 function instr.rule_action(i,st,p)
   local cond = st.popm(1)
   if cond[1] then
@@ -256,7 +310,8 @@ end
 for i,_ in pairs(instr) do ilog[i] = "%s/%s" end
 for i,n in pairs({
   push=1,var=1,gv=1,qv=1,jmp=1,jmpf=1,jmpt=1,jmpfp=1,jmpfip=1,jmpp=1,eventm=1,prop=1,mvstart=1,mvend=1,
-  setvar=3,aset=3,call=2,callexpr=1,collect=2,mv=4,aref=1,addto=2,subto=2,multo=2,divto=2,modto=2,
+  setvar=3,aset=3,call=2,callexpr=1,collect=2,mv=4,aref=1,addto=2,subto=2,multo=2,divto=2,modto=2,['local']=1,
+  setgv=3,setqv=3,
 }) do ilog[i] = "%s/%s "..string.rep("%s",n," ") end
 
 -- setup error handlers for instructions
@@ -279,20 +334,6 @@ for _,i in ipairs({'call','callexpr','callobj',}) do
     end
   end
   ------------- VM -------------
-  local globalContext = {}
-  function globalContext.get(name) return vars[name] or {_G[name]} end
-  function globalContext.set(name,value) 
-    local v,old = vars[name],nil
-    if v then old=v[1] v[1]=value else vars[name]={value} end
-    return true,old
-  end
-  -- function globalContext.get(name) local v = _G[name]; return v ~= nil and {v} or v end
-  -- function globalContext.set(name,value) local old = _G[name] _G[name] = value; return true,old end
-  function globalContext.post(event) fibaro.post(event) end
-  function globalContext.triggerVar(name) return false end
-  function globalContext.setTimeout(p,fun,delay) return setTimeout(fun,delay) end
-  function globalContext.clearTimeout(p,ref) return clearTimeout(ref) end
-  function globalContext.print(...) print(...) end
   local function encodeArgs(t) 
     local r={} for _,v in ipairs(t) do r[#r+1]=type(v)=='table' and encodeFast(v) or v end return table.unpack(r) 
   end
@@ -311,8 +352,7 @@ for _,i in ipairs({'call','callexpr','callobj',}) do
     if rtd._inited then ER.returnMultipleValues(rtd.stack,table.unpack(rtd.args or {})) end
     for _,v in ipairs({...}) do rtd.stack.push0(v) end
     local code,codeLen = fun.code,#fun.code
-    rtd.ctx = fun.ctx
-    local p,st,ctx = rtd,rtd.stack,rtd.ctx
+    local p,st = rtd,rtd.stack
     local stat,res
     local trace = rtd.trace or fun.trace
     while p.pc <= codeLen and stat==nil do
@@ -320,7 +360,7 @@ for _,i in ipairs({'call','callexpr','callobj',}) do
       if trace then
         local prevStack,pc2,ss = st.peek(),p.pc,st.size()
         stat,res = instr[i[1]](i,st,p)
-        ctx.print(traceInstr(pc2,i,ss,prevStack,st.peek()))
+        Script.print(traceInstr(pc2,i,ss,prevStack,st.peek()))
       else
         stat,res = instr[i[1]](i,st,p)
       end
@@ -356,9 +396,7 @@ for _,i in ipairs({'call','callexpr','callobj',}) do
   
   function ER:createFun(codestr,options)
     options = options or {}
-    local ctx = options.ctx or globalContext -- context tells us how to print, set timers, and set/get variables
     local fun = {
-      ctx = ctx,
       code = codestr.code,
       dbg = codestr.dbg,
       src = codestr.src,
