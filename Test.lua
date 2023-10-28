@@ -206,7 +206,10 @@ function QuickApp:main(er)
     {"{false,true,true}:mostlyTrue",{true}},   
     {"{true,false,true}:bin:sum",{2}}, 
     {"local a99,b = 8,9; b99=77; a99*b",{72}},     
-    {"a99==nil & b99==77",{true}}, -- verify that local is removed, and er global remains
+    {"a99==nil & b99==77",{true}},              -- verify that local is removed, and er. global remains
+    {"[_%2==0 in {2,7,4,8,1}]",{{2,4,8}}},
+    {"[_%2==0,2*_ in {2,7,4,8,1}]",{{4,8,16}}}, 
+    {"[_%2==0,2*_ in {2,7,4,8,1}]:sum",{28}}, 
   }
   
   runExprs(exprs1)

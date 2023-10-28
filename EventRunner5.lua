@@ -1,7 +1,7 @@
 --%%include=Include.lua
 --%%name=EventRunner5
 --%%remote=alarms/v1/partitions:1
-
+--%%id=1249
 --%%u1={label='title',text='EventRunner5'}
 --%%u2={{button='listRules',text='List rules', onReleased='listRules'},{button='listRulesExt',text='List rules ext.', onReleased='listRulesExt'}}
 --%%u3={{button='listTimers',text='List timers', onReleased='listTimers'},{button='listVars',text='List variables', onReleased='listVariables'}}
@@ -21,7 +21,9 @@ function QuickApp:main(er)
     er.settings.systemLogTag   = "ER"..self.id -- log tag for ER system messages, defaults to __TAG
     er.settings.ignoreInvisibleChars = false   -- Check code for invisible characters (xC2xA0) before evaluating
 
-    bs = fibaro.fibemu.create.binarySwitch().id
+    if fibaro.fibemu then
+        --bs = fibaro.fibemu.create.binarySwitch().id
+    end
 
     local HT = { 
         keyfob = 46, 
@@ -63,13 +65,18 @@ function QuickApp:main(er)
     -- rule("#alarm{id=1,property='armDelayed'} => 1:armed=false; log('ALARM:%s',env.event)")
     -- print(a.description)
 
+    -- rule("[_:isOn in lamps]:on")
+    --rule("[_==='RPC'in globals]:GV")
+    -- rule("noid:value")
+    rule("quickvars")
+    rule("for k,_ in ipairs({2,3,4}) do log('%s',_) end")
     rule("local a,b = 9,8; a*b")
     a = rule("@@00:00:05 => log('5 seconds')")
     rule("@{sunrise,catch} => log('God morning!')")
     rule("@sunset => log('God evening!')")
     rule("@23:00 => log('God night!')")
     rule("@sunset => log('sunset!')")
-    rule("trueFor(02:00,bs:safe) => log('bs safe')").start()
+    --rule("trueFor(02:00,bs:safe) => log('bs safe')").start()
     rule("@now+1 => post(#foo)")
     rule("#foo => log('#foo received')")
 
@@ -93,5 +100,7 @@ end
 
 function QuickApp:onInit()
     self:debug("EventRunner")
+    self:setVariable('x',45)
+    self:setVariable('y',46)
     self:EventRunnerEngine()
 end

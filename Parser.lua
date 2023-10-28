@@ -1,7 +1,7 @@
 ---@diagnostic disable: need-check-nil
-QuickApp.__ER  = QuickApp.__ER or { modules={} }
+fibaro.__ER  = fibaro.__ER or { modules={} }
 
-function QuickApp.__ER.modules.parser(ER)
+function fibaro.__ER.modules.parser(ER)
   
   local fmt = string.format
   
@@ -67,7 +67,9 @@ function QuickApp.__ER.modules.parser(ER)
   
   local pExpr
   local transform
-  
+  local GS = 789790
+  local function gensym() GS = GS + 1; return "GSV"..GS end
+
   local function DB(t) return t.d and {from=t.d.from,to=t.d.to} or {from=t.from,to=t.to} end
   local function errorf(tk,fm,...)
     if tk.d then tk = tk.d end
@@ -158,11 +160,41 @@ function QuickApp.__ER.modules.parser(ER)
     st.push(pExpr(tkns,{['rpar']=true,eof=true}))
     if tkns.next().type~='rpar' then errorf(nt,"Missing ')'") end
   end
+  local makeForList
+  local function makeProgn(...)
+    local args = {...}
+    local t = args[#args]
+    for i=#args-1,1,-1 do
+      local e = args[i]
+      t = {type = 'op', op='progn', args={e,t}, d=DB(e)}
+    end
+    return t
+  end
+  local function filter(expr,list,nt)   -- lo cal r={}; fo r G,_ in ipairs(list) d o filter(<expr>,r) en d; r
+    local res,k = gensym(),gensym()
+    local out = {type='var', name='_', d=DB(nt)}
+    if expr.op == 'elist' then
+      out = expr.args[2]
+      expr = expr.args[1]
+    end
+    list = transform(list)
+    local liste = {type='call', name='ipairs',args={list},d=DB(nt)}
+    local r = makeProgn(
+        {type='setvar', name=res, createLocal=true, value={type='const', value={},d=DB(nt)}},
+        makeForList(k,'_',liste,{type='call', name='filter', args={expr,{type='var',name=res},out},d=DB(nt)},nt),
+        {type='var', name=res,d=DB(nt)}
+      )
+    return r
+  end
   function ptable.lbra(nt,ops,st,tkns,stop)
     local sub = pExpr(tkns,{['rbra']=true,eof=true})
     if tkns.next().type~='rbra' then errorf(nt,"Missing ']'") end
-    st.push(sub)
-    ops.push({type='op', opval='aref',abra=true, d=DB(nt)})
+    if sub.op == 'f_in' then
+      st.push(filter(sub.args[1],sub.args[2],nt))
+    else
+      st.push(sub)
+      ops.push({type='op', opval='aref',abra=true, d=DB(nt)})
+    end
   end
   function ptable.lcur(nt,ops,st,tkns,stop)
     local args = pStruct(ops,st,tkns,'rcur')
@@ -256,12 +288,26 @@ function QuickApp.__ER.modules.parser(ER)
     st.push({type='f_repeat', cond=cond, body=body, d=DB(nt)}) 
   end
   
-  local GS = 789790
-  local function gensym() GS = GS + 1; return "GSV"..GS end
   local function for_fun(name,const,exprs)
     return {type='forfun', name=name, const=const or {}, exprs=exprs or {}}
   end
   
+  function makeForList(kvar,vvar,expr,body,nt)
+    if expr.type ~= 'call' then errorf(nt,"Bad for loop list - expected pairs/ipairs") end
+    local fvar,lvar,svar = gensym(),gensym(),gensym()
+    local setup = for_fun('flsetup',{kvar,vvar,fvar,lvar,svar},{expr})
+    local flinc = for_fun('flinc',{kvar,vvar,fvar,lvar},{})
+    local pwhile = {
+      type = 'f_while',
+      cond = {type='var', name=kvar},
+      body = {type='op', op='progn', args={body,flinc}}
+    }
+    return {type='op', op='progn', args = {
+      setup,
+      {type='op', op='progn', args = {flinc,pwhile}, d=DB(nt)},
+      d=DB(nt)
+    }}
+  end
   function ptable.t_for(nt,ops,st,tkns,stop)
     local args = pExpr(tkns,{['t_do']=true,eof=true})
     assertf(nt,tkns.next().type=='t_do',"missing 'do' in 'for do .. end'")
@@ -292,23 +338,8 @@ function QuickApp.__ER.modules.parser(ER)
       elseif vars.type 'var' then
         vars[1] = vars.name
       else end
-      local expr = transform(args.args[2])
-      if expr.type ~= 'call' then errorf(nt,"Bad for loop list - expected pairs/ipairs") end
-      local kvar,vvar = vars[1],vars[2]
-      local fvar,lvar,svar = gensym(),gensym(),gensym()
-      local setup = for_fun('flsetup',{kvar,vvar,fvar,lvar,svar},{expr})
-      local flinc = for_fun('flinc',{kvar,vvar,fvar,lvar},{})
-      local pwhile = {
-        type = 'f_while',
-        cond = {type='var', name=kvar},
-        body = {type='op', op='progn', args={body,flinc}}
-      }
-      st.push({type='op', op='progn', args = {
-        setup,
-        {type='op', op='progn', args = {flinc,pwhile}, d=DB(nt)},
-        d=DB(nt)
-      }})
-      return
+        local expr = transform(args.args[2])
+        st.push(makeForList(vars[1],vars[2],expr,body,nt))
     else
       errorf(nt,"bad 'for' expression")
     end
@@ -501,6 +532,11 @@ function QuickApp.__ER.modules.parser(ER)
   function trans.call(p) transformList(p.args); return p end
   function trans.callexpr(p) transformList(p.args); p.expr = transform(p.expr); return p end
   
+  -- function trans.filter(p)
+  --   p.expr = transform(p.expr)
+  --   p.list = transform(p.list)
+  --   return p
+  -- end
   function trans.f_while(p) 
     p.cond = transform(p.cond)
     p.body = transform(p.body)

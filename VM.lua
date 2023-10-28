@@ -1,6 +1,6 @@
-QuickApp.__ER  = QuickApp.__ER or { modules={} }
+fibaro.__ER  = fibaro.__ER or { modules={} }
 
-function QuickApp.__ER.modules.vm(ER)
+function fibaro.__ER.modules.vm(ER)
   
   local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   marshallFrom,marshallTo,toTime,midnight,encodeFast =
@@ -8,7 +8,7 @@ function QuickApp.__ER.modules.vm(ER)
   
 ---@diagnostic disable-next-line: deprecated
   local maxn = table.maxn
-  local coerce,vars = fibaro.EM.coerce,ER.ruleValues
+  local coerce,vars = fibaro.EM.coerce,ER._vars
   local triggerVars = ER.triggerVars
   local fmt = string.format
   
@@ -108,11 +108,12 @@ function QuickApp.__ER.modules.vm(ER)
       f = st.pop()
       if type(f)~="function" then errorf(p,"'%s' is not a function",tostring(f)) end
     end
-    local res = {f(table.unpack(args))}
-    if res[1] == '%magic_suspend%' then  -- Ok, this is the way to signal that the fun is async...
+    local res = {pcall(f,table.unpack(args))}
+    if not res[1] then errorf(p,res[2]) end
+    if res[2] == '%magic_suspend%' then  -- Ok, this is the way to signal that the fun is async...
       p.yielded = true;
-      local timeout,tref = res[3] or 5000,nil   -- default timeout
-      res[2][1] = function(...)                 -- second value returned is a basket we put the callback function in
+      local timeout,tref = res[4] or 5000,nil   -- default timeout
+      res[3][1] = function(...)                 -- second value returned is a basket we put the callback function in
         if tref == nil then return end        -- ignore callback if timeout has expired
         Script.clearTimeout(p,tref)
         local res2 = {ER.runCoroutine(p.co,nil,...)} --tbd add timeout
@@ -125,8 +126,8 @@ function QuickApp.__ER.modules.vm(ER)
       timeout) 
       st.push('%callback%'); return true
     end
-    st.push(res[1])
-    if #res > 1 then for i=2,#res do st.push0(res[i]) end end
+    st.push(res[2])
+    if #res > 2 then for i=3,#res do st.push0(res[i]) end end
   end
   
   function instr.return0(i,st,p) st.push(nil) return true end
@@ -221,12 +222,12 @@ function instr.prop(i,st,p)
   local ids,prop,env = st.pop(),i[3],p.args[1] or {}
   local isTable,n,mapf,v = type(ids) == 'table',1,nil,nil
   if isTable then n = maxn(ids) end
-  if ids==nil or n == 0 then errorf(p.args[1],"No devices found for :%s",prop) end
+  if ids==nil or n == 0 then errorf(p.args[1] or p,"No devices found for :%s",prop) end
   local function itemFun(e) 
     local dev = ER.getDeviceObject(e)
     if not dev then errorf(p,"%s is not a valid device",tostring(dev)) end
     if not dev:isProp(prop) then errorf(p,":%s is not a valid device property for %s",prop,dev) end
-    return dev.getProp[prop](dev,prop,env.event)
+    return dev.getProp[prop](dev,prop,env.event or {})
   end
   if ER.propFilters[prop] then
     local filter = ER.propFilters[prop]
@@ -246,7 +247,7 @@ function instr.putprop(i,st,p)
   local value,ids,prop = st.pop(),st.pop(),i[3]
   local isTable,n,v = type(ids) == 'table',1,nil
   if isTable then n = maxn(ids) end
-  if ids==nil or n == 0 then errorf(p.args[1],"No devices found for :%s",prop) end
+  if ids==nil or n == 0 then errorf(p.args[1] or p,"No devices found for :%s",prop) end
   local function itemFun(e) 
     local dev = ER.getDeviceObject(e)
     if not dev then errorf(p,"%s is not a valid device",tostring(dev)) end

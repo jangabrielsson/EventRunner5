@@ -1,6 +1,6 @@
-QuickApp.__ER  = QuickApp.__ER or { modules={} }
+fibaro.__ER  = fibaro.__ER or { modules={} }
 
-function QuickApp.__ER.modules.utilities(ER)
+function fibaro.__ER.modules.utilities(ER)
   
   ER.utilities = {}
   local Utils = ER.utilities
@@ -95,7 +95,7 @@ function QuickApp.__ER.modules.utilities(ER)
   else
     function Utils.htmlTable(list,opts)
       opts = opts or {}
-      local pr = Utils.PrintBuffer
+      local pr = Utils.PrintBuffer()
       pr:printf("<table %s>",opts.table or "")
       for _,l in ipairs(list) do
         pr:printf("<tr %s>",opts.tr or "")
@@ -106,7 +106,7 @@ function QuickApp.__ER.modules.utilities(ER)
         pr:add("</tr>")
       end
       pr:add("</table>")
-      return pr:tostring()
+      return pr:tostring("")
     end
   end
 

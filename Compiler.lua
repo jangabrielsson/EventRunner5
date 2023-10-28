@@ -1,6 +1,6 @@
-QuickApp.__ER  = QuickApp.__ER or { modules={} }
+fibaro.__ER  = fibaro.__ER or { modules={} }
 
-function QuickApp.__ER.modules.compiler(ER)
+function fibaro.__ER.modules.compiler(ER)
   
   local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
@@ -266,7 +266,7 @@ function QuickApp.__ER.modules.compiler(ER)
     for _,arg in ipairs(args) do compile(arg,out) end
     out.instr(p,'mvend',p.tag)
   end
-  
+
   function comp.table(p,out)
     local args,keys = p.value,{}
     for i,v in pairs(args) do

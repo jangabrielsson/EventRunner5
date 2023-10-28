@@ -1,6 +1,6 @@
-QuickApp.__ER  = QuickApp.__ER or { modules={} }
+fibaro.__ER  = fibaro.__ER or { modules={} }
 
-function QuickApp.__ER.modules.tokenizer(ER)
+function fibaro.__ER.modules.tokenizer(ER)
   local toTime = fibaro.toTime
   
   

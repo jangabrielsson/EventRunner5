@@ -1,6 +1,6 @@
-QuickApp.__ER  = QuickApp.__ER or { modules={} }
+fibaro.__ER  = fibaro.__ER or { modules={} }
 
-function QuickApp.__ER.modules.builtins(ER)
+function fibaro.__ER.modules.builtins(ER)
     
     local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
@@ -10,7 +10,7 @@ function QuickApp.__ER.modules.builtins(ER)
     local builtin = ER.builtins
     local args = ER.builtinArgs
     local Script = ER.Script
-    local defVars = ER.localDefVars
+    local defVars = ER.vars
     local fmt = string.format
     
     local definePropClass = ER.definePropClass
@@ -34,6 +34,10 @@ function QuickApp.__ER.modules.builtins(ER)
         dusk = function(_,st) st.push(toTime(sunData().duskHour)) end,
         now = function(_,st) st.push(os.time()-midnight()) end,
         wnum = function(_,st) st.push(fibaro.getWeekNumber(os.time())) end,
+        devices = function(_,st) st.push(fibaro.getDevicesID()) end,
+        quickapps = function(_,st) st.push(fibaro.getDevicesID({interfaces={'quickApp'}})) end,
+        quickvars = function(_,st) st.push(table.map(function(g) return g.name end,__fibaro_get_device_property(quickApp.id, "quickAppVariables").value or {})) end,
+        globals = function(_,st) st.push(table.map(function(g) return g.name end,api.get('/globalVariables'))) end,
     }
     
     local function alarmLoop()
@@ -247,7 +251,8 @@ function QuickApp.__ER.modules.builtins(ER)
         function filters.mostlyTrue(list) local s = 0; for _,v in ipairs(list) do s=s+(NB(v) and 1 or 0) end return s>#list/2 end
         function filters.mostlyFalse(list) local s = 0; for _,v in ipairs(list) do s=s+(NB(v) and 0 or 1) end return s>#list/2 end
         function filters.bin(list) local s={}; for _,v in ipairs(list) do s[#s+1]=NB(v) and 1 or 0 end return s end
-
+        function filters.GV(list) local s={}; for _,v in ipairs(list) do s[#s+1]=GlobalV(v) end return s end
+        function filters.QV(list) local s={}; for _,v in ipairs(list) do s[#s+1]=QuickAppV(v) end return s end
 
         return getProps,setProps,helpers
     end
@@ -348,6 +353,13 @@ function QuickApp.__ER.modules.builtins(ER)
         p.yielded = true; 
         st.push(args); 
         return 'multiple_values' 
+    end
+    args.filter = {3,3}
+    function builtin.filter(i,st,p) 
+        local out,list,cond = st.pop(),st.pop(),st.pop()
+        local v = p.env.get('_')[1]
+        if cond then list[#list+1] = out end
+        st.push(out)
     end
     args.wait = {1,2}
     function builtin.wait(i,st,p)
@@ -553,4 +565,25 @@ function QuickApp.__ER.modules.builtins(ER)
   function Weather.trigger.code(id,prop) return {type='weather', property='ConditionCode'} end
 
   defVars.weather = Weather()
+
+  definePropClass('GlobalV')
+  function GlobalV:__init(name) PropObject.__init(self) self.name = name end
+  function GlobalV:__tostring() return fmt("GV(%s)",self.name) end
+  function GlobalV.getProp.name(id,prop,event) return id.name end
+  function GlobalV.getProp.value(id,prop,event) return fibaro.getGlobalVariable(id.name) end
+  function GlobalV.getProp.delete(id,prop,event) return fibaro.getGlobalVariable(id.name) end
+  function GlobalV.setProp.value(id,prop,val) fibaro.setGlobalVariable(id.name,val) return val end
+
+  function GlobalV.trigger.value(id,prop) return {type='globalVariable', name=id.name} end
+
+  definePropClass('QuickAppV')
+  function QuickAppV:__init(name) PropObject.__init(self) self.name = name end
+  function QuickAppV:__tostring() return fmt("QV(%s)",self.name) end
+  function QuickAppV.getProp.name(id,prop,event) return id.name end
+  function QuickAppV.getProp.value(id,prop,event) return quickApp:getVariable(id.name) end
+  function QuickAppV.getProp.delete(id,prop,event) return quickApp:setVariable(id.name,nil) end
+  function QuickAppV.setProp.value(id,prop,val) quickApp:setVariable(id.name,val) return val end
+
+  function QuickAppV.trigger.value(id,prop) return {type='quickVar', name=id.name} end
+
 end

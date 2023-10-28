@@ -1,6 +1,6 @@
-QuickApp.__ER  = QuickApp.__ER or { modules={} }
+fibaro.__ER  = fibaro.__ER or { modules={} }
 
-function QuickApp.__ER.modules.rule(ER)
+function fibaro.__ER.modules.rule(ER)
   
   local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
@@ -12,7 +12,7 @@ function QuickApp.__ER.modules.rule(ER)
   local htmlTable = ER.utilities.htmlTable
   
   local fmt=string.format
-  local vars,triggerVars = ER.ruleValues,ER.triggerVars
+  local vars,triggerVars = ER._vars,ER.triggerVars
   local function now() local t = os.date("*t") return t.hour*3600+t.min*60+t.sec end
   
   local function printf(...) print(fmt(...)) end
@@ -174,9 +174,10 @@ function QuickApp.__ER.modules.rule(ER)
     return table.concat(res,"\n")
   end
   
+  local tableOpts = {table="width='100%' border=1 bgcolor='".."purple".."'",td="align='left'"}
   function ER.listRules(extended)
     local pr,n = PrintBuffer(),0
-    pr:printf("\nRules:")
+    pr:printf("Rules:")
     for i,r in pairs(rules) do
       n = n+1
       if extended then
@@ -186,13 +187,13 @@ function QuickApp.__ER.modules.rule(ER)
       end
     end 
     pr:printf("Number of rules: %d",n)
-    print(htmlTable{pr:tostring()})
+    print(htmlTable({pr:tostring()},tableOpts))
   end
 
   function ER.listTimers()
     local pr,n = PrintBuffer(),0
     local timers = {}
-    pr:printf("\nTimers:")
+    pr:printf("Timers:")
     for id,r in pairs(rules) do
       for _,t in pairs(r._timers) do
         local time = t[2]
@@ -208,13 +209,13 @@ function QuickApp.__ER.modules.rule(ER)
     for time,rs in pairs(timers) do
       pr:print(hms(time),"->",table.unpack(rs))
     end
-    print(htmlTable{pr:tostring()})
+    print(htmlTable({pr:tostring()},tableOpts))
   end
   
   function ER.listVariables(name)
     name = name or ".*"
     local pr,n = PrintBuffer(),0
-    pr:printf("\nVariables:")
+    pr:printf("Variables:")
     for vn,v in pairs(vars) do
       if vn:match(name) then
         pr:printf("%s = %s",vn,encodeFast(v) // 60)
@@ -222,7 +223,7 @@ function QuickApp.__ER.modules.rule(ER)
       end
     end 
     pr:printf("Number of variables: %d",n)
-    print(htmlTable{pr:tostring()})
+    print(htmlTable({pr:tostring()},tableOpts))
   end
   
   function ER:nextRuleID() return ruleID+1 end

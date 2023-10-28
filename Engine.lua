@@ -1,13 +1,14 @@
 ---@diagnostic disable: undefined-global
-QuickApp.__ER  = QuickApp.__ER or { modules={} }
+fibaro.__ER  = fibaro.__ER or { modules={} }
+local version = 0.01
+QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
   local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
   PrintBuffer,sunData,LOG
 local fmt = string.format
 
-function QuickApp.__ER.modules.engine(ER)
-  
+function fibaro.__ER.modules.engine(ER)
   local Script = ER.Script
   local fmt= string.format
   
@@ -36,9 +37,9 @@ function QuickApp.__ER.modules.engine(ER)
   end
   
   ------- Rule variables -----------------------------------
-  local vars,triggerVars = ER.ruleValues,ER.triggerVars
+  local vars,triggerVars = ER.vars,ER.triggerVars
   local reverseVarTable = {}
-  function ER.defVar(name,init) vars[name] = {init} end
+  function ER.defVar(name,init) vars[name] = init end
   function ER.defTriggerVar(name,init) ER.defVar(name,init) triggerVars[name] = true end
   function ER.defvars(tab) for var,val in pairs(tab) do ER.defVar(var,val) end end
   function ER.reverseMapDef(table) ER._reverseMap({},table) end
@@ -100,6 +101,7 @@ function QuickApp.__ER.modules.engine(ER)
       if defRule and type(err)=='table' then 
         err.rule = err.rule or { rname = fmt("Defining [Rule:%s]",ER.nextRuleID())}
       end
+      error(err)
       return false,fibaro.error(__TAG,err) 
     end
     local p = ER:parse(tkns,options)
@@ -147,7 +149,7 @@ local function setup(ER)
     local t = self.trigger[prop]
     return t and type(t) == ftype and t(self,id,prop) or type(t) == 'table' or nil
   end
-  function PropObject:__tostring(obj) return obj.__str end
+  function PropObject:__tostring() return self.__str end
   
   ER.PropObject = PropObject
   function ER.definePropClass(name)
@@ -161,11 +163,17 @@ end
 -- Setup engine and call main function 
 function QuickApp:EventRunnerEngine()
   quickApp = self
-  
-  local ER,er = QuickApp.__ER,{}
+  self:setVersion("EventRunner5",self.E_SERIAL,self.E_VERSION)
+
+  local ER,er = fibaro.__ER,{}
   ER.er = er
-  ER.localDefVars = {}
-  ER.ruleValues = {}   -- Rule variables are stored here. These variables are shared between rules but not visible outside the rules.
+  local vars = {}
+  ER._vars = vars
+  ER.vars = setmetatable({},
+  {
+    __index = function(t,k) return vars[k] end,
+    __newindex = function(t,k,v) vars[k] = {v} end
+  })
   ER.triggerVars = {}  -- Trigger variables are marked here. 
   ER.builtins = {}
   ER.builtinArgs = {}
@@ -237,9 +245,6 @@ function QuickApp:EventRunnerEngine()
   function er.isRule(p) return type(p)=='table' and p.type=='%RULE%' end
   er.definePropClass = ER.definePropClass
   
-  for k,v in pairs(ER.localDefVars) do ER.defVar(k,v) end
-  ER.localDefVars = nil
-  
   er.defTriggerVar = ER.defTriggerVar
   er.deftriggervar = ER.defTriggerVar
   er.rule = er.eval
@@ -269,7 +274,12 @@ function QuickApp:EventRunnerEngine()
       self:post({type='UI',cmd=event.elementName,value=event.values[1]})
     elseif uiHandler then uiHandler(self,event) end
   end
-  if self.main then self:main(er)
+  if self.main then 
+    local stat,err = pcall(function() self:main(er) end)
+    if not stat then 
+      print(err) 
+      print("Exit rule setup") 
+  end
   else self:debug("No main function") end
   
   return ER
