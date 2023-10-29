@@ -164,7 +164,7 @@ end
 function QuickApp:EventRunnerEngine()
   quickApp = self
   self:setVersion("EventRunner5",self.E_SERIAL,self.E_VERSION)
-
+  fibaro.debugFlags.html = true
   local ER,er = fibaro.__ER,{}
   ER.er = er
   local vars = {}
@@ -193,6 +193,8 @@ function QuickApp:EventRunnerEngine()
   marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
   PrintBuffer,sunData,LOG =
   table.unpack(ER.utilities.export)
+
+  ER.utilities.printBanner("%s, deviceId:%s, version:%s",{self.name,self.id,self.E_VERSION})
 
   setup(ER)
 
@@ -271,15 +273,21 @@ function QuickApp:EventRunnerEngine()
   local uiHandler = self.UIHandler
   function self:UIHandler(event)
     if event.deviceId == quickApp.id then
-      self:post({type='UI',cmd=event.elementName,value=event.values[1]})
+      self:post({type='UI',cmd=event.elementName,value=event.values[1]}) -- cmd is buttonID
     elseif uiHandler then uiHandler(self,event) end
   end
-  if self.main then 
+
+  if self.main then
+    LOG("Setting up rules...")
+    local t0 = os.clock()
     local stat,err = pcall(function() self:main(er) end)
     if not stat then 
       print(err) 
-      print("Exit rule setup") 
-  end
+      print("Rule setup error(s) - fix & restart...")
+      return
+    end
+    local startupTime = os.clock()-t0
+    ER.utilities.printBanner("Rules setup time: %.3f seconds",{startupTime})
   else self:debug("No main function") end
   
   return ER

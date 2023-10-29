@@ -7,6 +7,7 @@ function fibaro.__ER.modules.rule(ER)
   PrintBuffer,sunData,LOG =
   table.unpack(ER.utilities.export)
   
+  local ruleID,rules = 0,{}
   local Rule = ER.Rule
   local stdPropObject,isPropObject = ER.stdPropObject,ER.isPropObject
   local htmlTable = ER.utilities.htmlTable
@@ -14,9 +15,58 @@ function fibaro.__ER.modules.rule(ER)
   local fmt=string.format
   local vars,triggerVars = ER._vars,ER.triggerVars
   local function now() local t = os.date("*t") return t.hour*3600+t.min*60+t.sec end
-  
-  local function printf(...) print(fmt(...)) end
 
+  local tableOpts = {table="width='100%' border=1 bgcolor='"..(ER.settings.listColor or "purple").."'",td="align='left'"}
+  function ER.listRules(extended)
+    local pr,n = PrintBuffer(),0
+    pr:printf("Rules:")
+    for i,r in pairs(rules) do
+      n = n+1
+      if extended then
+        pr:printf("%s",r.description)
+      else
+        pr:printf("%d:%-60s [%s]",i,r.longName,r._enabled and "enabled" or "disabled")
+      end
+    end 
+    pr:printf("Number of rules: %d",n)
+    print(htmlTable({pr:tostring()},tableOpts))
+  end
+
+  function ER.listTimers()
+    local pr,n = PrintBuffer(),0
+    local timers = {}
+    pr:printf("Timers:")
+    for id,r in pairs(rules) do
+      for _,t in pairs(r._timers) do
+        local time = t[2]
+        timers[time] = timers[time] or {}
+        timers[time][#timers[time]+1] = fmt("%s%s",t[1],r)
+      end
+      for _,t in pairs(r._dailyTimers) do
+        local time = t[2]
+        timers[time] = timers[time] or {}
+        timers[time][#timers[time]+1] = fmt("@%s",r)
+      end
+    end
+    for time,rs in pairs(timers) do
+      pr:print(hms(time),"->",table.unpack(rs))
+    end
+    print(htmlTable({pr:tostring()},tableOpts))
+  end
+  
+  function ER.listVariables(name)
+    name = name or ".*"
+    local pr,n = PrintBuffer(),0
+    pr:printf("Variables:")
+    for vn,v in pairs(vars) do
+      if vn:match(name) then
+        pr:printf("%s = %s",vn,encodeFast(v) // 60)
+        n = n+1
+      end
+    end 
+    pr:printf("Number of variables: %d",n)
+    print(htmlTable({pr:tostring()},tableOpts))
+  end
   
   -- {prop='value',operator='eq',value='value'}
   -- {gv='value',operator='eq',qv='value'}
@@ -121,7 +171,6 @@ function fibaro.__ER.modules.rule(ER)
     end
   end
   
-  local ruleID,rules = 0,{}
   local function setupDailys(rule,catchup)
     rule._clearDailyTimers()  -- clear any previous outstanding daily timer
     local scheduled,n = {},now()
@@ -174,58 +223,6 @@ function fibaro.__ER.modules.rule(ER)
     return table.concat(res,"\n")
   end
   
-  local tableOpts = {table="width='100%' border=1 bgcolor='".."purple".."'",td="align='left'"}
-  function ER.listRules(extended)
-    local pr,n = PrintBuffer(),0
-    pr:printf("Rules:")
-    for i,r in pairs(rules) do
-      n = n+1
-      if extended then
-        pr:printf("%s",r.description)
-      else
-        pr:printf("%d:%-60s [%s]",i,r.longName,r._enabled and "enabled" or "disabled")
-      end
-    end 
-    pr:printf("Number of rules: %d",n)
-    print(htmlTable({pr:tostring()},tableOpts))
-  end
-
-  function ER.listTimers()
-    local pr,n = PrintBuffer(),0
-    local timers = {}
-    pr:printf("Timers:")
-    for id,r in pairs(rules) do
-      for _,t in pairs(r._timers) do
-        local time = t[2]
-        timers[time] = timers[time] or {}
-        timers[time][#timers[time]+1] = fmt("%s%s",t[1],r)
-      end
-      for _,t in pairs(r._dailyTimers) do
-        local time = t[2]
-        timers[time] = timers[time] or {}
-        timers[time][#timers[time]+1] = fmt("@%s",r)
-      end
-    end
-    for time,rs in pairs(timers) do
-      pr:print(hms(time),"->",table.unpack(rs))
-    end
-    print(htmlTable({pr:tostring()},tableOpts))
-  end
-  
-  function ER.listVariables(name)
-    name = name or ".*"
-    local pr,n = PrintBuffer(),0
-    pr:printf("Variables:")
-    for vn,v in pairs(vars) do
-      if vn:match(name) then
-        pr:printf("%s = %s",vn,encodeFast(v) // 60)
-        n = n+1
-      end
-    end 
-    pr:printf("Number of variables: %d",n)
-    print(htmlTable({pr:tostring()},tableOpts))
-  end
-  
   function ER:nextRuleID() return ruleID+1 end
 
   function ER:createRule(cond,action,p)
@@ -270,6 +267,7 @@ function fibaro.__ER.modules.rule(ER)
     rule.dailys = dailys
     
     if triggers.interv then
+      if defOpts.noTriggerLog==nil then defOpts.noTriggerLog=true end
       local ev = {type='%interval%',id=rule.id}
       local fun = function(env) return rule.start(env.event,nil,env.p) end
       local handler = fibaro.event(ev,fun)
@@ -397,7 +395,7 @@ function fibaro.__ER.modules.rule(ER)
       
       function options.error(err) rule.runners[co] = nil fibaro.error(__TAG,err) end
       
-      co.LOG("triggered %s",trim(eventStr(ev),40))
+      if not defOpts.noTriggerLog then co.LOG("triggered %s",eventStr(ev) // ER.settings.truncStr) end
       local res = {runCoroutine(co,options,env)}
       if res[1] then options.success(table.unpack(res,2)) end
       return rule

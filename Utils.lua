@@ -46,6 +46,7 @@ function fibaro.__ER.modules.utilities(ER)
       fibaro.trace(ER.settings.systemLogTag or __TAG,msg)
     else fibaro.trace(ER.settings.systemLogTag or __TAG,f) end
   end
+  local LOG = Utils.LOG
 
   function Utils.PrintBuffer(...)
     local self = { buff = {...} }
@@ -107,6 +108,25 @@ function fibaro.__ER.modules.utilities(ER)
       end
       pr:add("</table>")
       return pr:tostring("")
+    end
+  end
+
+  function Utils.strPad(str,args,ch,w)
+    ch,w=ch or "-",w or 100
+    str = fmt(str,table.unpack(args or {}))
+    str = #str % 2 == 1 and str.." " or str
+    local n = #str+2
+    local l2=100/2-n/2
+    return string.rep(ch,l2).." "..str.." "..string.rep(ch,l2)
+  end
+
+  function Utils.makeBanner(str,args,ch,w) return Utils.strPad(str,args,ch,w) end
+  if fibaro.fibemu then
+    function Utils.printBanner(str,args,col,ch,w) LOG('\n<font color="%s">%s</font>',col or "orange",Utils.makeBanner(str,args,ch,w)) end
+  else
+    function Utils.printBanner(str,args,col,ch,w)
+      col=col or ER.settings.bannerColor or "orange"
+      LOG(Utils.htmlTable({fmt(str,table.unpack(args or {}))},{table="width='100%' border=1 bgcolor='"..col.."'",td="align='center'"}))
     end
   end
 

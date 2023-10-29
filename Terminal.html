@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="https://cdn.jsdelivr.net/npm/jquery"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery.terminal/js/jquery.terminal.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery.terminal/css/jquery.terminal.min.css"/>
+</head>
+<body>
+ <h1>EventRunner5 terminal</h1>
+ HC3 IP address:<input value="192.168.1.57" id='IP' type="url"/></br>
+ User: <input value="admin" id='USER' type="text"/></br>
+ Passsword:<input value="admin" id='PWD' type="text"/></br>
+ ER DeviceID:<input value="1250" id='QA' type="text"/>
+<script>
+const IP = document.getElementById('IP');
+const USER = document.getElementById('USER');
+const PWD = document.getElementById('PWD');
+const QA = document.getElementById('QA');
+$('body').terminal(function(command) {
+        if (command !== '') {
+            try {
+              const url = `http://${IP.value}/api/callAction?deviceID=${QA.value}&name=eval&arg1=${encodeURIComponent(command)}`
+              fetch(url,
+              {
+                method: "GET", 
+                cache: "no-cache", // *default, no-cache, reload, force-cache, only-if-cached
+                //credentials: "include", // include, *same-origin, omit
+                mode: "no-cors", //no-cors, cors, *same-origin
+                headers: {
+                  "Accept": "application/json",
+                  "Content-Type": "application/json",
+                  "Accept-language": "en",
+                  "X-Fibaro-Version": "2",
+                  "Authorization":'Basic ' + btoa(USER.value + ":" + PWD.value)
+                }
+              }).catch((error) => {
+                $('body').terminal().error(error);
+              })
+            } catch(e) {
+                this.error(new String(e));
+            }
+        }
+    }, {
+        greetings: 'EventRunner5 v0.1',
+        name: 'eventrunner',
+        height: 500,
+        prompt: 'ER> '
+    });
+var lastTime = Math.floor(Date.now()/1000);
+var lastId = 0;
+setInterval(function() {
+  var url = `http://${IP.value}/api/debugMessages?filter=QUICKAPP1250,ER1250&from=${lastTime}&last=0&offset=10`;
+  fetch(url,
+  {
+    method: "GET", 
+    cache: "no-cache", // *default, no-cache, reload, force-cache, only-if-cached
+    //credentials: "include", // include, *same-origin, omit
+    mode: "no-cors", //no-cors, cors, *same-origin
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "Accept-language": "en",
+      "X-Fibaro-Version": "2",
+      "Authorization":'Basic ' + btoa(USER.value + ":" + PWD.value)
+    }
+  }).then((response) => {
+    response.json().then((data) => {
+      var messages = data.messages;
+      if (messages.length == 0) {
+        return;
+      }
+      for (var i = 0; i < messages.length; i++) {
+        var msg = messages[i]
+        if (msg.id == lastId) {
+          break;125012
+        }
+        var out = `>${msg.message}`;
+        $('body').terminal().echo($(`<div>${out}</div>`));
+      }
+      lastTime = messages[0].timestamp;
+      lastId = messages[0].id;
+      //$('body').terminal().echo(`lastTime: ${lastTime} lastId: ${lastId}`);
+    });
+  }).catch((error) => {
+    $('body').terminal().error(error);
+  })
+}, 2000);
+</script>
+</body>
+</html>

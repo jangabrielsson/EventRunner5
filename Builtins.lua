@@ -49,7 +49,7 @@ function fibaro.__ER.modules.builtins(ER)
     -------------- builtin props -------------------------
     function ER.setupProps()
         -- getProps helpers
-        local function BN(x) if type(x)=='boolean' then return x and 1 or 0 else return x end end
+        local function BN(x) if type(x)=='boolean' then return x and 1 or 0 else return tonumber(x) or 0 end end
         local function get(id,prop) return fibaro.get(id,prop) end
         local function on(id,prop) return BN(fibaro.get(id,prop)) > 0 end
         local function off(id,prop) return BN(fibaro.get(id,prop)) == 0 end

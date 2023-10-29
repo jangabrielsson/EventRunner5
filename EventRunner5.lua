@@ -20,6 +20,11 @@ function QuickApp:main(er)
     er.settings.marshall       = true          -- autoconvert globalVariables values to numbers, booleans, tables when accessed
     er.settings.systemLogTag   = "ER"..self.id -- log tag for ER system messages, defaults to __TAG
     er.settings.ignoreInvisibleChars = false   -- Check code for invisible characters (xC2xA0) before evaluating
+    er.settings.truncLog       = 100           -- truncation of log output
+    er.settings.truncStr       = 80            -- truncation of log strings
+    -- er.settings.bannerColor = "orange"         -- color of banner in log, defaults to "orange"      
+    -- er.settings.listColor = "purple"           -- color of list log (list rules etc), defaults to "purple"
+    -- er.settings.statsColor = "green"           -- color of statistics log, defaults to "green"  
 
     if fibaro.fibemu then
         --bs = fibaro.fibemu.create.binarySwitch().id
@@ -68,6 +73,7 @@ function QuickApp:main(er)
     -- rule("[_:isOn in lamps]:on")
     --rule("[_==='RPC'in globals]:GV")
     -- rule("noid:value")
+    rule("1250:isOn")
     rule("quickvars")
     rule("for k,_ in ipairs({2,3,4}) do log('%s',_) end")
     rule("local a,b = 9,8; a*b")
@@ -99,7 +105,6 @@ function QuickApp:main(er)
 end
 
 function QuickApp:onInit()
-    self:debug("EventRunner")
     self:setVariable('x',45)
     self:setVariable('y',46)
     self:EventRunnerEngine()
