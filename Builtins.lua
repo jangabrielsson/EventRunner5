@@ -570,9 +570,9 @@ function fibaro.__ER.modules.builtins(ER)
   function GlobalV:__init(name) PropObject.__init(self) self.name = name end
   function GlobalV:__tostring() return fmt("GV(%s)",self.name) end
   function GlobalV.getProp.name(id,prop,event) return id.name end
-  function GlobalV.getProp.value(id,prop,event) return fibaro.getGlobalVariable(id.name) end
+  function GlobalV.getProp.value(id,prop,event) return marshallFrom(fibaro.getGlobalVariable(id.name)) end
   function GlobalV.getProp.delete(id,prop,event) return fibaro.getGlobalVariable(id.name) end
-  function GlobalV.setProp.value(id,prop,val) fibaro.setGlobalVariable(id.name,val) return val end
+  function GlobalV.setProp.value(id,prop,val) fibaro.setGlobalVariable(id.name,marshallTo(val)) return val end
 
   function GlobalV.trigger.value(id,prop) return {type='globalVariable', name=id.name} end
 
