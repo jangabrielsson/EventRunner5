@@ -8,6 +8,8 @@ function fibaro.__ER.modules.utilities(ER)
   
   local toTime,midnight,encodeFast = fibaro.toTime,fibaro.midnight,json.encodeFast
   local fmt = string.format
+
+  function Utils.evOpts(...) for _,v in pairs({...}) do if not v then return false end end return true end
   
   function Utils.stack()
     local p,px,st,self=0,0,{},{}
@@ -60,7 +62,7 @@ function fibaro.__ER.modules.utilities(ER)
     function self:tostring(div) return table.concat(buff,div or "\n") end
     return setmetatable(self,{__tostring=function(obj) return obj:tostring() end})
   end
-  
+
   local function maxLen(list) local m = 0 for _,e in ipairs(list) do m=math.max(m,e:len()) end return m end
   if hc3_emulator then 
     function Utils.htmlTable(list,opts)
@@ -301,14 +303,14 @@ function fibaro.__ER.modules.utilities(ER)
   ER.utilities.export = {
     Utils.stack, Utils.stream, Utils.errorMsg, Utils.isErrorMsg, Utils.xerror, Utils.pcall, Utils.errorLine,
     Utils.marshallFrom, Utils.marshallTo, toTime, midnight, encodeFast, Utils.argsStr, Utils.eventStr,
-    Utils.PrintBuffer, Utils.sunData, Utils.LOG, Utils.htmlTable
+    Utils.PrintBuffer, Utils.sunData, Utils.LOG, Utils.htmlTable, Utils.evOpts
   }
   for _,f in ipairs(extraSetups) do f() end
   
   
   -- stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   -- marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
-  -- PrintBuffer,sunData,LOG,htmlTable =
+  -- PrintBuffer,sunData,LOG,htmlTable,evOpts =
   -- table.unpack(ER.utilities.export)
   
 end

@@ -5,7 +5,8 @@ QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",versi
 
   local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
-  PrintBuffer,sunData,LOG
+  PrintBuffer,sunData,LOG,htmlTable,evOpts
+
 local fmt = string.format
 
 function fibaro.__ER.modules.engine(ER)
@@ -191,7 +192,7 @@ function QuickApp:EventRunnerEngine()
   ER.modules.utilities(ER) -- setup utilities, needed by all modules
   stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
-  PrintBuffer,sunData,LOG =
+  PrintBuffer,sunData,LOG,htmlTable,evOpts =
   table.unpack(ER.utilities.export)
 
   ER.utilities.printBanner("%s, deviceId:%s, version:%s",{self.name,self.id,self.E_VERSION})
@@ -211,23 +212,24 @@ function QuickApp:EventRunnerEngine()
   -- Define user functions available in main from the er.* table
   function er.runFun(str,options) return er.compile(str,options or {})() end
   function er.eval0(str,options) return eval(str,options or {}) end
-  function er.eval(name,str,options)
+
+  function er.eval(name,str,options)         -- top-level eval for expressions - used by rule(...)
     if type(name)=='string' and type(str)=='string' then
       options = options or {}
       options.name = name
     else str,options = name,str end
     options = options or {}
     
-    function options.suspended(...)
+    function options.suspended(...)         -- expression waits - log nothing
       --local res = {...}
       --pr:print(name,">",argsStr(table.unpack(res,2)),"[suspended]")
       return nil
     end
     
-    function options.success(success,...)
+    function options.success(success,...)   -- expression succeeded - log results
       local res = {...}
-      if #res==1 and type(res[1])=='table' and res[1].evalPrint then
-        res[1].evalPrint(res[1],str)
+      if #res==1 and type(res[1])=='table' and res[1].evalPrint then -- result is a table with evalPrint method
+        res[1].evalPrint(res[1],str)                                 --- let object control its own print
       else
         if not options.silent then LOG(fmt("%s > %s [done]",multiLine(str),argsStr(...))) end
       end
@@ -270,6 +272,28 @@ function QuickApp:EventRunnerEngine()
   for c,f in pairs(ER.constants) do ER:addInstr(c,f,"%s/%s") end
   for c,f in pairs(ER.builtins) do ER:addInstr(c,f,"%s/%s") end
   
+  function er.defmacro(name,str) -- Simple macro functions with optional arguments
+    local pattern,params = "([%w_]+)",{}
+    if name:find("%(") then pattern = pattern.."(%b())" end
+    local a,b = name:match(pattern)
+    if not a then error("Bad macro name") end
+    if b then
+      params = b:sub(2,-2):split(",")
+    end
+    return function(code)
+      if not b then return code:gsub(a,str) end
+      code = code:gsub(a.."(%b())",function(args)
+        args = args:sub(2,-2):split(",")
+        local subs = str
+        for i,v in ipairs(params) do
+          subs = subs:gsub("{{"..v.."}}",args[i])
+        end
+        return subs
+      end)
+      return code
+    end
+  end
+
   local uiHandler = self.UIHandler
   function self:UIHandler(event)
     if event.deviceId == quickApp.id then
@@ -288,7 +312,14 @@ function QuickApp:EventRunnerEngine()
     end
     local startupTime = os.clock()-t0
     ER.utilities.printBanner("Rules setup time: %.3f seconds",{startupTime})
-  else self:debug("No main function") end
+  else self:debug("No main function") return end
   
+  function self:eval(str)
+    local stat,err = pcall(function()
+        er.eval(str)
+    end)
+    if not stat then print(err) end
+  end
+
   return ER
 end

@@ -7,10 +7,10 @@
 </head>
 <body>
  <h1>EventRunner5 terminal</h1>
- HC3 IP address:<input value="192.168.1.57" id='IP' type="url"/></br>
+ HC3 IP address:<input value="192.168.1.128:5004" id='IP' type="url"/></br>
  User: <input value="admin" id='USER' type="text"/></br>
  Passsword:<input value="admin" id='PWD' type="text"/></br>
- ER DeviceID:<input value="1250" id='QA' type="text"/>
+ ER DeviceID:<input value="1249" id='QA' type="text"/>
 <script>
 const IP = document.getElementById('IP');
 const USER = document.getElementById('USER');
@@ -46,10 +46,11 @@ $('body').terminal(function(command) {
         height: 500,
         prompt: 'ER> '
     });
-var lastTime = Math.floor(Date.now()/1000);
+var lastTime = 0; //Math.floor(Date.now()/1000);
 var lastId = 0;
 setInterval(function() {
-  var url = `http://${IP.value}/api/debugMessages?filter=QUICKAPP1250,ER1250&from=${lastTime}&last=0&offset=10`;
+  var url = `http://${IP.value}/api/debugMessages?filter=QUICKAPP${QA.value},ER${QA.value}&from=${lastTime}&last=0&offset=10`;
+  console.log(`lastTime2: ${lastTime} lastId: ${lastId} url: ${url}`);
   fetch(url,
   {
     method: "GET", 
@@ -67,14 +68,16 @@ setInterval(function() {
     response.json().then((data) => {
       var messages = data.messages;
       if (messages.length == 0) {
+        console.log('no messages');
         return;
       }
       for (var i = 0; i < messages.length; i++) {
         var msg = messages[i]
+        //$('body').terminal().echo(`msgTime: ${msg.timestamp} lastTime: ${lastTime}`);
         if (msg.id == lastId) {
-          break;125012
+          break;
         }
-        var out = `>${msg.message}`;
+        var out = `${new Date(1000*msg.timestamp).toLocaleTimeString()}> ${msg.message}`;
         $('body').terminal().echo($(`<div>${out}</div>`));
       }
       lastTime = messages[0].timestamp;

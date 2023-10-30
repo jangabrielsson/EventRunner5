@@ -10,13 +10,18 @@
 function QuickApp:main(er)
     local rule,Util = er.rule,er
     self:enableTriggerType({"device","global-variable","custom-event","profile","alarm","weather","location","quickvar","user"}) -- types of events we want
+
+    -- Global debug flags, can be overridden by ruleOptions
     er.debug.ruleTrigger    = true -- log rules being triggered 
-    er.debug.ruleSuccess    = true -- log rules with condition succeeding
-    er.debug.ruleFailure    = true -- log rules with condition failing
+    er.debug.ruleTrue       = true -- log rules with condition succeeding
+    er.debug.ruleFalse      = true -- log rules with condition failing
+    er.debug.ruleResult     = true -- log results of rules running
+    er.debug.evalResult     = true -- log results of evaluations
     er.debug.post           = true -- log events being posted
     er.debug.sourceTrigger  = true -- log incoming sourceTriggers
     er.debug.refreshEvents  = true -- log incoming refreshEvents
 
+    -- Global settings
     er.settings.marshall       = true          -- autoconvert globalVariables values to numbers, booleans, tables when accessed
     er.settings.systemLogTag   = "ER"..self.id -- log tag for ER system messages, defaults to __TAG
     er.settings.ignoreInvisibleChars = false   -- Check code for invisible characters (xC2xA0) before evaluating
@@ -25,6 +30,18 @@ function QuickApp:main(er)
     -- er.settings.bannerColor = "orange"         -- color of banner in log, defaults to "orange"      
     -- er.settings.listColor = "purple"           -- color of list log (list rules etc), defaults to "purple"
     -- er.settings.statsColor = "green"           -- color of statistics log, defaults to "green"  
+
+    -- Rule/expresion options, overrides global settings when passed to individual rules/expressions. nil means use global setting
+    local expressionOptions = {
+        listCode       = true,  -- list code when expression/rule is created
+        trace          = false, -- trace code when expression/rule is run
+        silent         = true,  -- don't log rule creation
+        ruleTrigger    = true,  -- log rule being triggered 
+        ruleTrue       = true,  -- log rule when condition succeeds
+        ruleFalse      = true,  -- log rule when condition fails
+        ruleResult     = true,  -- log result of rule return value
+        evalResult     = true,  -- log result of expression evaluation
+    }
 
     if fibaro.fibemu then
         --bs = fibaro.fibemu.create.binarySwitch().id
@@ -73,18 +90,21 @@ function QuickApp:main(er)
     -- rule("[_:isOn in lamps]:on")
     --rule("[_==='RPC'in globals]:GV")
     -- rule("noid:value")
-    rule("1250:isOn")
-    rule("quickvars")
-    rule("for k,_ in ipairs({2,3,4}) do log('%s',_) end")
-    rule("local a,b = 9,8; a*b")
-    a = rule("@@00:00:05 => log('5 seconds')")
-    rule("@{sunrise,catch} => log('God morning!')")
-    rule("@sunset => log('God evening!')")
-    rule("@23:00 => log('God night!')")
-    rule("@sunset => log('sunset!')")
-    --rule("trueFor(02:00,bs:safe) => log('bs safe')").start()
-    rule("@now+1 => post(#foo)")
-    rule("#foo => log('#foo received')")
+    -- rule("1250:isOn")
+    -- rule("quickvars")
+    -- rule("for k,_ in ipairs({2,3,4}) do log('%s',_) end")
+    -- rule("local a,b = 9,8; a*b")
+
+    ii=0
+    a = rule("@@00:00:05 => ii=ii+1; log('5 seconds %s',ii)",{ruleResult=false,ruleTrue=false})
+    -- rule("@{sunrise,catch} => log('God morning!')")
+    -- rule("@sunset => log('God evening!')")
+    -- rule("@23:00 => log('God night!')")
+    -- rule("@sunset => log('sunset!')")
+    -- --rule("trueFor(02:00,bs:safe) => log('bs safe')").start()
+    -- rule("@now+1 => post(#foo)")
+    -- rule("#foo => log('#foo received')")
+    rule("log('ISON:%s',1249:isOn);767676")
 
     local msgOpts = { silent=true }
     rule("log('Weather condition is %s',weather:condition)",msgOpts)

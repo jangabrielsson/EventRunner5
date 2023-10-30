@@ -6,7 +6,8 @@ function fibaro.__ER.modules.parser(ER)
   local fmt = string.format
   
   local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
-  marshallFrom,marshallTo,toTime,midnight,encodeFast =
+  marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
+  PrintBuffer,sunData,LOG,htmlTable,evOpts =
   table.unpack(ER.utilities.export)
   
   local opers0 = {

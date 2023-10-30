@@ -4,7 +4,7 @@ function fibaro.__ER.modules.rule(ER)
   
   local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
-  PrintBuffer,sunData,LOG =
+  PrintBuffer,sunData,LOG,htmlTable,evOpts =
   table.unpack(ER.utilities.export)
   
   local ruleID,rules = 0,{}
@@ -227,12 +227,12 @@ function fibaro.__ER.modules.rule(ER)
 
   function ER:createRule(cond,action,p)
     local rule = {type='%RULE%'}
-    local defOpts = p.co.options
+    local options = table.copyShallow(p.co.options or {})
     currRule = rule
     ruleID = ruleID+1
     rule.id = ruleID
-    rule._name = defOpts.name or tostring(rule.id)
-    rule._ltag = defOpts.ltag -- or er.logtag?
+    rule._name = options.name or tostring(rule.id)
+    rule._ltag = options.ltag -- or er.logtag?
     rule.instance = 0
     rule._enabled = true
     rule.src = ER.__lastParsed
@@ -244,7 +244,7 @@ function fibaro.__ER.modules.rule(ER)
     end
     nameRule()
     
-    if not defOpts.silent then LOG("Defining [Rule:%s:%s]...",rule._name,trim(rule.src,40)) end
+    if not options.silent then LOG("Defining [Rule:%s:%s]...",rule._name,trim(rule.src,40)) end
     local triggers = { daily=nil, interv=nil, timers={}, srct={} }
     getTriggers(cond,triggers)
     local trs = triggers.srct
@@ -267,7 +267,7 @@ function fibaro.__ER.modules.rule(ER)
     rule.dailys = dailys
     
     if triggers.interv then
-      if defOpts.noTriggerLog==nil then defOpts.noTriggerLog=true end
+      if options.ruleTrigger==nil then options.ruleTrigger=false end
       local ev = {type='%interval%',id=rule.id}
       local fun = function(env) return rule.start(env.event,nil,env.p) end
       local handler = fibaro.event(ev,fun)
@@ -361,16 +361,18 @@ function fibaro.__ER.modules.rule(ER)
       for k,v in pairs(vars or {}) do locals.push(k,v) end
       
       function co._action(ok,msg)
-        co.LOG("condition %s",ok and "true - action" or "false - cancelled")
+        local log = false
+        if ok then log = evOpts(options.ruleTrue,ER.debug.ruleTrue)
+        else log = evOpts(options.ruleFalse,ER.debug.ruleFalse) end
+        if log then co.LOG("condition %s",ok and "true - action" or "false - cancelled") end
       end
       function co.LOG(...)
         local a = {...}
         LOG("%s>> %s",co.name,fmt(...)) 
       end
       
-      local options = {
-        trace=rule._trace,debug=rule._debug,
-      }
+      options.trace=rule._trace
+      options.debug=rule._debug
       
       local suspendMsg = {
         ['%wait%'] = function(delay,msg) return fmt("wait %s %s",hms(delay/1000),msg or "") end,
@@ -389,13 +391,13 @@ function fibaro.__ER.modules.rule(ER)
       function options.success(success,...)
         rule.runners[co] = nil
         local a = {}
-        if success then co.LOG("result %s",co.name,argsStr(...)) end
+        if evOpts(success,options.ruleResult,ER.debug.ruleResult) then co.LOG("result %s",co.name,argsStr(...)) end
         if rule.resultHook then rule.resultHook(success,...) end
       end
       
       function options.error(err) rule.runners[co] = nil fibaro.error(__TAG,err) end
       
-      if not defOpts.noTriggerLog then co.LOG("triggered %s",eventStr(ev) // ER.settings.truncStr) end
+      if evOpts(options.ruleTrigger,ER.debug.ruleTrigger) then co.LOG("triggered %s",eventStr(ev) // ER.settings.truncStr) end
       local res = {runCoroutine(co,options,env)}
       if res[1] then options.success(table.unpack(res,2)) end
       return rule
@@ -444,7 +446,7 @@ function fibaro.__ER.modules.rule(ER)
     
     if #dailys>0 then rule._setupDailys(true) end
     
-    function rule.evalPrint() nameRule() if not defOpts.silent then LOG(rule.rname.." defined") end end
+    function rule.evalPrint() nameRule() if not options.silent then LOG(rule.rname.." defined") end end
     setmetatable(rule,{__tostring = ruleNameStr})
     setmetatable(rule.triggers,{__tostring = function(t) return ruleTriggersStr(t,rule) end })
     rule.description = setmetatable({},{__tostring = function(d) return ruleDescriptionStr(d,rule) end })
