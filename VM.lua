@@ -85,7 +85,9 @@ function fibaro.__ER.modules.vm(ER)
   function instr.t_today(i,st) local o = st.pop() PA={o} st.push(midnight()+o) end
   function instr.t_next(i,st)  local t = st.pop() PA={t} t=t+midnight(); st.push(t >= os.time() and t or t+24*3600) end
   function instr.t_plus(i,st)  local t = st.pop() PA={t} st.push(os.time()+t) end
-  function instr.gv(i,st)      local name = i[3]; PA={name}   st.push((fibaro.getGlobalVariable(name))) end
+  function instr.gv(i,st)      
+    local name = i[3]; PA={name} st.push(marshallFrom(fibaro.getGlobalVariable(name)))
+  end
   function instr.qv(i,st)      local name = i[3]; PA={name}   st.push(quickApp:getVariable(name)) end
   function instr.var(i,st,p)   local name = i[3]; PA={name}   st.push((p.env.get(name) or Script.get(name) or {})[1]) end
   instr['local'] = function(i,st,p) local name = i[3]; PA={name} p.env.push(name,nil) end
@@ -188,7 +190,7 @@ function instr.setgv(i,st,p)
     if not pop then st.push(v) end
   elseif pop then v=st.pop()
   else v = st.peek() end
-  fibaro.setGlobalVariable(name,tostring(v))
+  fibaro.setGlobalVariable(name,marshallTo(v))
 end
 function instr.setqv(i,st,p) 
   local name,const,pop,v = i[3],i[4],i[5],nil

@@ -88,6 +88,10 @@ setInterval(function() {
     $('body').terminal().error(error);
   })
 }, 2000);
+const clearTerminal = () => {
+  $('body').terminal().clear();
+}
 </script>
+<button onclick="clearTerminal()">Clear terminal</button>
 </body>
 </html>

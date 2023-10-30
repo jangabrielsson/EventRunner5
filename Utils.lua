@@ -10,7 +10,7 @@ function fibaro.__ER.modules.utilities(ER)
   local fmt = string.format
 
   function Utils.evOpts(...) for _,v in pairs({...}) do if not v then return false end end return true end
-  
+
   function Utils.stack()
     local p,px,st,self=0,0,{},{}
     function self.push(v) p=p+1 st[p]=v px=p end
@@ -201,7 +201,7 @@ function fibaro.__ER.modules.utilities(ER)
   local _marshalBool={['true']=true,['True']=true,['TRUE']=true,['false']=false,['False']=false,['FALSE']=false}
   
   function Utils.marshallFrom(v) 
-    if not Utils._MARSHALL then return v elseif v==nil then return v end
+    if not ER.settings.marshall then return v elseif v==nil then return v end
     local fc = v:sub(1,1)
     if fc == '[' or fc == '{' then local s,t = pcall(json.decode,v); if s then return t end end
     if tonumber(v) then return tonumber(v)
@@ -211,7 +211,7 @@ function fibaro.__ER.modules.utilities(ER)
   
   local function safeEncode(s) local stat,res = pcall(encodeFast,s) return stat and res or nil end
   function Utils.marshallTo(v) 
-    if not Utils._MARSHALL then return tostring(v) end
+    if not ER.settings.marshall then return tostring(v) end
     if type(v)=='table' then return safeEncode(v) else return tostring(v) end
   end
   
