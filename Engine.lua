@@ -1,6 +1,6 @@
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 0.011
+local version = 0.012
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -276,8 +276,8 @@ function QuickApp:EventRunnerEngine()
   
   for k,v in pairs({
     listRules= ER.listRules,listVariables=ER.listVariables,listTimers=ER.listTimers,
-    rule=function(i) return ER.rules[i] end,
   }) do er[k] = v; ER.vars[k]=v end
+  ER.vars.rule = function(i) return ER.rules[i] end
 
   er.Util = {
     defTriggerVar = ER.defTriggerVar,
