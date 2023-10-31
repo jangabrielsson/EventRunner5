@@ -8,11 +8,13 @@ function fibaro.__ER.modules.rule(ER)
   table.unpack(ER.utilities.export)
   
   local ruleID,rules = 0,{}
+  ER.rules = rules
   local Rule = ER.Rule
   local stdPropObject,isPropObject = ER.stdPropObject,ER.isPropObject
   local htmlTable = ER.utilities.htmlTable
   
   local fmt=string.format
+  local function hms(t) return os.date("%H:%M:%S",t < 24*3600 and t+fibaro.midnight() or t) end -- TBD: move to Utils.lua
   local vars,triggerVars = ER._vars,ER.triggerVars
   local function now() local t = os.date("*t") return t.hour*3600+t.min*60+t.sec end
 
@@ -29,7 +31,7 @@ function fibaro.__ER.modules.rule(ER)
       end
     end 
     pr:printf("Number of rules: %d",n)
-    print(htmlTable({pr:tostring()},tableOpts))
+    LOG(htmlTable({pr:tostring()},tableOpts))
   end
 
   function ER.listTimers()
@@ -51,7 +53,7 @@ function fibaro.__ER.modules.rule(ER)
     for time,rs in pairs(timers) do
       pr:print(hms(time),"->",table.unpack(rs))
     end
-    print(htmlTable({pr:tostring()},tableOpts))
+    LOG(htmlTable({pr:tostring()},tableOpts))
   end
   
   function ER.listVariables(name)
@@ -65,7 +67,7 @@ function fibaro.__ER.modules.rule(ER)
       end
     end 
     pr:printf("Number of variables: %d",n)
-    print(htmlTable({pr:tostring()},tableOpts))
+    LOG(htmlTable({pr:tostring()},tableOpts))
   end
   
   -- {prop='value',operator='eq',value='value'}
@@ -81,8 +83,6 @@ function fibaro.__ER.modules.rule(ER)
   
   local function compute(p) local c = ER:compile(p,{src = ER.__lastParsed}) return c() end
   local function compile(p) return ER:compile(p,{src = ER.__lastParsed}) end
-  local function hms(t) return os.date("%H:%M:%S",t < 24*3600 and t+fibaro.midnight() or t) end -- TBD: move to Utils.lua
-  local function trim(str,n) return #str <= n and str or str:sub(1,n).."..." end
   
   local currRule
   local function errorf(tk,fm,...)
@@ -240,11 +240,11 @@ function fibaro.__ER.modules.rule(ER)
     
     local function nameRule()
       rule.rname = fmt("[Rule:%s]",rule._name)
-      rule.longName = fmt("[Rule:%s:%s]",rule._name,trim(rule.src,40))
+      rule.longName = fmt("[Rule:%s:%s]",rule._name,rule.src // 40)
     end
     nameRule()
     
-    if not options.silent then LOG("Defining [Rule:%s:%s]...",rule._name,trim(rule.src,40)) end
+    if not options.silent then LOG("Defining [Rule:%s:%s]...",rule._name,rule.src // 40) end
     local triggers = { daily=nil, interv=nil, timers={}, srct={} }
     getTriggers(cond,triggers)
     local trs = triggers.srct
@@ -311,11 +311,7 @@ function fibaro.__ER.modules.rule(ER)
       for event,eh in pairs(rule.evhandlers) do
         fibaro.removeEvent(event,eh[1])
       end
-    end
-    function rule.processes()
-      local res = {fmt("%s processes:",rule.rname)}
-      for co,stat in pairs(rule.runners) do res[#res+1]= fmt("-> %s (%s)",stat,co) end
-      return table.concat(res,"\n")
+      rules[rule.id] = nil
     end
     function rule.stop()
       rule._clearDailyTimers() 
@@ -446,7 +442,7 @@ function fibaro.__ER.modules.rule(ER)
     
     if #dailys>0 then rule._setupDailys(true) end
     
-    function rule.evalPrint() nameRule() if not options.silent then LOG(rule.rname.." defined") end end
+    function rule.evalPrint() nameRule() if not options.silent then LOG(rule.rname.." defined") rule.evalPrint=nil end end
     setmetatable(rule,{__tostring = ruleNameStr})
     setmetatable(rule.triggers,{__tostring = function(t) return ruleTriggersStr(t,rule) end })
     rule.description = setmetatable({},{__tostring = function(d) return ruleDescriptionStr(d,rule) end })

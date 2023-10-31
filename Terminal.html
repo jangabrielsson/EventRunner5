@@ -71,18 +71,20 @@ setInterval(function() {
         console.log('no messages');
         return;
       }
+      lastTime = messages[0].timestamp;
+      var id = messages[0].id;
+      messages = messages.reverse()
       for (var i = 0; i < messages.length; i++) {
         var msg = messages[i]
         //$('body').terminal().echo(`msgTime: ${msg.timestamp} lastTime: ${lastTime}`);
-        if (msg.id == lastId) {
-          break;
+        if (msg.id <= lastId) {
+          continue;
         }
         var out = `${new Date(1000*msg.timestamp).toLocaleTimeString()}> ${msg.message}`;
         $('body').terminal().echo($(`<div>${out}</div>`));
       }
-      lastTime = messages[0].timestamp;
-      lastId = messages[0].id;
       //$('body').terminal().echo(`lastTime: ${lastTime} lastId: ${lastId}`);
+      lastId = id
     });
   }).catch((error) => {
     $('body').terminal().error(error);

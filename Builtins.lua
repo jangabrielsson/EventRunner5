@@ -573,8 +573,8 @@ function fibaro.__ER.modules.builtins(ER)
   function GlobalV.getProp.value(id,prop,event) return marshallFrom(fibaro.getGlobalVariable(id.name)) end
   function GlobalV.getProp.delete(id,prop,event) return fibaro.getGlobalVariable(id.name) end
   function GlobalV.setProp.value(id,prop,val) fibaro.setGlobalVariable(id.name,marshallTo(val)) return val end
-
   function GlobalV.trigger.value(id,prop) return {type='globalVariable', name=id.name} end
+  defVars.GV = function(n) return GlobalV(n) end
 
   definePropClass('QuickAppV')
   function QuickAppV:__init(name) PropObject.__init(self) self.name = name end
@@ -583,7 +583,7 @@ function fibaro.__ER.modules.builtins(ER)
   function QuickAppV.getProp.value(id,prop,event) return quickApp:getVariable(id.name) end
   function QuickAppV.getProp.delete(id,prop,event) return quickApp:setVariable(id.name,nil) end
   function QuickAppV.setProp.value(id,prop,val) quickApp:setVariable(id.name,val) return val end
-
   function QuickAppV.trigger.value(id,prop) return {type='quickVar', name=id.name} end
+  defVars.QV = function(n) return QuickAppV(n) end
 
 end

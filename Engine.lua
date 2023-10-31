@@ -3,9 +3,9 @@ fibaro.__ER  = fibaro.__ER or { modules={} }
 local version = 0.01
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
-  local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
-  marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
-  PrintBuffer,sunData,LOG,htmlTable,evOpts
+local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
+marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
+PrintBuffer,sunData,LOG,htmlTable,evOpts
 
 local fmt = string.format
 
@@ -62,7 +62,8 @@ function fibaro.__ER.modules.engine(ER)
     local function runner(...)
       level = level+1
       local stat = {coroutine.resume(co,...)}
-      if not stat[1] then return options.error(stat[2])
+      if not stat[1] then 
+        return options.error(stat[2])
       else
         if coroutine.status(co)=='suspended' then
           options.suspended(co.success==true,table.unpack(stat,2))
@@ -102,7 +103,7 @@ function fibaro.__ER.modules.engine(ER)
       if defRule and type(err)=='table' then 
         err.rule = err.rule or { rname = fmt("Defining [Rule:%s]",ER.nextRuleID())}
       end
-      error(err)
+      e_error(err)
       return false,fibaro.error(__TAG,err) 
     end
     local p = ER:parse(tkns,options)
@@ -117,12 +118,12 @@ function fibaro.__ER.modules.engine(ER)
     return runCoroutine(co,options,table.unpack(options.args or {})) -- resume with handling of waits etc...
   end
   ER.eval = eval
-    
+  
   createProps(ER.setupProps())
 end
 
 local function setup(ER)
-
+  
   local midnightFuns = {}
   function ER.midnightScheduler(fun) midnightFuns[#midnightFuns+1] = fun end
   local midnxt = (os.time() // 3600 +1)*3600
@@ -132,7 +133,7 @@ local function setup(ER)
     setTimeout(midnightLoop,(midnxt-os.time())*1000)
   end
   setTimeout(midnightLoop,(midnxt-os.time())*1000)
-
+  
   class 'PropObject'
   local ftype = 'func'..'tion' -- fool the autoindetation...
   
@@ -165,7 +166,10 @@ end
 function QuickApp:EventRunnerEngine()
   quickApp = self
   self:setVersion("EventRunner5",self.E_SERIAL,self.E_VERSION)
+  
   fibaro.debugFlags.html = true
+  fibaro.debugFlags.onaction=false
+  
   local ER,er = fibaro.__ER,{}
   ER.er = er
   local vars = {}
@@ -181,24 +185,24 @@ function QuickApp:EventRunnerEngine()
   ER.propFilters = {}
   ER.debug = {}
   ER.settings = {}
-
+  
   local function multiLine(str) 
     if not str:find("\n") then return "'"..str.."'" end
     return "\n"..str
   end
-
+  
   function QuickApp:enableTriggerType(triggers) fibaro.enableSourceTriggers(triggers) end
-
+  
   ER.modules.utilities(ER) -- setup utilities, needed by all modules
   stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
   PrintBuffer,sunData,LOG,htmlTable,evOpts =
   table.unpack(ER.utilities.export)
-
+  
   ER.utilities.printBanner("%s, deviceId:%s, version:%s",{self.name,self.id,self.E_VERSION})
-
+  
   setup(ER)
-
+  
   ER.modules.tokenizer(ER) 
   ER.modules.parser(ER) 
   ER.modules.vm(ER) 
@@ -208,11 +212,16 @@ function QuickApp:EventRunnerEngine()
   ER.modules.compiler(ER)
   
   local eval = ER.eval 
-
+  
   -- Define user functions available in main from the er.* table
   function er.runFun(str,options) return er.compile(str,options or {})() end
   function er.eval0(str,options) return eval(str,options or {}) end
-
+  function er.compile(str,options)
+    options = options or {}
+    options.src = str
+    local p = ER:parse(str,options)
+    return ER:compile(p,options)
+  end
   function er.eval(name,str,options)         -- top-level eval for expressions - used by rule(...)
     if type(name)=='string' and type(str)=='string' then
       options = options or {}
@@ -249,25 +258,32 @@ function QuickApp:EventRunnerEngine()
   function er.isRule(p) return type(p)=='table' and p.type=='%RULE%' end
   er.definePropClass = ER.definePropClass
   
+  er.variable = ER.vars
+  er.triggerVar = ER.triggerVars
+  function er.defvar(name,init) ER.vars[name]=init end
+  
   er.defTriggerVar = ER.defTriggerVar
   er.deftriggervar = ER.defTriggerVar
   er.rule = er.eval
-  er.defvar = ER.defVar
-  er.defvars = ER.defvars
+  er.defvars = function(t) for k,v in pairs(t) do er.defvar(k,v) end end
   er.reverseMapDef = ER.reverseMapDef
   er.coroutine = ER.coroutine
-  er.listRules,er.listVariables,er.listTimers = ER.listRules, ER.listVariables,ER.listTimers
   er.pcall = e_pcall
   er.xerror = e_error
   er._utilities = ER.utilities
   er.debug,er.settings = ER.debug,ER.settings
   
-  function er.compile(str,options)
-    options = options or {}
-    options.src = str
-    local p = ER:parse(str,options)
-    return ER:compile(p,options)
-  end
+  for k,v in pairs({
+    listRules= ER.listRules,listVariables=ER.listVariables,listTimers=ER.listTimers,
+    rule=function(i) return ER.rules[i] end,
+  }) do er[k] = v; ER.vars[k]=v end
+
+  er.Util = {
+    defTriggerVar = ER.defTriggerVar,
+    defVar = er.defvar,
+    defvars = er.defvars,
+    reverseMapDef = ER.reverseMapDef
+  }
   
   for c,f in pairs(ER.constants) do ER:addInstr(c,f,"%s/%s") end
   for c,f in pairs(ER.builtins) do ER:addInstr(c,f,"%s/%s") end
@@ -293,14 +309,14 @@ function QuickApp:EventRunnerEngine()
       return code
     end
   end
-
-  local uiHandler = self.UIHandler
+  
+  local uiHandler = self.UIHandler -- Handles button presses from ER QA UI
   function self:UIHandler(event)
     if event.deviceId == quickApp.id then
       self:post({type='UI',cmd=event.elementName,value=event.values[1]}) -- cmd is buttonID
     elseif uiHandler then uiHandler(self,event) end
   end
-
+  
   if self.main then
     LOG("Setting up rules...")
     local t0 = os.clock()
@@ -312,14 +328,17 @@ function QuickApp:EventRunnerEngine()
     end
     local startupTime = os.clock()-t0
     ER.utilities.printBanner("Rules setup time: %.3f seconds",{startupTime})
-  else self:debug("No main function") return end
+  else self:debug("No main function") end
   
-  function self:eval(str)
-    local stat,err = pcall(function()
-        er.eval(str)
+  function self:eval(str) -- Terminal eval function
+    local stat,err = e_pcall(function()
+      er.eval(str)
     end)
+    err = tostring(err)
+    err = err:gsub("\n","</br>")
+    err = err:gsub(" ","&nbsp;")
     if not stat then print(err) end
   end
-
+  
   return ER
 end

@@ -8,8 +8,8 @@ function fibaro.__ER.modules.vm(ER)
   
 ---@diagnostic disable-next-line: deprecated
   local maxn = table.maxn
-  local coerce,vars = fibaro.EM.coerce,ER._vars
-  local triggerVars = ER.triggerVars
+  local coerce = fibaro.EM.coerce
+  local vars,triggerVars = ER._vars,ER.triggerVars
   local fmt = string.format
   
   local function errorf(p,fm,...)

@@ -45,8 +45,14 @@ function fibaro.__ER.modules.utilities(ER)
   function Utils.LOG(f,...)
     if #{...} > 0 then
       local msg = f:format(...)
+      msg = msg:gsub(" ","&nbsp;")
+      msg = msg:gsub("\n","</br>")
       fibaro.trace(ER.settings.systemLogTag or __TAG,msg)
-    else fibaro.trace(ER.settings.systemLogTag or __TAG,f) end
+    else 
+      f = f:gsub(" ","&nbsp;")
+      f = f:gsub("\n","</br>")
+      fibaro.trace(ER.settings.systemLogTag or __TAG,f) 
+    end
   end
   local LOG = Utils.LOG
 
@@ -54,7 +60,7 @@ function fibaro.__ER.modules.utilities(ER)
     local self = { buff = {...} }
     local buff = self.buff
     function self:printf(...) buff[#buff+1] = string.format(...) end
-    function self:add(v) buff[#buff+1] = string.format(v) end
+    function self:add(v) buff[#buff+1] = tostring(v) end
     function self:print(...)
       local r={} for _,v in ipairs({...}) do r[#r+1] = tostring(v) end
       buff[#buff+1] = table.concat(r," ")
@@ -136,7 +142,9 @@ function fibaro.__ER.modules.utilities(ER)
   
   function Utils.argsStr(...)
     local args = {...}
-    local r = {} for i=1,table.maxn(args) do r[i] = tostring(args[i]) end
+    local n = table.maxn(args)
+    if n == 0 then return "nil" end
+    local r = {} for i=1,n do r[i] = tostring(args[i]) end
     return table.concat(r,",")
   end
   

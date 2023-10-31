@@ -8,7 +8,7 @@
 --%%u4={{button='test1',text='Test1', onReleased='test1'},{button='test2',text='Test2', onReleased='test2'}}
 
 function QuickApp:main(er)
-    local rule,Util = er.rule,er
+    local rule,eval,var,Util = er.eval,er.eval,er.variable,er
     self:enableTriggerType({"device","global-variable","custom-event","profile","alarm","weather","location","quickvar","user"}) -- types of events we want
 
     -- Global debug flags, can be overridden by ruleOptions
@@ -95,8 +95,8 @@ function QuickApp:main(er)
     -- rule("for k,_ in ipairs({2,3,4}) do log('%s',_) end")
     -- rule("local a,b = 9,8; a*b")
 
-    ii=0
-    a = rule("@@00:00:05 => ii=ii+1; log('5 seconds %s',ii)",{ruleResult=false,ruleTrue=false})
+    var.ii=0
+    --a = rule("@@00:00:05 => ii=ii+1; log('5 seconds %s',ii)",{ruleResult=false,ruleTrue=false})
     -- rule("@{sunrise,catch} => log('God morning!')")
     -- rule("@sunset => log('God evening!')")
     -- rule("@23:00 => log('God night!')")
@@ -104,7 +104,6 @@ function QuickApp:main(er)
     -- --rule("trueFor(02:00,bs:safe) => log('bs safe')").start()
     -- rule("@now+1 => post(#foo)")
     -- rule("#foo => log('#foo received')")
-    rule("log('ISON:%s',1249:isOn);767676")
 
     local msgOpts = { silent=true }
     rule("log('Weather condition is %s',weather:condition)",msgOpts)
