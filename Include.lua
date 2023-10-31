@@ -2,7 +2,7 @@
 --%%type=com.fibaro.genericDevice
 --%%debug=refresh:true
 
---%%file=../fibemu/examples/fibaroExtra.lua,extra;
+--%%file=fibaroExtra.lua,extra;
 --%%file=Engine.lua,engine;
 --%%file=Parser.lua,parser;
 --%%file=Tokenizer.lua,tokenizer;

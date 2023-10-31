@@ -4,13 +4,21 @@
 <script src="https://cdn.jsdelivr.net/npm/jquery"></script>
 <script src="https://cdn.jsdelivr.net/npm/jquery.terminal/js/jquery.terminal.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery.terminal/css/jquery.terminal.min.css"/>
+<style>
+  div.ex1 {
+  margin-left: 10px;
+  margin-bottom: 10px;
+}
+</style>
 </head>
 <body>
- <h1>EventRunner5 terminal</h1>
- HC3 IP address:<input value="192.168.1.128:5004" id='IP' type="url"/></br>
+ <h1>Terminal 5</h1>
+ <div class="ex1">
+ HC3 IP address:<input value="192.168.1.57" id='IP' type="url"/></br>
  User: <input value="admin" id='USER' type="text"/></br>
  Passsword:<input value="admin" id='PWD' type="text"/></br>
- ER DeviceID:<input value="1249" id='QA' type="text"/>
+ ER DeviceID:<input value="1262" id='QA' type="text"/></br>
+ </div>
 <script>
 const IP = document.getElementById('IP');
 const USER = document.getElementById('USER');
@@ -56,16 +64,18 @@ setInterval(function() {
     method: "GET", 
     cache: "no-cache", // *default, no-cache, reload, force-cache, only-if-cached
     //credentials: "include", // include, *same-origin, omit
-    mode: "no-cors", //no-cors, cors, *same-origin
+    //mode: "no-cors", //no-cors, cors, *same-origin
     headers: {
       "Accept": "application/json",
-      "Content-Type": "application/json",
+      //"Content-Type": "application/json",
+      "Access-Control-Allow-Origin":"*",
       "Accept-language": "en",
       "X-Fibaro-Version": "2",
       "Authorization":'Basic ' + btoa(USER.value + ":" + PWD.value)
     }
   }).then((response) => {
-    response.json().then((data) => {
+    console.log(response);
+    response.json().then( data => {
       var messages = data.messages;
       if (messages.length == 0) {
         console.log('no messages');
@@ -73,9 +83,9 @@ setInterval(function() {
       }
       lastTime = messages[0].timestamp;
       var id = messages[0].id;
-      messages = messages.reverse()
+      messages = messages.reverse();
       for (var i = 0; i < messages.length; i++) {
-        var msg = messages[i]
+        var msg = messages[i];
         //$('body').terminal().echo(`msgTime: ${msg.timestamp} lastTime: ${lastTime}`);
         if (msg.id <= lastId) {
           continue;
@@ -84,16 +94,18 @@ setInterval(function() {
         $('body').terminal().echo($(`<div>${out}</div>`));
       }
       //$('body').terminal().echo(`lastTime: ${lastTime} lastId: ${lastId}`);
-      lastId = id
+      lastId = id;
     });
-  }).catch((error) => {
+  }).catch( error => {
     $('body').terminal().error(error);
-  })
+  });
 }, 2000);
 const clearTerminal = () => {
   $('body').terminal().clear();
 }
 </script>
+<div class="ex1">
 <button onclick="clearTerminal()">Clear terminal</button>
+</div>
 </body>
 </html>

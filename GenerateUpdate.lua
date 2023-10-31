@@ -10,11 +10,10 @@ local entry = [[
   "version":%%VERSION%%,     
   "vars":{
    "base1":"https://raw.githubusercontent.com/jangabrielsson/EventRunner5/ER5_%%VERSION%%",
-   "base2":"https://raw.githubusercontent.com/jangabrielsson/TQAE/ER4_%%FIBEXTRA%%"
   },     
   "descr":"First version (alpha, not for production)",     
   "files":{    
-   "fibaroExtra":"$base2/lib/fibaroExtra.lua",   
+   "fibaroExtra":"$base1/fibaroExtra.lua",   
    "parser":"$base1/Parser.lua",
    "tokenizer":"$base1/Tokenizer.lua",
    "compiler":"$base1/Compiler.lua",
@@ -225,7 +224,6 @@ local entry = [[
  }}
 ]]
 
-local fibextra = "0.998"
 function QuickApp:onInit()
   local f = io.open("Engine.lua","r")
   local conf = f:read("*a")
@@ -233,7 +231,6 @@ function QuickApp:onInit()
   version = tonumber(version)
   local config = entry:gsub("%%%%VERSION%%%%",version)
   print("Version:",version)
-  config = config:gsub("%%%%FIBEXTRA%%%%",fibextra)
   config = json.decode(config)
   local conf
   local f = io.open("Update.json","r")

@@ -95,6 +95,14 @@ function QuickApp:main(er)
     -- rule("for k,_ in ipairs({2,3,4}) do log('%s',_) end")
     -- rule("local a,b = 9,8; a*b")
 
+    var.keuken = {  wcd_VaatWasser = 77 }
+    
+    rule([[keuken.wcd_VaatWasser:isOn | keuken.wcd_VaatWasser:isOff =>
+    || keuken.wcd_VaatWasser:isOn >>
+        log('#C:yellow#keuken.wcd_VaatWasser WCD - Aan')
+    || keuken.wcd_VaatWasser:isOff >>
+  		log('#C:yellow#keuken.wcd_VaatWasser WCD - Uit')
+ ]])
     var.ii=0
     --a = rule("@@00:00:05 => ii=ii+1; log('5 seconds %s',ii)",{ruleResult=false,ruleTrue=false})
     -- rule("@{sunrise,catch} => log('God morning!')")

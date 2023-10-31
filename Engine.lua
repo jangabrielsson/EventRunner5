@@ -1,6 +1,6 @@
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 0.01
+local version = 0.011
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -8,6 +8,8 @@ marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
 PrintBuffer,sunData,LOG,htmlTable,evOpts
 
 local fmt = string.format
+local function trim(str) return str:gsub("^[%s%c]*(.-)[%s%c]*$","%1") end
+
 
 function fibaro.__ER.modules.engine(ER)
   local Script = ER.Script
@@ -84,8 +86,7 @@ function fibaro.__ER.modules.engine(ER)
     return runner(...)
   end
   ER.runCoroutine = runCoroutine
-  
-  local function trim(str) return str:gsub("^[%s%c]*(.-)[%s%c]*$","%1") end
+
   local function eval(str,options)
     assert(type(str)=='string',"first argument to eval must be a string (eventscript)")
     local str2 = str:gsub("(\xC2\xA0)","<*>")
@@ -331,13 +332,24 @@ function QuickApp:EventRunnerEngine()
   else self:debug("No main function") end
   
   function self:eval(str) -- Terminal eval function
+    str = trim(str)
+    local opt = {}
+    if str=="" then return end
+    local r,o = str:match("(.*)///(.*)")
+    if r then
+      local stat,err = e_pcall(function()
+        opt = er.eval(o,{silent=true})
+      end)
+      if type(opt)~='table' or not stat then self:error("///option",err) end
+      str=r
+    end
     local stat,err = e_pcall(function()
-      er.eval(str)
+      er.eval(str,opt)
     end)
     err = tostring(err)
     err = err:gsub("\n","</br>")
     err = err:gsub(" ","&nbsp;")
-    if not stat then print(err) end
+    if not stat then self:error(err) end
   end
   
   return ER
