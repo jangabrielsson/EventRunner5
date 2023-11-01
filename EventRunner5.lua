@@ -8,7 +8,7 @@
 --%%u4={{button='test1',text='Test1', onReleased='test1'},{button='test2',text='Test2', onReleased='test2'}}
 
 function QuickApp:main(er)
-    local rule,eval,var,Util = er.eval,er.eval,er.variable,er
+    local rule,eval,var,triggerVar,Util = er.eval,er.eval,er.variables,er.triggerVariables,er
     self:enableTriggerType({"device","global-variable","custom-event","profile","alarm","weather","location","quickvar","user"}) -- types of events we want
 
     -- Global debug flags, can be overridden by ruleOptions
@@ -44,7 +44,8 @@ function QuickApp:main(er)
     }
 
     if fibaro.fibemu then
-        --bs = fibaro.fibemu.create.binarySwitch().id
+        bs = fibaro.fibemu.create.binarySwitch().id
+        ms = fibaro.fibemu.create.multilevelSwitch().id
     end
 
     local HT = { 
@@ -95,15 +96,22 @@ function QuickApp:main(er)
     -- rule("for k,_ in ipairs({2,3,4}) do log('%s',_) end")
     -- rule("local a,b = 9,8; a*b")
 
-    var.keuken = {  wcd_VaatWasser = 77 }
-    
-    rule([[keuken.wcd_VaatWasser:isOn | keuken.wcd_VaatWasser:isOff =>
-    || keuken.wcd_VaatWasser:isOn >>
-        log('#C:yellow#keuken.wcd_VaatWasser WCD - Aan')
-    || keuken.wcd_VaatWasser:isOff >>
-  		log('#C:yellow#keuken.wcd_VaatWasser WCD - Uit')
- ]])
-    var.ii=0
+    function er.settings.logFunction(rule,tag,str) 
+        local color = nil
+        str = str:gsub("(#T:)(.-)(#)",function(_,t) tag=t return "" end)
+        str = str:gsub("(#C:)(.-)(#)",function(_,c) color=c return "" end)
+        if color then str=string.format("<font color=%s>%s</font>",color,str) end
+        fibaro.trace(tag,str);
+        return str
+      end
+
+    --   var.keuken = { wcd_WaterKoker = ms }
+    --   rule([[keuken.wcd_WaterKoker:value > 20 =>
+    --     log('#C:yellow#waterKoker - In bedrijf')
+    --   ]])
+    --   rule("wait(2); ms:on")
+
+    --var.ii=0
     --a = rule("@@00:00:05 => ii=ii+1; log('5 seconds %s',ii)",{ruleResult=false,ruleTrue=false})
     -- rule("@{sunrise,catch} => log('God morning!')")
     -- rule("@sunset => log('God evening!')")
@@ -120,12 +128,11 @@ function QuickApp:main(er)
 
     --rule("wait(1); post(#info)")
 
-    Util.defvar('ER',er)
     local ruleOpts = { silent=true }
-    rule("#UI{cmd='listRules'} => ER.listRules(false)",ruleOpts)
-    rule("#UI{cmd='listRulesExt'} => ER.listRules(true)",ruleOpts)
-    rule("#UI{cmd='listVars'} => ER.listVariables()",ruleOpts)
-    rule("#UI{cmd='listTimers'} => ER.listTimers()",ruleOpts)
+    rule("#UI{cmd='listRules'} => listRules(false)",ruleOpts)
+    rule("#UI{cmd='listRulesExt'} => listRules(true)",ruleOpts)
+    rule("#UI{cmd='listVars'} => listVariables()",ruleOpts)
+    rule("#UI{cmd='listTimers'} => listTimers()",ruleOpts)
    
     rule("#UI{cmd='test1'} => a.disable()",ruleOpts)
     rule("#UI{cmd='test2'} => a.enable()",ruleOpts)

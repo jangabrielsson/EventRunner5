@@ -277,7 +277,8 @@ function fibaro.__ER.modules.builtins(ER)
         if #args < n then for i=1,n-#args do args[#args+1]='nil' end end
         if #args == 1 then str=args[1]
         elseif #args>1 then str = fmt(table.unpack(args)) end
-        fibaro.debug(p.rule and p.rule._ltag or ER.er.ltag or __TAG,str)
+        local prFun = ER.settings.logFunction or fibaro.debug
+        prFun(p.rule,p.rule and p.rule._ltag or ER.er.ltag or __TAG,str)
         st.push(str)
     end
     

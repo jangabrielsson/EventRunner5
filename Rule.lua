@@ -15,7 +15,7 @@ function fibaro.__ER.modules.rule(ER)
   
   local fmt=string.format
   local function hms(t) return os.date("%H:%M:%S",t < 24*3600 and t+fibaro.midnight() or t) end -- TBD: move to Utils.lua
-  local vars,triggerVars = ER._vars,ER.triggerVars
+  local vars,triggerVars = ER._vars,ER._triggerVars
   local function now() local t = os.date("*t") return t.hour*3600+t.min*60+t.sec end
 
   local tableOpts = {table="width='100%' border=1 bgcolor='"..(ER.settings.listColor or "purple").."'",td="align='left'"}

@@ -1,6 +1,6 @@
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 0.015
+local version = 0.016
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -43,7 +43,7 @@ function fibaro.__ER.modules.engine(ER)
   local vars,triggerVars = ER.vars,ER.triggerVars
   local reverseVarTable = {}
   function ER.defVar(name,init) vars[name] = init end
-  function ER.defTriggerVar(name,init) ER.defVar(name,init) triggerVars[name] = true end
+  function ER.defTriggerVar(name,init) triggerVars[name] = init end
   function ER.defvars(tab) for var,val in pairs(tab) do ER.defVar(var,val) end end
   function ER.reverseMapDef(table) ER._reverseMap({},table) end
   function ER._reverseMap(path,value)
@@ -100,7 +100,7 @@ function fibaro.__ER.modules.engine(ER)
     options.src = str
     local tkns = ER:tokenize(str)
     local defRule =  tkns.containsOp('rule')
-    options.error = options.error or function(err)
+    options.error = options.error or function(err) -- Standard error handler 
       if defRule and type(err)=='table' then 
         err.rule = err.rule or { rname = fmt("Defining [Rule:%s]",ER.nextRuleID())}
       end
@@ -180,7 +180,15 @@ function QuickApp:EventRunnerEngine()
     __index = function(t,k) return vars[k] end,
     __newindex = function(t,k,v) vars[k] = {v} end
   })
-  ER.triggerVars = {}  -- Trigger variables are marked here. 
+  
+  local triggerVars = {}  -- Trigger variables are marked here. 
+  ER._triggerVars = triggerVars
+  ER.triggerVars = setmetatable({},
+  {
+    __index = function(t,k) return triggerVars[k] end,
+    __newindex = function(t,k,v) triggerVars[k]=true; ER.vars[k]=v end
+  })
+
   ER.builtins = {}
   ER.builtinArgs = {}
   ER.propFilters = {}
@@ -259,8 +267,8 @@ function QuickApp:EventRunnerEngine()
   function er.isRule(p) return type(p)=='table' and p.type=='%RULE%' end
   er.definePropClass = ER.definePropClass
   
-  er.variable = ER.vars
-  er.triggerVar = ER.triggerVars
+  er.variables = ER.vars
+  er.triggerVariables = ER.triggerVars
   function er.defvar(name,init) ER.vars[name]=init end
   
   er.defTriggerVar = ER.defTriggerVar
