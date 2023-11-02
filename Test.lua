@@ -13,8 +13,8 @@ function QuickApp:main(er)
 
   local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
-  PrintBuffer,sunData =
-  table.unpack(er._utilities.export)
+  PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts =
+  table.unpack(ER.utilities.export)
   
   if false then -- test coroutines
     function multval() return 1,2,3 end

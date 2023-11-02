@@ -2,10 +2,10 @@ fibaro.__ER  = fibaro.__ER or { modules={} }
 
 function fibaro.__ER.modules.builtins(ER)
     
-    local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
-    marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
-    PrintBuffer,sunData =
-    table.unpack(ER.utilities.export)
+local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
+  marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
+  PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts =
+  table.unpack(ER.utilities.export)
     
     local builtin = ER.builtins
     local args = ER.builtinArgs

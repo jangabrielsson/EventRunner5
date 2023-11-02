@@ -4,8 +4,9 @@ function fibaro.__ER.modules.rule(ER)
   
   local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
-  PrintBuffer,sunData,LOG,htmlTable,evOpts =
+  PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts =
   table.unpack(ER.utilities.export)
+
   local settings,debug = ER.settings,ER.debug
 
   local ruleID,rules = 0,{}
@@ -18,6 +19,7 @@ function fibaro.__ER.modules.rule(ER)
   local function hms(t) return os.date("%H:%M:%S",t < 24*3600 and t+fibaro.midnight() or t) end -- TBD: move to Utils.lua
   local vars,triggerVars = ER._vars,ER._triggerVars
   local function now() local t = os.date("*t") return t.hour*3600+t.min*60+t.sec end
+  local MTevent = { __tostring = eventStr }
 
   local tableOpts = {table="width='100%' border=1 bgcolor='"..settings.listColor.."'",td="align='left'"}
   function ER.listRules(extended)
@@ -203,27 +205,32 @@ function fibaro.__ER.modules.rule(ER)
   end)
   
   local function ruleNameStr(r) return r.rname end
-  local function ruleDescriptionStr(d,rule) return fmt("%s description:\n%s",rule.rname,tostring(rule.triggers)) end
-  local function ruleTriggersStr(tr,rule)
-    local s = {fmt("%s triggers:",rule.rname)} for k,t in pairs(tr) do s[#s+1] = "->Event:"..eventStr(t) end
+
+  local function printInfo(rule)
+    local s = {fmt("%s info:",rule.rname)} for k,t in pairs(rule.triggers) do s[#s+1] = "->Event:"..eventStr(t) end
     for _,t in ipairs(rule.dailys) do
       local v = t()
       if type(v)=='table' then 
-        for _,t in ipairs(v) do if t ~= math.maxinteger then s[#s+1] = fmt("->Timer:%s",hms(t)) end end
+        for _,t in ipairs(v) do if t ~= math.maxinteger then s[#s+1] = fmt("->Dailys:%s",hms(t)) end end
       else s[#s+1] = fmt("->Timer:%s",hms(v)) end
     end
-    return table.concat(s,"\n")
-  end
-  local function ruleInfoStr(_,rule)
-    local s = {fmt("%s timers:",rule.rname)} for ref,doc in pairs(rule._timers) do 
-      s[#s+1] = fmt("->'%s':%s",doc[1],os.date("%c",doc[2]))
+    for _,t in pairs(rule._timers) do
+      s[#s+1] = fmt("->Timer:%s%s",t[1],hms(t[2]))
     end
-    return table.concat(s,"\n")
+    for _,t in pairs(rule._dailyTimers) do
+      s[#s+1] = fmt("->Timer:@%s",hms(t[2]))
+    end
+    return LOG(table.concat(s,"\n"))
   end
-  local function ruleProcessStr(_,rule)
-    local res = {fmt("%s processes:",rule.rname)}
-    for co,stat in pairs(rule.runners) do res[#res+1]= fmt("%s => %s (%s)",rule.rname,stat,co) end
-    return table.concat(res,"\n")
+  local function printProcesses(rule)
+    local res = {}
+    if not next(rule.runners) then
+      res = {fmt("%s processes: No processes running",rule.rname)}
+    else
+      res = {fmt("%s processes:",rule.rname)}
+      for co,stat in pairs(rule.runners) do res[#res+1]= fmt("%s => %s (%s)",rule.rname,stat,co) end
+    end
+    return LOG(table.concat(res,"\n"))
   end
 
   local function nameRule(rule)
@@ -304,6 +311,7 @@ function fibaro.__ER.modules.rule(ER)
     function rule.name(name) rule._name = name; nameRule(rule) return rule end
     function rule.rtag(tag) rule._rtag = tag; return rule end
     function rule.ltag(tag) rule._ltag = tag; return rule end
+    function rule.mode(mode) rule._mode = mode; return rule end -- 'killOthers', 'killSelf'
     function rule.enable() 
       if rule._enabled then return end
       rule._enabled = true
@@ -331,6 +339,9 @@ function fibaro.__ER.modules.rule(ER)
       rule._clearTimers() 
       return rule
     end
+    function rule.processes() printProcesses(rule) return rule end
+    function rule.info() printInfo(rule) return rule end
+
     function rule.recompile() -- recompile rule code, replacing old rule with new rule
       rule.stop()
       local nr = rule.compile(rule.src,triggers.opts)
@@ -358,14 +369,17 @@ function fibaro.__ER.modules.rule(ER)
 
     function rule.start(ev,id,vars)
       ev = ev or {type='nop'}
-      setmetatable(ev,{__tostring = function() return eventStr(ev) end})
+      if rule._mode == 'killOthers' then rule.stop()
+      elseif rule._mode == 'killSelf' and  next(rule.runners) then return rule end
+
+      setmetatable(ev,MTevent)
       local co = coroutine.create(rule.fun)
       rule.instance = rule.instance+1
       local instname = fmt("[Rule:%s:%s]",rule._name,rule.instance)
       co.name = setmetatable({},{__tostring = function() return instname end})
       co.rtd.rule = rule
       rule.runners[co] = 'running'
-      local env = {event=ev,evid=id,vars=vars,rule=rule,name=co.name,co=co}
+      local env = {event=ev,evid=id,vars=vars,rule=rule,name=co.name,co=co,instance=rule.instance}
       local locals = co.rtd.env -- local variables
       locals.push('env',env)
       for k,v in pairs(vars or {}) do locals.push(k,v) end
@@ -381,11 +395,9 @@ function fibaro.__ER.modules.rule(ER)
           logf(co,rule,ok,ev)
         end
       end
-      function co.LOG(...)
-        local a = {...}
-        LOG("%s>> %s",co.name,fmt(...)) 
-      end
-      
+      function co.LOG(...) LOG("%s>> %s",co.name,fmt(...)) end
+      function co.ERROR(...) LOGERR("%s>> %s",co.name,fmt(...)) end
+
       options.trace=rule._trace
       options.debug=rule._debug
       
@@ -411,7 +423,7 @@ function fibaro.__ER.modules.rule(ER)
         if rule.resultHook then rule.resultHook(conditionSucceeded,...) end
       end
       
-      function options.error(err) rule.runners[co] = nil fibaro.error(__TAG,err) end
+      function options.error(err) rule.runners[co] = nil co.ERROR(tostring(err)) end
       
       if evOpts(options.ruleTrigger,debug.ruleTrigger) then co.LOG("triggered %s",tostring(ev) // settings.truncStr) end
       local res = {runCoroutine(co,options,env)}
@@ -462,11 +474,10 @@ function fibaro.__ER.modules.rule(ER)
     if #dailys>0 then rule._setupDailys(true) end
     
     function rule.evalPrint() nameRule(rule) if not options.silent then LOG("%s %s %s",ER.color("green","Defined"),rule.rname,rule.src // settings.truncLog) rule.evalPrint=nil end end
-    setmetatable(rule.triggers,{__tostring = function(t) return ruleTriggersStr(t,rule) end })
-    rule.description = setmetatable({},{__tostring = function(d) return ruleDescriptionStr(d,rule) end })
-    rule.info = setmetatable({},{__tostring = function(d) return ruleInfoStr(d,rule) end })
-    rule.processes = setmetatable({},{__tostring = function(d) return ruleProcessStr(d,rule) end })   
-    
+    setmetatable(rule.triggers,{
+      __tostring = function(t) return ruleTriggersStr(t,rule) end,
+     })
+
     rules[rule.id] = rule
     return rule
   end

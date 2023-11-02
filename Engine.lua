@@ -1,11 +1,11 @@
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 0.021
+local version = 0.022
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
 marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
-PrintBuffer,sunData,LOG,htmlTable,evOpts
+PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts
 
 local fmt = string.format
 local function trim(str) return str:gsub("^[%s%c]*(.-)[%s%c]*$","%1") end
@@ -70,6 +70,8 @@ function fibaro.__ER.modules.engine(ER)
           local action = stat[2]
           if action == '%wait%' then
             Script.setTimeout(co.rtd,runner,stat[3])
+            local msg = stat[4] or stat[2]
+            return false,msg
           end -- ignore 'callback'
           return false,table.unpack(stat,2)
         else
@@ -206,6 +208,7 @@ function QuickApp:EventRunnerEngine(callback)
   ER.settings.listColor      = "purple"      -- color of list log (list rules etc), defaults to "purple"
   ER.settings.statsColor     = "green"       -- color of statistics log, defaults to "green"  
   ER.settings.logFunction = function(rule,tag,str) return fibaro.debug(tag,str) end -- function to use for user log(), defaults to fibaro.debug if nil
+  ER.settings.asyncTimeout   = 10000         -- timeout for async functions, defaults to 10 seconds
 
   ER.er = er
 
@@ -239,7 +242,7 @@ function QuickApp:EventRunnerEngine(callback)
   ER.modules.utilities(ER) -- setup utilities, needed by all modules
   stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
-  PrintBuffer,sunData,LOG,htmlTable,evOpts =
+  PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts =
   table.unpack(ER.utilities.export)
   
   ER.utilities.printBanner("%s, deviceId:%s, version:%s",{self.name,self.id,self.E_VERSION})
@@ -312,9 +315,25 @@ function QuickApp:EventRunnerEngine(callback)
   function er.color(color,str) return "<font color="..color..">"..str.."</font>" end
   ER.color = er.color
 
+  local MTasyncCallback = { __call = 
+    function(cb,...) 
+      if not cb[1] then error("async callback not asyncronous called") end
+      if not cb[2] then cb[1](...) end
+    end
+  }
+  function ER.asyncFun(f)
+    local function afun(...)
+        local cb = setmetatable({},MTasyncCallback)
+        local delay,msg = f(cb,...)
+        return '%magic_suspend%',cb,tonumber(delay),msg
+    end
+    return afun
+  end
+
   for k,v in pairs({
     listRules= ER.listRules,listVariables=ER.listVariables,listTimers=ER.listTimers,
     defvars = function(t) for k,v in pairs(t) do er.defvar(k,v) end end,
+    async = ER.asyncFun,
   }) do er[k] = v; ER.vars[k]=v end
   ER.vars.rule = function(i) return ER.rules[i] end
 

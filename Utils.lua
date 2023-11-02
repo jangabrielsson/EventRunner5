@@ -42,19 +42,24 @@ function fibaro.__ER.modules.utilities(ER)
     return self
   end
   
-  function Utils.LOG(f,...)
+  local function LOGGER(df,f,...)
     if #{...} > 0 then
       local msg = f:format(...)
       msg = msg:gsub(" ","&nbsp;")
       msg = msg:gsub("\n","</br>")
-      fibaro.trace(ER.settings.systemLogTag or __TAG,msg)
+      df(ER.settings.systemLogTag or __TAG,msg)
     else 
       f = f:gsub(" ","&nbsp;")
       f = f:gsub("\n","</br>")
-      fibaro.trace(ER.settings.systemLogTag or __TAG,f) 
+      df(ER.settings.systemLogTag or __TAG,f) 
     end
   end
+
+  function Utils.LOG(f,...) LOGGER(fibaro.trace,f,...) end
+  function Utils.LOGERR(f,...) LOGGER(fibaro.error,f,...) end
+
   local LOG = Utils.LOG
+  local LOGERR = Utils.LOGERR
 
   function Utils.PrintBuffer(...)
     local self = { buff = {...} }
@@ -310,14 +315,14 @@ function fibaro.__ER.modules.utilities(ER)
   ER.utilities.export = {
     Utils.stack, Utils.stream, Utils.errorMsg, Utils.isErrorMsg, Utils.xerror, Utils.pcall, Utils.errorLine,
     Utils.marshallFrom, Utils.marshallTo, toTime, midnight, encodeFast, Utils.argsStr, Utils.eventStr,
-    Utils.PrintBuffer, Utils.sunData, Utils.LOG, Utils.htmlTable, Utils.evOpts
+    Utils.PrintBuffer, Utils.sunData, Utils.LOG, Utils.LOGERR, Utils.htmlTable, Utils.evOpts
   }
   for _,f in ipairs(extraSetups) do f() end
   
   
   -- stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   -- marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
-  -- PrintBuffer,sunData,LOG,htmlTable,evOpts =
+  -- PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts =
   -- table.unpack(ER.utilities.export)
   
 end

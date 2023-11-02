@@ -3,7 +3,8 @@ fibaro.__ER  = fibaro.__ER or { modules={} }
 function fibaro.__ER.modules.vm(ER)
   
   local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
-  marshallFrom,marshallTo,toTime,midnight,encodeFast =
+  marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
+  PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts =
   table.unpack(ER.utilities.export)
   
 ---@diagnostic disable-next-line: deprecated
@@ -11,7 +12,8 @@ function fibaro.__ER.modules.vm(ER)
   local coerce = fibaro.EM.coerce
   local vars,triggerVars = ER._vars,ER._triggerVars
   local fmt = string.format
-  
+  local settings = ER.settings
+
   local function errorf(p,fm,...)
     local dbg = p.fun.dbg[p.fun.code[p.pc]]
     dbg = dbg and dbg.d or {}
@@ -113,19 +115,22 @@ function fibaro.__ER.modules.vm(ER)
     local res = {pcall(f,table.unpack(args))}
     if not res[1] then errorf(p,res[2]) end
     if res[2] == '%magic_suspend%' then  -- Ok, this is the way to signal that the fun is async...
+      local cb,msg = res[3],res[5]
       p.yielded = true;
-      local timeout,tref = res[4] or 5000,nil   -- default timeout
-      res[3][1] = function(...)                 -- second value returned is a basket we put the callback function in
-        if tref == nil then return end        -- ignore callback if timeout has expired
+      local timeout,tref = res[4] or settings.asyncTimeout,nil  -- default timeout in milliseconds
+      cb[1] = function(...)                     -- second value returned is a basket we put the callback function in
+        cb[2]=true
+        if tref == nil then return end          -- ignore callback if timeout has expired
         Script.clearTimeout(p,tref)
-        local res2 = {ER.runCoroutine(p.co,nil,...)} --tbd add timeout
+        ER.runCoroutine(p.co,nil,...)           -- no one interested in return result...
       end
       tref = Script.setTimeout(p,function() --  timeout handler
+        cb[2] = true
         tref = nil
-        p.co.options.error("Timeout") 
+        p.co.options.error(fmt("Timeout for function '%s'",name or tostring(f)))
       end,
       timeout) 
-      st.push('%callback%'); return true
+      st.push('%callback%'); return true -- ToDo add msg
     end
     st.push(res[2])
     if #res > 2 then for i=3,#res do st.push0(res[i]) end end
