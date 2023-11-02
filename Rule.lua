@@ -259,7 +259,6 @@ function fibaro.__ER.modules.rule(ER)
   
     nameRule(rule)
     
-    if not options.silent then LOG("Defining [Rule:%s:%s]...",rule._name,rule.src // settings.truncStr) end
     local triggers = { daily=nil, interv=nil, timers={}, srct={}, opts = { src = rule.src, rule = rule } }
     getTriggers(cond,triggers)
     local trs = triggers.srct
@@ -462,7 +461,7 @@ function fibaro.__ER.modules.rule(ER)
     
     if #dailys>0 then rule._setupDailys(true) end
     
-    function rule.evalPrint() nameRule(rule) if not options.silent then LOG(rule.rname.." defined") rule.evalPrint=nil end end
+    function rule.evalPrint() nameRule(rule) if not options.silent then LOG("%s %s %s",ER.color("green","Defined"),rule.rname,rule.src // settings.truncLog) rule.evalPrint=nil end end
     setmetatable(rule.triggers,{__tostring = function(t) return ruleTriggersStr(t,rule) end })
     rule.description = setmetatable({},{__tostring = function(d) return ruleDescriptionStr(d,rule) end })
     rule.info = setmetatable({},{__tostring = function(d) return ruleInfoStr(d,rule) end })

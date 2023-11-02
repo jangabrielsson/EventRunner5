@@ -1,6 +1,6 @@
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 0.016
+local version = 0.020
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -101,6 +101,7 @@ function fibaro.__ER.modules.engine(ER)
     if defRule then
       local rule = ER:createRuleObject(options)
       options.rule = rule
+      --if not options.silent then LOG("Defining [Rule:%s:%s]...",rule._name,rule.src // settings.truncStr) end
     end
     local p = ER:parse(tkns,options)
     local fun = ER:compile(p,options)
@@ -309,7 +310,8 @@ function QuickApp:EventRunnerEngine(callback)
   er._utilities = ER.utilities
   er.debug,er.settings = ER.debug,ER.settings
   function er.color(color,str) return "<font color="..color..">"..str.."</font>" end
-  
+  ER.color = er.color
+
   for k,v in pairs({
     listRules= ER.listRules,listVariables=ER.listVariables,listTimers=ER.listTimers,
     defvars = function(t) for k,v in pairs(t) do er.defvar(k,v) end end,
