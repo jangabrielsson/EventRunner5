@@ -1,6 +1,8 @@
 --%%include=Include.lua
 --%%name=EventRunner5
 --%%remote=alarms/v1/partitions:1
+--%%var=x:5
+--%%var=y:6
 --%%id=1249
 --%%u1={label='title',text='EventRunner5'}
 --%%u2={{button='listRules',text='List rules', onReleased='listRules'},{button='listRulesExt',text='List rules ext.', onReleased='listRulesExt'}}
@@ -10,26 +12,6 @@
 function QuickApp:main(er)
     local rule,eval,var,triggerVar,Util = er.eval,er.eval,er.variables,er.triggerVariables,er
     self:enableTriggerType({"device","global-variable","custom-event","profile","alarm","weather","location","quickvar","user"}) -- types of events we want
-
-    -- Global debug flags, can be overridden by ruleOptions
-    er.debug.ruleTrigger    = true -- log rules being triggered 
-    er.debug.ruleTrue       = true -- log rules with condition succeeding
-    er.debug.ruleFalse      = true -- log rules with condition failing
-    er.debug.ruleResult     = true -- log results of rules running
-    er.debug.evalResult     = true -- log results of evaluations
-    er.debug.post           = true -- log events being posted
-    er.debug.sourceTrigger  = true -- log incoming sourceTriggers
-    er.debug.refreshEvents  = true -- log incoming refreshEvents
-
-    -- Global settings
-    er.settings.marshall       = true          -- autoconvert globalVariables values to numbers, booleans, tables when accessed
-    er.settings.systemLogTag   = "ER"..self.id -- log tag for ER system messages, defaults to __TAG
-    er.settings.ignoreInvisibleChars = false   -- Check code for invisible characters (xC2xA0) before evaluating
-    er.settings.truncLog       = 100           -- truncation of log output
-    er.settings.truncStr       = 80            -- truncation of log strings
-    -- er.settings.bannerColor = "orange"         -- color of banner in log, defaults to "orange"      
-    -- er.settings.listColor = "purple"           -- color of list log (list rules etc), defaults to "purple"
-    -- er.settings.statsColor = "green"           -- color of statistics log, defaults to "green"  
 
     -- Rule/expresion options, overrides global settings when passed to individual rules/expressions. nil means use global setting
     local expressionOptions = {
@@ -43,9 +25,9 @@ function QuickApp:main(er)
         evalResult     = true,  -- log result of expression evaluation
     }
 
-    if fibaro.fibemu then
-        bs = fibaro.fibemu.create.binarySwitch().id
-        ms = fibaro.fibemu.create.multilevelSwitch().id
+    if fibaro.fibemu then -- Running in emulator, create 2 fake devices to play with...
+        var.bs = fibaro.fibemu.create.binarySwitch().id
+        var.ms = fibaro.fibemu.create.multilevelSwitch().id
     end
 
     local HT = { 
@@ -56,70 +38,13 @@ function QuickApp:main(er)
         gardenlight =24
     }
     
-    Util.defvars(HT)
-    Util.reverseMapDef(HT)
+    er.defvars(HT)
+    er.reverseMapDef(HT)
 
-    -- rule("3+3")
-
-    -- local a = rule("@sunset => gardenlight:on").name("test")
-    -- print("Name:",a)
-    -- print("\n"..tostring(a.description))
-    -- print("\n"..tostring(a.triggers))
-
-    -- a = 99
-    -- b = rule("myrule","@now+1 => log('%s OK',env.name); wait(1,'A'); post(#foo,10:00)")
-
-    -- rule("wait(2); log(b.info)")
-    --rule("a,b=5,0; while a > 0 do a=a-1; b=b+1 end; b",{trace=true,listCode=true})
-    --rule("a=4; while (a=a-1) > 0 do log('a=%s',a) end; log('X')",{trace=false,listCode=true})
-    -- rule([[@midnight =>
-    --     || false uck >> 6
-    --     || false >> 8
-    --     || 9 >> 10
-    -- ]],{listCode=true})
-    --rule("http.get('http://worldtimeapi.org/api/timezone/Europe/Stockholm').data.datetime")
-    --rule("for i=2,5,2 do log('Value:%s',i) end")
-    --rule("for k,v in pairs(t) do k end")
-    -- rule("trueFor(00:00:05,bs:isOn) => log('Light is on for %s seconds',5*again())")
-    -- rule("@{catch,sunset+00:10} => gardenlight:on")
-    -- rule("wait(00:00:03,'abc'); log('RUN'); bs:on")
-    -- a = rule("1:armed~=nil => log('Partition 1 is %s',1:armed)")
-    -- rule("PIN='1111';1:tryArm")
-    -- rule("#alarm{id=1,property='armDelayed'} => 1:armed=false; log('ALARM:%s',env.event)")
-    -- print(a.description)
-
-    -- rule("[_:isOn in lamps]:on")
-    --rule("[_==='RPC'in globals]:GV")
-    -- rule("noid:value")
-    -- rule("1250:isOn")
-    -- rule("quickvars")
-    -- rule("for k,_ in ipairs({2,3,4}) do log('%s',_) end")
-    -- rule("local a,b = 9,8; a*b")
-
-    function er.settings.logFunction(rule,tag,str) 
-        local color = nil
-        str = str:gsub("(#T:)(.-)(#)",function(_,t) tag=t return "" end)
-        str = str:gsub("(#C:)(.-)(#)",function(_,c) color=c return "" end)
-        if color then str=string.format("<font color=%s>%s</font>",color,str) end
-        fibaro.trace(tag,str);
-        return str
-      end
-
-    --   var.keuken = { wcd_WaterKoker = ms }
-    --   rule([[keuken.wcd_WaterKoker:value > 20 =>
-    --     log('#C:yellow#waterKoker - In bedrijf')
-    --   ]])
-    --   rule("wait(2); ms:on")
-
-    --var.ii=0
-    --a = rule("@@00:00:05 => ii=ii+1; log('5 seconds %s',ii)",{ruleResult=false,ruleTrue=false})
-    -- rule("@{sunrise,catch} => log('God morning!')")
-    -- rule("@sunset => log('God evening!')")
-    -- rule("@23:00 => log('God night!')")
-    -- rule("@sunset => log('sunset!')")
-    -- --rule("trueFor(02:00,bs:safe) => log('bs safe')").start()
-    -- rule("@now+1 => post(#foo)")
-    -- rule("#foo => log('#foo received')")
+    var.i = 0
+    rule("@@00:00:05 => i=i+1; log('5 seconds %s',i)",{ruleResult=false,ruleTrue=false})
+    rule("MyRule","#myEvent => log('myEvent')").name("MyRule") -- name rule for easier debugging
+    rule("wait(2); post(#myEvent,1,'Test')")
 
     local msgOpts = { silent=true }
     rule("log('Weather condition is %s',weather:condition)",msgOpts)
@@ -139,7 +64,45 @@ function QuickApp:main(er)
 end
 
 function QuickApp:onInit()
-    self:setVariable('x',45)
-    self:setVariable('y',46)
-    self:EventRunnerEngine()
+    self:EventRunnerEngine( -- Create EventRunner engine and pass callback function 
+    function(er)
+        -- Settings
+
+        -- Global debug flags, can be overridden by ruleOptions
+        er.debug.ruleTrigger    = false -- log rules being triggered 
+        er.debug.ruleTrue       = true  -- log rules with condition succeeding
+        er.debug.ruleFalse      = true  -- log rules with condition failing
+        er.debug.ruleResult     = false -- log results of rules running
+        er.debug.evalResult     = true  -- log results of evaluations
+        er.debug.post           = true  -- log events being posted
+        er.debug.sourceTrigger  = false  -- log incoming sourceTriggers
+        er.debug.refreshEvents  = false  -- log incoming refreshEvents
+        
+        -- Global settings
+        er.settings.marshall       = true          -- autoconvert globalVariables values to numbers, booleans, tables when accessed
+        er.settings.systemLogTag   = "ER"..self.id -- log tag for ER system messages, defaults to __TAG
+        er.settings.ignoreInvisibleChars = false   -- Check code for invisible characters (xC2xA0) before evaluating
+        er.settings.truncLog       = 100           -- truncation of log output
+        er.settings.truncStr       = 80            -- truncation of log strings
+        -- er.settings.bannerColor = "orange"         -- color of banner in log, defaults to "orange"      
+        -- er.settings.listColor = "purple"           -- color of list log (list rules etc), defaults to "purple"
+        -- er.settings.statsColor = "green"           -- color of statistics log, defaults to "green"  
+        -- er.settings.userLogFunction = function(rule,tag,str) return fibaro.debug(tag,str) end -- function to use for user log(), defaults to fibaro.debug if nil
+
+        function er.settings.runRuleLogFun(co,rule,ok,event)
+            co.LOG("%s %s -> %s",ok and er.color("green","TRUE") or er.color("red","FALSE"),tostring(event) // 20,rule.src // 40)
+        end
+    
+        function er.settings.userLogFunction(rule,tag,str) -- custom user log function with color and tag support,  #C:color# and #T:tag#
+            local color = nil
+            str = str:gsub("(#T:)(.-)(#)",function(_,t) tag=t return "" end)
+            str = str:gsub("(#C:)(.-)(#)",function(_,c) color=c return "" end)
+            if color then str=string.format("<font color=%s>%s</font>",color,str) end
+            fibaro.trace(tag,str);
+            return str
+        end
+
+        self:main(er) -- Call main function to setup rules
+    end
+)
 end

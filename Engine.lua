@@ -60,24 +60,23 @@ function fibaro.__ER.modules.engine(ER)
   local function runCoroutine(co,options,...)
     options = options or co.options
     local coroutine = ER.coroutine
-    local level = 0
     local function runner(...)
-      level = level+1
       local stat = {coroutine.resume(co,...)}
       if not stat[1] then 
         return options.error(stat[2])
       else
         if coroutine.status(co)=='suspended' then
-          options.suspended(co.success==true,table.unpack(stat,2))
+          options.suspended(table.unpack(stat,2))
           local action = stat[2]
           if action == '%wait%' then
             Script.setTimeout(co.rtd,runner,stat[3])
           end -- ignore 'callback'
-          return false,co.success==true,table.unpack(stat,2)
+          return false,table.unpack(stat,2)
         else
-          if level > 1 then options.success(co.success==true,table.unpack(stat,2))
-          else return true,co.success==true,table.unpack(stat,2) end
+          options.success(table.unpack(stat,2))
+          return true,table.unpack(stat,2)
         end
+
       end
     end
     co.options = options
@@ -94,25 +93,21 @@ function fibaro.__ER.modules.engine(ER)
       error("String contains illegal chars: "..str2) 
     end
     str = trim(str)
-    ER._lastRule = nil
     local coroutine = ER.coroutine
     options = options or {}
     options.src = str
     local tkns = ER:tokenize(str)
     local defRule =  tkns.containsOp('rule')
-    options.error = options.error or function(err) -- Standard error handler 
-      if defRule and type(err)=='table' then 
-        err.rule = err.rule or { rname = fmt("Defining [Rule:%s]",ER.nextRuleID())}
-      end
-      e_error(err)
-      return false,fibaro.error(__TAG,err) 
+    if defRule then
+      local rule = ER:createRuleObject(options)
+      options.rule = rule
     end
     local p = ER:parse(tkns,options)
     local fun = ER:compile(p,options)
     if fun == nil then error("can't compile "..str) end
     if options.listCode then print(fun.codeList()) end
     local co = coroutine.create(fun)
-    function co._post(ev,t,dscr) return fibaro.post(ev,t) end
+    function co._post(ev,t,descr) return fibaro.post(ev,t,descr) end
     function co._cancelPost( ) return fibaro.cancel(ref) end
     function co._setTimeout(fun,delay,descr) return setTimeout(fun,delay) end
     function co._clearTimeout(ref) return clearTimeout(ref) end
@@ -164,15 +159,55 @@ end
 
 ----------------------------------------------------------------------------------
 -- Setup engine and call main function 
-function QuickApp:EventRunnerEngine()
+function QuickApp:EventRunnerEngine(callback)
   quickApp = self
   self:setVersion("EventRunner5",self.E_SERIAL,self.E_VERSION)
+  local vp = api.get("/settings/info").currentVersion.version
+  local a,b,c = vp:match("(%d+)%.(%d+)%.(%d+)")
+  vp = tonumber(string.format("%03d%03d%03d",a,b,c))
+  if vp < 5142083 then 
+    self:error("Sorry, EventRunner5 only works with FW v5.142.83 or later")
+    return
+  end
   
   fibaro.debugFlags.html = true
   fibaro.debugFlags.onaction=false
   
   local ER,er = fibaro.__ER,{}
+  ER.settings = {}
+  local _debug = {}
+  local _dbgHook = { 
+    sourceTrigger = function(v) fibaro.debugFlags.sourceTrigger=v end,
+    refreshEvents = function(v) fibaro.debugFlags._allRefreshStates=v end,
+    post = function(v) fibaro.debugFlags.post=v end,
+  }
+  ER.debug = setmetatable({},{
+    __index = function(t,k) return _debug[k] end,
+    __newindex = function(t,k,v) _debug[k]=v if _dbgHook[k] then _dbgHook[k](v) end end
+  })
+  -- Global debug flags, can be overridden by ruleOptions
+  ER.debug.ruleTrigger    = true -- log rules being triggered 
+  ER.debug.ruleTrue       = true -- log rules with condition succeeding
+  ER.debug.ruleFalse      = true -- log rules with condition failing
+  ER.debug.ruleResult     = false -- log results of rules running
+  ER.debug.evalResult     = true -- log results of evaluations
+  ER.debug.post           = true -- log events being posted
+  ER.debug.sourceTrigger  = true -- log incoming sourceTriggers
+  ER.debug.refreshEvents  = true -- log incoming refreshEvents
+  
+  -- Global settings
+  ER.settings.marshall       = true          -- autoconvert globalVariables values to numbers, booleans, tables when accessed
+  ER.settings.systemLogTag   = nil           -- log tag for ER system messages, defaults to __TAG
+  ER.settings.ignoreInvisibleChars = false   -- Check code for invisible characters (xC2xA0) before evaluating
+  ER.settings.truncLog       = 100           -- truncation of log output
+  ER.settings.truncStr       = 80            -- truncation of log strings
+  ER.settings.bannerColor    = "orange"      -- color of banner in log, defaults to "orange"      
+  ER.settings.listColor      = "purple"      -- color of list log (list rules etc), defaults to "purple"
+  ER.settings.statsColor     = "green"       -- color of statistics log, defaults to "green"  
+  ER.settings.logFunction = function(rule,tag,str) return fibaro.debug(tag,str) end -- function to use for user log(), defaults to fibaro.debug if nil
+
   ER.er = er
+
   local vars = {}
   ER._vars = vars
   ER.vars = setmetatable({},
@@ -192,8 +227,6 @@ function QuickApp:EventRunnerEngine()
   ER.builtins = {}
   ER.builtinArgs = {}
   ER.propFilters = {}
-  ER.debug = {}
-  ER.settings = {}
   
   local function multiLine(str) 
     if not str:find("\n") then return "'"..str.."'" end
@@ -231,6 +264,7 @@ function QuickApp:EventRunnerEngine()
     local p = ER:parse(str,options)
     return ER:compile(p,options)
   end
+
   function er.eval(name,str,options)         -- top-level eval for expressions - used by rule(...)
     if type(name)=='string' and type(str)=='string' then
       options = options or {}
@@ -238,30 +272,24 @@ function QuickApp:EventRunnerEngine()
     else str,options = name,str end
     options = options or {}
     
-    function options.suspended(...)         -- expression waits - log nothing
-      --local res = {...}
-      --pr:print(name,">",argsStr(table.unpack(res,2)),"[suspended]")
-      return nil
+    options.error = options.error or function(err) 
+      fibaro.error(__TAG,fmt("%s",err))
     end
-    
-    function options.success(success,...)   -- expression succeeded - log results
+    options.suspended = options.suspended or function(...) end       -- default, do nothing
+    options.success = options.success or function(...)               -- expression succeeded - log results
       local res = {...}
       if #res==1 and type(res[1])=='table' and res[1].evalPrint then -- result is a table with evalPrint method
-        res[1].evalPrint(res[1],str)                                 --- let object control its own print
+        res[1].evalPrint(res[1],str)                                 -- let object control its own print
       else
         if not options.silent then LOG(fmt("%s > %s [done]",multiLine(str),argsStr(...))) end
       end
     end
     
-    local stat = {e_pcall(function()
-      local res = {eval(str,options)}
-      if res[1] then options.success(table.unpack(res,2)) end
-      return table.unpack(res,3)
-    end)}
-    if stat[1] then return table.unpack(stat,2) end
+    local stat = {e_pcall(er.eval0,str,options)} -- This is a coroutine result; bool,bool,...
+    if stat[1] then return table.unpack(stat,3) end
     options.error(stat[2])
-    
   end
+
   er.runCoroutine = ER.runCoroutine
   function er.parse(str,options) return ER:parse(str,options or {}) end
   function er.isRule(p) return type(p)=='table' and p.type=='%RULE%' end
@@ -274,16 +302,17 @@ function QuickApp:EventRunnerEngine()
   er.defTriggerVar = ER.defTriggerVar
   er.deftriggervar = ER.defTriggerVar
   er.rule = er.eval
-  er.defvars = function(t) for k,v in pairs(t) do er.defvar(k,v) end end
   er.reverseMapDef = ER.reverseMapDef
   er.coroutine = ER.coroutine
   er.pcall = e_pcall
   er.xerror = e_error
   er._utilities = ER.utilities
   er.debug,er.settings = ER.debug,ER.settings
+  function er.color(color,str) return "<font color="..color..">"..str.."</font>" end
   
   for k,v in pairs({
     listRules= ER.listRules,listVariables=ER.listVariables,listTimers=ER.listTimers,
+    defvars = function(t) for k,v in pairs(t) do er.defvar(k,v) end end,
   }) do er[k] = v; ER.vars[k]=v end
   ER.vars.rule = function(i) return ER.rules[i] end
 
@@ -326,10 +355,11 @@ function QuickApp:EventRunnerEngine()
     elseif uiHandler then uiHandler(self,event) end
   end
   
-  if self.main then
+  local main = callback and function(_,er) callback(er) end or self.main 
+  if main then
     LOG("Setting up rules...")
     local t0 = os.clock()
-    local stat,err = pcall(function() self:main(er) end)
+    local stat,err = pcall(function() main(self,er) end)
     if not stat then 
       print(err) 
       print("Rule setup error(s) - fix & restart...")

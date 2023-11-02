@@ -24,9 +24,10 @@ function fibaro.__ER.modules.compiler(ER)
     return self
   end
   
+  local currentSource = ""
   local function errorf(p,fm,...)
     if p.d then p = p.d end
-    local err = errorMsg{type="Compiler",msg=string.format(fm,...),from=p.from,to=p.to,src=ER.__lastParsed}
+    local err = errorMsg{type="Compiler",msg=string.format(fm,...),from=p.from,to=p.to,src=currentSource}
     e_error(err) 
   end
   
@@ -300,6 +301,7 @@ function fibaro.__ER.modules.compiler(ER)
   
   local fID = 0
   function ER:compile(input,options) --> codeString/ParseTree -> Function
+    currentSource = options.src
     local parseTree
     if type(input) == 'string' then -- assume we got a code, parse to parseTree
       local token = ER:tokenize(input)

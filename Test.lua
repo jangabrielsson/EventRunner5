@@ -5,6 +5,12 @@ function QuickApp:main(er)
   fibaro.debugFlags.post = true
   fibaro.debugFlags.sourceTrigger = true
   
+  er.debug.ruleResult     = false -- log results of rules running
+  er.debug.evalResult     = false -- log results of evaluations
+  er.debug.ruleTrigger    = false -- log rules being triggered
+  er.debug.ruleTrue       = false -- log rules with condition succeeding
+  er.debug.ruleFalse      = false -- log rules with condition failing
+
   local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
   PrintBuffer,sunData =
@@ -42,7 +48,7 @@ function QuickApp:main(er)
       return nil
     end
     
-    function options.success(success,...)
+    function options.success(...)
       local res = {...}
       pr:print(name,">",argsStr(res),"[done]")
       if testf(res,answer) then print("OK",str)
@@ -54,13 +60,10 @@ function QuickApp:main(er)
       fibaro.error(__TAG,pr:tostring())
     end
     
-    local stat,err = pcall(function()
-      local res = {er.eval0(str,options)}
-      if res[1] then options.success(table.unpack(res,2)) end
-    end)
-    if not stat then 
+    local res = {pcall(er.eval,str,options)}
+    if not res[1] then 
       print(pr:tostring())
-      print(err)
+      print(res[2])
     end
   end
   
@@ -212,7 +215,7 @@ function QuickApp:main(er)
     {"[_%2==0,2*_ in {2,7,4,8,1}]:sum",{28}}, 
   }
   
-  runExprs(exprs1)
+  --runExprs(exprs1)
   
   local errorExprs = {
     {"a = = 3",nil},
@@ -247,34 +250,34 @@ function QuickApp:main(er)
   end
   
   local rules3 = {
-    {"$rt1=='x' => 55",{true,55},{GV('rt1','x')}},
-    {"$rt1=='y' => 55",{false,false},{GV('rt1','x')}},
-    {"$$qv1=='x' => 56",{true,56},{QV('qv1','x')}},
-    {"tv1==2 => 44",{true,44},{"tv1=2"}},
-    {"@now+1 => log('ENV:%s',env.test);42",{true,42}},
-    {"#foo1 => 77",{true,77},{{type='foo1'}}},
-    {"#foo2{a='$x'} => x",{true,88},{{type='foo2',a=88}}},
-    {"ms1:value==33 => 99",{true,99},{"ms1:value=33"}},
-    {"myObj:hello==33 => 99",{true,99},{"myObj:hello=33"}},
-    {"{bs1,bs2}:isOn => 101",{true,101},{"bs2:on"}},
-    {"ms2:value => wait(1); {ms2,ms3}:value",{true,{19,0}},{"ms2:value=19"}},
-    {"@{catch,10:00} => 66",{true,66}},
+    -- {"$rt1=='x' => 55",{true,55},{GV('rt1','x')}},
+    -- {"$rt1=='y' => 55",{false,false},{GV('rt1','x')}},
+    -- {"$$qv1=='x' => 56",{true,56},{QV('qv1','x')}},
+    -- {"tv1==2 => 44",{true,44},{"tv1=2"}},
+    -- {"@now+1 => log('ENV:%s',env.test);42",{true,42}},
+    -- {"#foo1 => 77",{true,77},{{type='foo1'}}},
+    -- {"#foo2{a='$x'} => x",{true,88},{{type='foo2',a=88}}},
+    -- {"ms1:value==33 => 99",{true,99},{"ms1:value=33"}},
+    -- {"myObj:hello==33 => 99",{true,99},{"myObj:hello=33"}},
+    -- {"{bs1,bs2}:isOn => 101",{true,101},{"bs2:on"}},
+    -- {"ms2:value => wait(1); {ms2,ms3}:value",{true,{19,0}},{"ms2:value=19"}},
+    -- {"@{catch,07:00} => 66",{true,66}},
     {"@now+1 => a = asyncfun(2,3);a",{true,5}},
   }
   
   -- print(er.eval("@{02:00,03:00} & ms1:value & 01:00..02:00 => 99").description)
   -- local r = er.eval("@now+4 => wait(2); 66")--.trace(true)
   -- print(r)
-  -- setTimeout(function() runRules(rules3) end,1000)
+  setTimeout(function() runRules(rules3) end,1000)
   
   --er.defVar('fopp',function() print("fopp") end)
   local rulesError = {
     {"foo noid:value => 55",{true,55}},
-    -- {"noid:foo => 55",{true,55}},
+    {"noid:foo => 55",{true,55}},
     -- {"#foo => 55:onIfOff; 55",{true,55},{{type='foo'}}},
     -- {"#foo2 => fopp(); 55",{true,55},{{type='foo2'}}},   
   }
-  -- runRules(rulesError)
+  --runRules(rulesError)
   -- er.eval("log('Hello %s',42)")
   -- local a = er.eval("#foo => wait(10:00); log('OK')")
   -- print(a)

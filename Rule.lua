@@ -6,7 +6,8 @@ function fibaro.__ER.modules.rule(ER)
   marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
   PrintBuffer,sunData,LOG,htmlTable,evOpts =
   table.unpack(ER.utilities.export)
-  
+  local settings,debug = ER.settings,ER.debug
+
   local ruleID,rules = 0,{}
   ER.rules = rules
   local Rule = ER.Rule
@@ -18,7 +19,7 @@ function fibaro.__ER.modules.rule(ER)
   local vars,triggerVars = ER._vars,ER._triggerVars
   local function now() local t = os.date("*t") return t.hour*3600+t.min*60+t.sec end
 
-  local tableOpts = {table="width='100%' border=1 bgcolor='"..(ER.settings.listColor or "purple").."'",td="align='left'"}
+  local tableOpts = {table="width='100%' border=1 bgcolor='"..settings.listColor.."'",td="align='left'"}
   function ER.listRules(extended)
     local pr,n = PrintBuffer(),0
     pr:printf("Rules:")
@@ -62,7 +63,7 @@ function fibaro.__ER.modules.rule(ER)
     pr:printf("Variables:")
     for vn,v in pairs(vars) do
       if vn:match(name) then
-        pr:printf("%s = %s",vn,encodeFast(v) // 60)
+        pr:printf("%s = %s",vn,encodeFast(v) // settings.truncLog)
         n = n+1
       end
     end 
@@ -81,13 +82,13 @@ function fibaro.__ER.modules.rule(ER)
   
   local triggerHandlers={}
   
-  local function compute(p) local c = ER:compile(p,{src = ER.__lastParsed}) return c() end
-  local function compile(p) return ER:compile(p,{src = ER.__lastParsed}) end
+  local function compute(p,opts) local c = ER:compile(p,opts) return c() end
+  local function compile(p,opts) return ER:compile(p,opts) end
   
   local currRule
-  local function errorf(tk,fm,...)
+  local function errorf(rule,tk,fm,...)
     if tk.d then tk = tk.d end
-    local err = errorMsg{type="Rule",msg=fmt(fm,...),from=tk.from,to=tk.to,rule=currRule,src=ER.__lastParsed}
+    local err = errorMsg{type="Rule",msg=fmt(fm,...),from=tk.from,to=tk.to,rule=rule,src=rule.src}
     e_error(err) 
   end
   
@@ -102,16 +103,16 @@ function fibaro.__ER.modules.rule(ER)
   ER.getDeviceObject = getDeviceObject
   
   function triggerHandlers.prop(p,t)
-    local ids = compute(p.args[1])
+    local ids = compute(p.args[1],t.opts)
     local prop,isTable,tn = p.args[2],false,0
     if type(ids) == 'table' then isTable = true else ids = {ids} end
     local n = table.maxn(ids)
-    if n == 0 then errorf(p.args[1],"No devices found for :%s, must be defined when rule is defined",prop) end
+    if n == 0 then errorf(t.opts.rule,p.args[1],"No devices found for :%s, must be defined when rule is defined",prop) end
     for i = 1,n do
       local dev = getDeviceObject(ids[i]) 
       ids[i] = {dev,ids[i]}
-      if not dev then errorf(p,"%s is not a valid device",tostring(dev)) end
-      if not dev:isProp(prop) then errorf(p,":%s is not a valid device property",prop) end
+      if not dev then errorf(t.opts.rule,p,"%s is not a valid device",tostring(dev)) end
+      if not dev:isProp(prop) then errorf(t.opts.rule,p,":%s is not a valid device property",prop) end
       tn = tn + (dev:isTrigger(prop) and 1 or 0)
     end
     if tn == 0 then return end -- no triggers, ignore
@@ -124,8 +125,8 @@ function fibaro.__ER.modules.rule(ER)
   function triggerHandlers.qv(p,t) t.srct["QV:"..p.name]={type='quickvar', name=p.name} end
   local eid = 0
   function triggerHandlers.table(p,t)
-    local ev = compute(p)
-    if ev.type then eid = eid+1 t.srct["EV:"..eid]=compute(p) end
+    local ev = compute(p,t.opts)
+    if ev.type then eid = eid+1 t.srct["EV:"..eid]=compute(p,t.opts) end
   end
   function triggerHandlers.const(p,t)
     ---@diagnostic disable-next-line: undefined-field
@@ -139,22 +140,23 @@ function fibaro.__ER.modules.rule(ER)
     end
   end
   function triggerHandlers.betw(p,t)
-    t.timers[#t.timers+1] = compile(p.args[1]); 
-    t.timers[#t.timers+1] = compile({type='op',op='add',args={{type='num',value=1,},p.args[2]}}) 
+    t.timers[#t.timers+1] = compile(p.args[1],t.opts); 
+    t.timers[#t.timers+1] = compile({type='op',op='add',args={{type='num',value=1,},p.args[2]}},t.opts) 
   end
   function triggerHandlers.daily(p,t)   -- collect daily expressions, @10:00, @{$mytime,$othertime+10:00}
-    assert(t.daily==nil,"Only one @daily in a rule is supported")
-    t.daily = compile(p.args[1])
-    local times = t.daily()
+    if t.daily~=nil then errorf(t.opts.rule,p,"Only one @daily in a rule is supported") end
+    t.daily = compile(p.args[1],t.opts)
+    local times,n = t.daily(),0
     if type(times) == 'table' then
       for _,time in ipairs(times) do
-        if time == CATCHUP then t.catchup = true; break end
+        if time == CATCHUP then t.catchup = true else n=n+1 end
       end
+      if n < 1 then errorf(t.opts.rule,p,"No valid times in @daily expression") end
     end
   end 
   function triggerHandlers.interv(p,t)  -- collect interval expressions, @@00:05, @{$mytime,$othertime+00:01}
-    assert(t.interv==nil,"Only one @@interval in a rule is supported")
-    t.interv = compile(p.args[1])
+    if t.interv~=nil then errorf(t.opts.rule,p,"Only one @@interval in a rule is supported") end
+    t.interv = compile(p.args[1],t.opts)
   end
   
   local function getTriggers(p,t)
@@ -178,6 +180,7 @@ function fibaro.__ER.modules.rule(ER)
       local v = texpr() v = type(v)=='table' and v or {v}
       local flag = false
       for _,t in ipairs(v) do
+        if not tonumber(t) then errorf(rule,{},"Invalid daily time: %s",time) end
         if t < n and rule.catchup and catchup then -- time passed and catchup is on
           rule._addDailyTimer(0,t)               -- run rule 
           catchup = false                        -- but only once
@@ -222,30 +225,42 @@ function fibaro.__ER.modules.rule(ER)
     for co,stat in pairs(rule.runners) do res[#res+1]= fmt("%s => %s (%s)",rule.rname,stat,co) end
     return table.concat(res,"\n")
   end
-  
-  function ER:nextRuleID() return ruleID+1 end
 
-  function ER:createRule(cond,action,p)
+  local function nameRule(rule)
+    rule.rname = fmt("[Rule:%s]",rule._name)
+    rule.longName = fmt("[Rule:%s:%s]",rule._name,rule.src // settings.truncStr)
+  end
+
+  local function runRuleLogFun(co,rule,ok,event)
+    co.LOG("condition %s",ok and "true - action" or "false - cancelled") 
+  end
+
+  function ER:createRuleObject(options)
     local rule = {type='%RULE%'}
-    local options = table.copyShallow(p.co.options or {})
-    currRule = rule
+    setmetatable(rule,{__tostring = ruleNameStr})
     ruleID = ruleID+1
     rule.id = ruleID
     rule._name = options.name or tostring(rule.id)
     rule._ltag = options.ltag -- or er.logtag?
+    rule.src = options.src
+    nameRule(rule)
+    return rule
+  end
+
+  function ER:createRule(cond,action,p)
+    local options = table.copyShallow(p.co.options or {})
+    local rule = options.rule
+    if rule==nil then errorf(rule,p,"No rule object") end
+    options.rule = nil
+    currRule = rule
     rule.instance = 0
     rule._enabled = true
-    rule.src = ER.__lastParsed
     local tostring = fibaro._orgToString
+  
+    nameRule(rule)
     
-    local function nameRule()
-      rule.rname = fmt("[Rule:%s]",rule._name)
-      rule.longName = fmt("[Rule:%s:%s]",rule._name,rule.src // 40)
-    end
-    nameRule()
-    
-    if not options.silent then LOG("Defining [Rule:%s:%s]...",rule._name,rule.src // 40) end
-    local triggers = { daily=nil, interv=nil, timers={}, srct={} }
+    if not options.silent then LOG("Defining [Rule:%s:%s]...",rule._name,rule.src // settings.truncStr) end
+    local triggers = { daily=nil, interv=nil, timers={}, srct={}, opts = { src = rule.src, rule = rule } }
     getTriggers(cond,triggers)
     local trs = triggers.srct
     
@@ -256,11 +271,10 @@ function fibaro.__ER.modules.rule(ER)
     rule._timers = {}         -- refs to emitted timers, ex posts (for cancellation)
     rule.evhandlers = {}
     
-    ER._lastRule = rule
-    rule.fun = compile({type='rule_action',cond=cond,action=action})
+    rule.fun = compile({type='rule_action',cond=cond,action=action},triggers.opts)
     
-    assert(next(trs) or triggers.daily or triggers.interv or #triggers.timers>0,"No triggers in rule")
-    assert(not(triggers.daily and triggers.interv),"Only one @daily or @@interval in a rule is supported")
+    if not (next(trs) or triggers.daily or triggers.interv or #triggers.timers>0) then errorf(rule,cond,"No triggers in rule") end
+    if not (not(triggers.daily and triggers.interv)) then errorf(rule,cond,"Only one @daily or @@interval in a rule is supported") end
     
     local dailys = triggers.timers
     if triggers.daily then table.insert(dailys,1,triggers.daily) end
@@ -268,7 +282,7 @@ function fibaro.__ER.modules.rule(ER)
     
     if triggers.interv then
       if options.ruleTrigger==nil then options.ruleTrigger=false end
-      local ev = {type='%interval%',id=rule.id}
+      local ev = {type='%interval%',id=rule.id,_sh=true}
       local fun = function(env) return rule.start(env.event,nil,env.p) end
       local handler = fibaro.event(ev,fun)
       rule.evhandlers[ev] = {fun,handler}
@@ -288,7 +302,7 @@ function fibaro.__ER.modules.rule(ER)
     end
 
     -- public rule functions
-    function rule.name(name) rule._name = name; nameRule() return rule end
+    function rule.name(name) rule._name = name; nameRule(rule) return rule end
     function rule.rtag(tag) rule._rtag = tag; return rule end
     function rule.ltag(tag) rule._ltag = tag; return rule end
     function rule.enable() 
@@ -320,7 +334,7 @@ function fibaro.__ER.modules.rule(ER)
     end
     function rule.recompile() -- recompile rule code, replacing old rule with new rule
       rule.stop()
-      local nr = rule.compile(rule.src)
+      local nr = rule.compile(rule.src,triggers.opts)
       local nrid = nr.id
       nr._trace = rule._trace
       nr.id = rule.id
@@ -342,9 +356,10 @@ function fibaro.__ER.modules.rule(ER)
     rule.runners = {}
     local coroutine = ER.coroutine 
     local runCoroutine = ER.runCoroutine
-    
+
     function rule.start(ev,id,vars)
       ev = ev or {type='nop'}
+      setmetatable(ev,{__tostring = function() return eventStr(ev) end})
       local co = coroutine.create(rule.fun)
       rule.instance = rule.instance+1
       local instname = fmt("[Rule:%s:%s]",rule._name,rule.instance)
@@ -356,11 +371,16 @@ function fibaro.__ER.modules.rule(ER)
       locals.push('env',env)
       for k,v in pairs(vars or {}) do locals.push(k,v) end
       
+      local conditionSucceeded = false
       function co._action(ok,msg)
+        conditionSucceeded = ok
         local log = false
-        if ok then log = evOpts(options.ruleTrue,ER.debug.ruleTrue)
-        else log = evOpts(options.ruleFalse,ER.debug.ruleFalse) end
-        if log then co.LOG("condition %s",ok and "true - action" or "false - cancelled") end
+        if ok then log = evOpts(options.ruleTrue,debug.ruleTrue)
+        else log = evOpts(options.ruleFalse,debug.ruleFalse) end
+        if log then
+          local logf = options.runRunLogFun or settings.runRuleLogFun or runRuleLogFun
+          logf(co,rule,ok,ev)
+        end
       end
       function co.LOG(...)
         local a = {...}
@@ -375,27 +395,28 @@ function fibaro.__ER.modules.rule(ER)
         ['%callback%'] = function(delay,msg) return msg or "callback" end,
       }
       
-      function options.suspended(success,typ,...)
+      function options.suspended(typ,...)
         rule.runners[co] = 'suspended'
         local sm = suspendMsg[typ]
-        if sm then co.LOG("suspended %s - %s",success and "action" or "triggered",sm(...))
+        if sm then co.LOG("suspended %s - %s",conditionSucceeded and "action" or "triggered",sm(...))
         else
-          co.LOG("=> %s [%s,suspended]",argsStr(typ,...),success)
+          co.LOG("=> %s [%s,suspended]",argsStr(typ,...),conditionSucceeded)
         end
       end
       
-      function options.success(success,...)
+      function options.success(...)
         rule.runners[co] = nil
+        local stat = coroutine.status(co)
         local a = {}
-        if evOpts(success,options.ruleResult,ER.debug.ruleResult) then co.LOG("result %s",co.name,argsStr(...)) end
-        if rule.resultHook then rule.resultHook(success,...) end
+        if evOpts(conditionSucceeded,options.ruleResult,debug.ruleResult) then co.LOG("result %s",co.name,argsStr(...)) end
+        if rule.resultHook then rule.resultHook(conditionSucceeded,...) end
       end
       
       function options.error(err) rule.runners[co] = nil fibaro.error(__TAG,err) end
       
-      if evOpts(options.ruleTrigger,ER.debug.ruleTrigger) then co.LOG("triggered %s",eventStr(ev) // ER.settings.truncStr) end
+      if evOpts(options.ruleTrigger,debug.ruleTrigger) then co.LOG("triggered %s",tostring(ev) // settings.truncStr) end
       local res = {runCoroutine(co,options,env)}
-      if res[1] then options.success(table.unpack(res,2)) end
+      --if res[1] then options.success(table.unpack(res,2)) end
       return rule
     end
     
@@ -411,8 +432,7 @@ function fibaro.__ER.modules.rule(ER)
     end
     function rule._post(ev,time,descr)
       local ref,t = nil,nil
-      local f = function() rule._timers[ref]=nil fibaro.post(ev) end
-      ref,t = fibaro.post(f,time)
+      ref,t = fibaro.post(ev,time,descr,function() if ref then rule._timers[ref]=nil end end)
       if ref then 
         rule._timers[ref] = {descr or "post",t} 
       end
@@ -442,8 +462,7 @@ function fibaro.__ER.modules.rule(ER)
     
     if #dailys>0 then rule._setupDailys(true) end
     
-    function rule.evalPrint() nameRule() if not options.silent then LOG(rule.rname.." defined") rule.evalPrint=nil end end
-    setmetatable(rule,{__tostring = ruleNameStr})
+    function rule.evalPrint() nameRule(rule) if not options.silent then LOG(rule.rname.." defined") rule.evalPrint=nil end end
     setmetatable(rule.triggers,{__tostring = function(t) return ruleTriggersStr(t,rule) end })
     rule.description = setmetatable({},{__tostring = function(d) return ruleDescriptionStr(d,rule) end })
     rule.info = setmetatable({},{__tostring = function(d) return ruleInfoStr(d,rule) end })

@@ -70,11 +70,12 @@ function fibaro.__ER.modules.parser(ER)
   local transform
   local GS = 789790
   local function gensym() GS = GS + 1; return "GSV"..GS end
+  local currentSource,currentRule = ""
 
   local function DB(t) return t.d and {from=t.d.from,to=t.d.to} or {from=t.from,to=t.to} end
   local function errorf(tk,fm,...)
     if tk.d then tk = tk.d end
-    local err = errorMsg{type="Parser",msg=fmt(fm,...):lower(),from=tk.from,to=tk.to,src=ER.__lastParsed}
+    local err = errorMsg{type="Parser",msg=fmt(fm,...):lower(),from=tk.from,to=tk.to,src=currentSource,rule=currentRule}
     e_error(err) 
   end
   local function assertf(tk,cond,fm,...)
@@ -637,17 +638,20 @@ function fibaro.__ER.modules.parser(ER)
 
   function ER:parse(input,options) -- codeStr/tokens -> parseTree
     local tkns,pexpr,sf 
-
+    local source = ""
+    currentRule = options.rule
     local stat,res = e_pcall(function() 
       if type(input) == 'string' then
+        currentSource = input
         tkns = ER:tokenize(input)
-        ER.__lastParsed = input
+        source = input
       elseif type(input) == 'table' then
-        if options.src then ER.__lastParsed = options.src end
+        if options.src then source = options.src end
         tkns = input
       else
         error("Parser expected string or token stream")
       end
+      currentSource = source
 
       pexpr = pExpr(tkns,{eof=true})
       pexpr = transform(pexpr)
@@ -665,7 +669,7 @@ function fibaro.__ER.modules.parser(ER)
       end
       if not isErrorMsg(err) then
         local last = tkns.last()
-        err = errorMsg{type="Parser",msg=err,from=last.from,to=last.to,src=options.src}
+        err = errorMsg{type="Parser",msg=err,from=last.from,to=last.to,src=source,rule=options.rule}
       end
       e_error(err)
     end

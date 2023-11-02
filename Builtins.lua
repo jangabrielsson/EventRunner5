@@ -12,7 +12,8 @@ function fibaro.__ER.modules.builtins(ER)
     local Script = ER.Script
     local defVars = ER.vars
     local fmt = string.format
-    
+    local settings = ER.settings
+
     local definePropClass = ER.definePropClass
     local PropObject = ER.PropObject
 
@@ -258,11 +259,14 @@ function fibaro.__ER.modules.builtins(ER)
     end
 
     -------------- builtin functions -------------------------
-    args.post = {1,2}
+    args.post = {1,3}
     function builtin.post(i,st,p) 
-        local e,t,env,r=st.pop(),0,p.args[1] or {},nil
-        if i[3]==2 then t=e; e=st.pop() end
-        r = Script.post(p,e,t,"post",env.rule)
+        local env,r=p.args[1] or {},nil
+        local args,n = st.popm(i[3]),i[3]
+        local e = args[1]
+        local t = args[2] or 0
+        local d = args[3] or env.rule or "ER"
+        r = Script.post(p,e,t,d)
         st.push(r)
     end
     args.cancel = {1,1}
@@ -277,7 +281,7 @@ function fibaro.__ER.modules.builtins(ER)
         if #args < n then for i=1,n-#args do args[#args+1]='nil' end end
         if #args == 1 then str=args[1]
         elseif #args>1 then str = fmt(table.unpack(args)) end
-        local prFun = ER.settings.logFunction or fibaro.debug
+        local prFun = settings.userLogFunction or fibaro.debug
         prFun(p.rule,p.rule and p.rule._ltag or ER.er.ltag or __TAG,str)
         st.push(str)
     end

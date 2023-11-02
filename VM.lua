@@ -15,7 +15,7 @@ function fibaro.__ER.modules.vm(ER)
   local function errorf(p,fm,...)
     local dbg = p.fun.dbg[p.fun.code[p.pc]]
     dbg = dbg and dbg.d or {}
-    local err = errorMsg{type="Runtime",msg=fmt(fm,...),from=dbg.from,to=dbg.to,src=p.fun.src}
+    local err = errorMsg{type="Runtime",msg=fmt(fm,...),from=dbg.from,to=dbg.to,src=p.fun.src,rule=p.rule}
     e_error(err) 
   end
   
@@ -119,7 +119,6 @@ function fibaro.__ER.modules.vm(ER)
         if tref == nil then return end        -- ignore callback if timeout has expired
         Script.clearTimeout(p,tref)
         local res2 = {ER.runCoroutine(p.co,nil,...)} --tbd add timeout
-        if res2[1] then p.co.options.success(table.unpack(res2,2)) end
       end
       tref = Script.setTimeout(p,function() --  timeout handler
         tref = nil
@@ -281,7 +280,7 @@ function instr.daily(i,st,p)
 end
 function instr.interv(i,st,p)
   local t = math.abs(st.pop())
-  Script.post(p,{type='%interval%',id=p.rule.id},t,'@@')
+  Script.post(p,{type='%interval%',id=p.rule.id,_sh=true},t,'@@')
   st.push(true)
 end
 function instr.match(i,st) end
@@ -300,7 +299,6 @@ function instr.rule_action(i,st,p)
   local cond = st.popm(1)
   if cond[1] then
     p.co._action(true,cond[2])
-    p.co.success = true;  
   else
     p.co._action(false,cond[2])
     st.push(false)
@@ -374,6 +372,8 @@ for _,i in ipairs({'call','callexpr','callobj',}) do
   end
   
   local function run(fun,rtd,...)
+    ER.runningFun = fun
+    ER.runningRule = rtd.rule
     rtd.args = {...}
     rtd.fun = fun
     local stat = {e_pcall(run2,fun,rtd,...)}
@@ -384,9 +384,11 @@ for _,i in ipairs({'call','callexpr','callobj',}) do
       local dbg = fun.dbg[i]
       local err = errh[i[1]] and errh[i[1]](i[1],stat[2]) or (stat[2].." "..i[1])
       local d = dbg and dbg.d or {}
-      e_error(errorMsg{type="Runtime",msg=err,from=d.from,to=d.to,src=fun.src})
+      ER.runningFun,ER.runningRule = nil,nil
+      e_error(errorMsg{type="Runtime",msg=err,from=d.from,to=d.to,rule=rtd.rule,src=fun.src})
     end
     --assert(rtd.stack.size()==0,"stack not empty")
+    ER.runningFun,ER.runningRule = nil,nil
     if rtd.trace or fun.trace then print(fmt("Exit:%s %s",rtd.stack.size(),json.encode(stat))) rtd.stack.dump() end
     if stat[2] == true then return table.unpack(stat,3) end
     if stat[2] == 'multiple_values' then return table.unpack(stat[3]) end

@@ -160,7 +160,6 @@ function fibaro.__ER.modules.utilities(ER)
   function Utils.errorMsg(err)
     err.class = err.type
     err.type = 'error'
-    err.rule = err.rule or ER._lastRule
     if err.src then err.srcInfo = err.srcInfo or Utils.errorLine(err.src,err.from,err.to) end
     setmetatable(err,{__tostring=function(self)
       local e = string.format("%s %s: %s",self.rule and self.rule.rname or "Expr",self.class,self.msg)
