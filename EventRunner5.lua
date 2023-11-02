@@ -43,7 +43,7 @@ function QuickApp:main(er)
 
     var.i = 0
     rule("@@00:00:05 => i=i+1; log('5 seconds %s',i)",{ruleResult=false,ruleTrue=false})
-    rule("MyRule","fooo #myEvent => log('myEvent')").name("MyRule") -- name rule for easier debugging
+    rule("MyRule","#myEvent => log('myEvent')").name("MyRule") -- name rule for easier debugging
     rule("wait(2); post(#myEvent,1,'Test')")
 
     local msgOpts = { silent=true }
