@@ -42,15 +42,21 @@ function fibaro.__ER.modules.utilities(ER)
     return self
   end
   
+  local function htmlify(str)
+    local cols,i = {},0
+    str = str:gsub("(<font .->)",function(c) cols[#cols+1]=c return "#CCC#" end)
+    --str = str:gsub(" ","&nbsp;")
+    str = str:gsub("\n","</br>")
+    return str:gsub("(#CCC#)",function(c) i=i+1 return cols[i] end)
+  end
+
   local function LOGGER(df,f,...)
     if #{...} > 0 then
       local msg = f:format(...)
-      msg = msg:gsub(" ","&nbsp;")
-      msg = msg:gsub("\n","</br>")
+      msg = htmlify(msg)
       df(ER.settings.systemLogTag or __TAG,msg)
     else 
-      f = f:gsub(" ","&nbsp;")
-      f = f:gsub("\n","</br>")
+      f = htmlify(f)
       df(ER.settings.systemLogTag or __TAG,f) 
     end
   end

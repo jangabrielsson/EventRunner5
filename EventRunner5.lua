@@ -42,7 +42,7 @@ function QuickApp:main(er)
     er.reverseMapDef(HT)
 
     var.i = 0
-    rule("@@00:00:05 => i=i+1; log('5 seconds %s',i)",{ruleResult=false,ruleTrue=false})
+    rule("@@00:00:05 => i=i+1; log('5 seconds %s',i)",{ruleResult=false,ruleTrue=true})
     
     -- a = rule("@14:00 | #foo => log('foo:%s started',env.instance); wait(00:00:30); log('foo:%s ended',env.instance)").mode("killSelf")
     -- rule("post(#foo); wait(2); post(#foo)")
@@ -53,14 +53,14 @@ function QuickApp:main(er)
     
     -- --rule("wait(1); post(#info)")
     
-    -- local ruleOpts = { silent=true }
-    -- rule("#UI{cmd='listRules'} => listRules(false)",ruleOpts)
-    -- rule("#UI{cmd='listRulesExt'} => listRules(true)",ruleOpts)
-    -- rule("#UI{cmd='listVars'} => listVariables()",ruleOpts)
-    -- rule("#UI{cmd='listTimers'} => listTimers()",ruleOpts)
+    local ruleOpts = { silent=true }
+    rule("#UI{cmd='listRules'} => listRules(false)",ruleOpts)
+    rule("#UI{cmd='listRulesExt'} => listRules(true)",ruleOpts)
+    rule("#UI{cmd='listVars'} => listVariables()",ruleOpts)
+    rule("#UI{cmd='listTimers'} => listTimers()",ruleOpts)
     
-    -- rule("#UI{cmd='test1'} => a.disable()",ruleOpts)
-    -- rule("#UI{cmd='test2'} => a.enable()",ruleOpts)
+    rule("#UI{cmd='test1'} => a.disable()",ruleOpts)
+    rule("#UI{cmd='test2'} => a.enable()",ruleOpts)
 end
 
 function QuickApp:onInit()
@@ -89,8 +89,10 @@ function QuickApp:onInit()
         -- er.settings.statsColor = "green"           -- color of statistics log, defaults to "green"  
         -- er.settings.userLogFunction = function(rule,tag,str) return fibaro.debug(tag,str) end -- function to use for user log(), defaults to fibaro.debug if nil
         
+        local TRUE = er.color("lightgreen","TRUE")
+        local FALSE = er.color("lightred","FALSE")
         function er.settings.runRuleLogFun(co,rule,ok,event)
-            co.LOG("%s %s -> %s",ok and er.color("green","TRUE") or er.color("red","FALSE"),tostring(event) // 20,rule.src // 40)
+            co.LOG("%s %s -> %s",ok and TRUE or FALSE,tostring(event) // 20,rule.src // 40)
         end
         
         function er.settings.userLogFunction(rule,tag,str) -- custom user log function with color and tag support,  #C:color# and #T:tag#
