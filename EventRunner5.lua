@@ -42,8 +42,17 @@ function QuickApp:main(er)
     er.reverseMapDef(HT)
 
     var.i = 0
-    rule("@@00:00:05 => i=i+1; log('5 seconds %s',i)",{ruleResult=false,ruleTrue=true})
-    
+    rule("@@00:00:05 => i=i+1; log('5 seconds %s',i)",{ruleResult=false,ruleTrue=false})
+    --rule("wait(00:00:03) & test3=true")
+
+    var.woonkamer = { gordijn = var.bs }
+
+    rule([[($Verl_Dagdeel == 'Avond_Vroeg' | 
+    $Verl_Dagdeel == 'Avond_Laat') & woonkamer.gordijn:isClosed =>
+    $Verl_Status_Blad = 'Avond';
+        log('#C:magenta#291- $Verl_Status_Blad - Avond')
+]])
+
     -- a = rule("@14:00 | #foo => log('foo:%s started',env.instance); wait(00:00:30); log('foo:%s ended',env.instance)").mode("killSelf")
     -- rule("post(#foo); wait(2); post(#foo)")
     -- local msgOpts = { silent=true }

@@ -1,6 +1,6 @@
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 0.023
+local version = 0.025
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -14,7 +14,8 @@ local function trim(str) return str:gsub("^[%s%c]*(.-)[%s%c]*$","%1") end
 function fibaro.__ER.modules.engine(ER)
   local Script = ER.Script
   local fmt= string.format
-  
+  local debugf = ER.debug
+
   local function createProps(getProps,setProps,helpers)    
     ER.definePropClass('StdPropObject')
     function StdPropObject:__init(id)
@@ -285,7 +286,7 @@ function QuickApp:EventRunnerEngine(callback)
       if #res==1 and type(res[1])=='table' and res[1].evalPrint then -- result is a table with evalPrint method
         res[1].evalPrint(res[1],str)                                 -- let object control its own print
       else
-        if not options.silent then LOG(fmt("%s > %s [done]",multiLine(str),argsStr(...))) end
+        if (not options.silent) and ER.debug.evalResult then LOG(fmt("%s > %s [done]",multiLine(str),argsStr(...))) end
       end
     end
     

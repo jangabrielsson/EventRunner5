@@ -27,6 +27,7 @@ function fibaro.__ER.modules.tokenizer(ER)
           tokenv.from, tokenv.to = ctx.cursor+1, ctx.cursor+len
           table.insert(ctx.tokens, tokenv)
           setmetatable(tokenv, tokenMetatable)
+          --print(tokenv)
         end
         ctx.source = string.sub(ctx.source, len+1)
         ctx.cursor = ctx.cursor + len
@@ -51,7 +52,7 @@ function fibaro.__ER.modules.tokenizer(ER)
   
   token(" \t\n\r","[%s%c]+")
   --2019/3/30/20:30
-  token("0123456789","%d?%d?%d?%d?/?%d+/%d+/%d%d:%d%d:?%d?%d?",function (t) return {type="num", value=toTimeDate(t)} end)
+  token("/0123456789","%d?%d?%d?%d?/?%d+/%d+/%d%d:%d%d:?%d?%d?",function (t) return {type="num", value=toTimeDate(t)} end)
   token("0123456789","%d%d:%d%d:?%d?%d?",function (t) return {type='num', value=toTime(t)} end)
   token("0123456789","%d+:%d+",function (_) error('Bad time constant') end)
   token("t+n","[t+n][/]", function (op) return {type="op", opval=trans(op)} end)

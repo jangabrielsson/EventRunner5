@@ -473,7 +473,7 @@ function fibaro.__ER.modules.rule(ER)
     
     if #dailys>0 then rule._setupDailys(true) end
     
-    function rule.evalPrint() nameRule(rule) if not options.silent then LOG("%s %s %s",ER.color("lightgreen","Defined"),rule.rname,rule.src // settings.truncLog) rule.evalPrint=nil end end
+    function rule.evalPrint() nameRule(rule) if not options.silent then LOG("%s %s %s",ER.color("lightgreen","Defined"),rule.rname,rule.src:gsub("\n","") // settings.truncLog) rule.evalPrint=nil end end
     setmetatable(rule.triggers,{
       __tostring = function(t) return ruleTriggersStr(t,rule) end,
      })
