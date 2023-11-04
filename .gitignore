@@ -1,5 +1,6 @@
 /__pycache__
 *.pyc
+test_*.lua
 /.vscode
 config.json
 /test
