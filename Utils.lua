@@ -216,6 +216,19 @@ function fibaro.__ER.modules.utilities(ER)
     end
   end
   
+  local MTevent = { __tostring = Utils.eventStr }
+
+  local _customEvent = {
+    daily = { __tostring=function(self) return string.format("#daily{%s}",self.id) end},
+    ['%interval%'] = { __tostring=function(self) return string.format("#interv{%s}",self.id) end},
+    ['global-variable'] = { __tostring=function(self) return string.format("#GV{%s=%s}",self.name,self.value // 30) end},
+    ['trigger-variable'] = { __tostring=function(self) return string.format("#TV{%s=%s}",self.name,tostring(self.value) // 30) end},
+  }
+  function Utils.eventCustomToString(event)
+    if _customEvent[event.type] then return setmetatable(event,_customEvent[event.type]) end
+    return setmetatable(event,MTevent)
+  end
+
   local _marshalBool={['true']=true,['True']=true,['TRUE']=true,['false']=false,['False']=false,['FALSE']=false}
   
   function Utils.marshallFrom(v) 
@@ -321,14 +334,14 @@ function fibaro.__ER.modules.utilities(ER)
   ER.utilities.export = {
     Utils.stack, Utils.stream, Utils.errorMsg, Utils.isErrorMsg, Utils.xerror, Utils.pcall, Utils.errorLine,
     Utils.marshallFrom, Utils.marshallTo, toTime, midnight, encodeFast, Utils.argsStr, Utils.eventStr,
-    Utils.PrintBuffer, Utils.sunData, Utils.LOG, Utils.LOGERR, Utils.htmlTable, Utils.evOpts
+    Utils.PrintBuffer, Utils.sunData, Utils.LOG, Utils.LOGERR, Utils.htmlTable, Utils.evOpts, Utils.eventCustomToString
   }
   for _,f in ipairs(extraSetups) do f() end
   
   
   -- stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   -- marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
-  -- PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts =
+  -- PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts,eventCustomToString =
   -- table.unpack(ER.utilities.export)
   
 end

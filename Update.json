@@ -58,9 +58,9 @@
      }     
     ],    
     "vars":{
-     "base1":"https://raw.githubusercontent.com/jangabrielsson/EventRunner5/ER5_0.023"     
+     "base1":"https://raw.githubusercontent.com/jangabrielsson/EventRunner5/ER5_0.025"     
     },    
-    "version":0.023,    
+    "version":0.025,    
     "viewLayout":{
      "$jason":{
       "body":{

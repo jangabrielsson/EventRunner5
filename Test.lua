@@ -2,6 +2,7 @@
 --%%name=EventRunner5
 
 function QuickApp:main(er)
+  local ER = fibaro.__ER
   fibaro.debugFlags.post = true
   fibaro.debugFlags.sourceTrigger = true
   
@@ -10,6 +11,8 @@ function QuickApp:main(er)
   er.debug.ruleTrigger    = false -- log rules being triggered
   er.debug.ruleTrue       = false -- log rules with condition succeeding
   er.debug.ruleFalse      = false -- log rules with condition failing
+  er.debug.refreshEvents  = false -- log refresh of states
+  er.debug.sourceTrigger  = false -- log refresh of devices
 
   local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
@@ -50,6 +53,9 @@ function QuickApp:main(er)
     
     function options.success(...)
       local res = {...}
+      if #res==1 and type(res[1])=='table' and res[1].evalPrint then -- result is a table with evalPrint method
+        res[1].evalPrint(res[1],str)      
+      end
       pr:print(name,">",argsStr(res),"[done]")
       if testf(res,answer) then print("OK",str)
       else fibaro.error(__TAG,"FAIL",pr:tostring()) end
@@ -81,7 +87,6 @@ function QuickApp:main(er)
         --rule.trace(true)
         rules[rule] = {}
         local pr = PrintBuffer()
-        print("rule",rule,"defined")
         rule.resultHook = function(success,...)
           local res = {success,...}
           if table.equal({success,...},r[2]) then 
@@ -215,7 +220,7 @@ function QuickApp:main(er)
     {"[_%2==0,2*_ in {2,7,4,8,1}]:sum",{28}}, 
   }
   
-  --runExprs(exprs1)
+  runExprs(exprs1)
   
   local errorExprs = {
     {"a = = 3",nil},

@@ -4,7 +4,7 @@ function fibaro.__ER.modules.vm(ER)
   
   local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
-  PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts =
+  PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts,eventCustomToString =
   table.unpack(ER.utilities.export)
   
 ---@diagnostic disable-next-line: deprecated
@@ -42,7 +42,7 @@ function fibaro.__ER.modules.vm(ER)
   
   local Script = {}
   local _DflSc = { 
-    _post = function(ev,t,dscr) return fibaro.post(ev,t) end, 
+    _post = function(ev,t,dscr,p) return fibaro.post(ev,t) end, 
     _cancelPost = function(ref) return fibaro.cancel(ref) end, 
     _setTimeout = function(fun,delay,descr) return setTimeout(fun,delay) end,
     _clearTimeout = function(ref) return clearTimeout(ref) end,
@@ -53,7 +53,7 @@ function fibaro.__ER.modules.vm(ER)
     if v then old=v[1] v[1]=value else vars[name]={value} end
     return true,old
   end
-  function Script.post(p,event,time,descr) return (p.rule or p.co or _DflSc)._post(event,time,descr) end
+  function Script.post(p,event,time,descr) return (p.rule or p.co or _DflSc)._post(event,time,descr,p) end
   function Script.cancel(p,event,time,descr) return (p.rule or p.co or _DflSc)._cancelPost(event) end
   function Script.setTimeout(p,fun,time,descr) return (p.rule or p.co or _DflSc)._setTimeout(fun,time,descr) end
   function Script.clearTimeout(p,ref) return (p.rule or p.co or _DflSc)._clearTimeout(ref) end
@@ -183,7 +183,7 @@ function fibaro.__ER.modules.vm(ER)
   if p.env.set(name,v) then return end -- set in (rule) local environment
   local flag,old = Script.set(name,v)   -- set in (rule) global environment
   if flag and v~=old and triggerVars[name] then    -- trigger variable, emit event
-    local ev = {type='trigger-variable',name=name,value=v,old=old}
+    local ev = eventCustomToString({type='trigger-variable',name=name,value=v,old=old})
     Script.post(p,ev,0,"trigger variable")
   end
 end

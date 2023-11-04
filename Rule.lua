@@ -4,7 +4,7 @@ function fibaro.__ER.modules.rule(ER)
   
   local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
-  PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts =
+  PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts,eventCustomToString =
   table.unpack(ER.utilities.export)
 
   local settings,debug = ER.settings,ER.debug
@@ -19,7 +19,6 @@ function fibaro.__ER.modules.rule(ER)
   local function hms(t) return os.date("%H:%M:%S",t < 24*3600 and t+fibaro.midnight() or t) end -- TBD: move to Utils.lua
   local vars,triggerVars = ER._vars,ER._triggerVars
   local function now() local t = os.date("*t") return t.hour*3600+t.min*60+t.sec end
-  local MTevent = { __tostring = eventStr }
 
   local tableOpts = {table="width='100%' border=1 bgcolor='"..settings.listColor.."'",td="align='left'"}
   function ER.listRules(extended)
@@ -258,6 +257,7 @@ function fibaro.__ER.modules.rule(ER)
     local options = table.copyShallow(p.co.options or {})
     local rule = options.rule
     if rule==nil then errorf(rule,p,"No rule object") end
+    assert(rule)
     options.rule = nil
     currRule = rule
     rule.instance = 0
@@ -368,11 +368,12 @@ function fibaro.__ER.modules.rule(ER)
     local runCoroutine = ER.runCoroutine
 
     function rule.start(ev,id,vars)
-      ev = ev or {type='nop'}
+      ev = ev or {type='start'}
       if rule._mode == 'killOthers' then rule.stop()
       elseif rule._mode == 'killSelf' and  next(rule.runners) then return rule end
 
-      setmetatable(ev,MTevent)
+      if not getmetatable(ev) then eventCustomToString(ev) end 
+
       local co = coroutine.create(rule.fun)
       rule.instance = rule.instance+1
       local instname = fmt("[Rule:%s:%s]",rule._name,rule.instance)
@@ -441,9 +442,12 @@ function fibaro.__ER.modules.rule(ER)
       local doc = rule._timers[ref]
       if doc then clearTimeout(ref) end
     end
-    function rule._post(ev,time,descr)
+
+    --local function postLog(_,str) co.LOG(str) end
+
+    function rule._post(ev,time,descr,p)
       local ref,t = nil,nil
-      ref,t = fibaro.post(ev,time,descr,function() if ref then rule._timers[ref]=nil end end)
+      ref,t = fibaro.post(ev,time,descr,function() if ref then rule._timers[ref]=nil end end,function(_,str) p.co.LOG(str) end)
       if ref then 
         rule._timers[ref] = {descr or "post",t} 
       end

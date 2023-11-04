@@ -4,7 +4,7 @@ function fibaro.__ER.modules.builtins(ER)
     
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
-  PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts =
+  PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts,eventCustomToString =
   table.unpack(ER.utilities.export)
     
     local builtin = ER.builtins
@@ -266,6 +266,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         local e = args[1]
         local t = args[2] or 0
         local d = args[3] or env.rule or "ER"
+        eventCustomToString(e)
         r = Script.post(p,e,t,d)
         st.push(r)
     end

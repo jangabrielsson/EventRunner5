@@ -7,7 +7,7 @@ function fibaro.__ER.modules.parser(ER)
   
   local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
-  PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts =
+  PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts,eventCustomToString =
   table.unpack(ER.utilities.export)
   
   local opers0 = {

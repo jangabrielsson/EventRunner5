@@ -2181,11 +2181,12 @@ _MODULES.event={ author = "jan@gabrielsson.com", version = '0.4', depends={'base
       end
     end
 
-    local function post(ev,t,log,hook)
+    local function post(ev,t,log,hook,customLog)
       local now = os.time()
       t = type(t)=='string' and toTime(t) or t or 0
       if t < 0 then return elseif t < now then t = t+now end
-      if debugFlags.post and (type(ev)=='function' or not ev._sh) then fibaro.trace(__TAG,format("Posting %s at %s %s",tostring(ev),os.date("%c",t),type(log)=='string' and ("("..log..")") or "")) end
+      if debugFlags.post and (type(ev)=='function' or not ev._sh) then 
+        (customLog or fibaro.trace)(__TAG,format("Posting %s at %s %s",tostring(ev),os.date("%c",t),type(log)=='string' and ("("..log..")") or "")) end
       if type(ev) == 'function' then
         return setTimeout(function() ev(ev) end,1000*(t-now),log),t
       elseif isEvent(ev) then

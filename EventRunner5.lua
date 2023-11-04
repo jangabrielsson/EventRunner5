@@ -101,16 +101,16 @@ function QuickApp:onInit()
         local TRUE = er.color("lightgreen","TRUE")
         local FALSE = er.color("lightred","FALSE")
         function er.settings.runRuleLogFun(co,rule,ok,event)
-            co.LOG("%s %s -> %s",ok and TRUE or FALSE,tostring(event) // 20,rule.src // 40)
+          co.LOG("%s %s -> %s",ok and TRUE or FALSE,tostring(event) // 20,rule.src:gsub("\n","") // 40)
         end
-        
+    
         function er.settings.userLogFunction(rule,tag,str) -- custom user log function with color and tag support,  #C:color# and #T:tag#
-            local color = nil
-            str = str:gsub("(#T:)(.-)(#)",function(_,t) tag=t return "" end)
-            str = str:gsub("(#C:)(.-)(#)",function(_,c) color=c return "" end)
-            if color then str=string.format("<font color=%s>%s</font>",color,str) end
-            fibaro.trace(tag,str);
-            return str
+          local color = nil
+          str = str:gsub("(#T:)(.-)(#)",function(_,t) tag=t return "" end)
+          str = str:gsub("(#C:)(.-)(#)",function(_,c) color=c return "" end)
+          if color then str=string.format("<font color=%s>%s</font>",color,str) end
+          fibaro.debug(tag,str);
+          return str
         end
         
         self:main(er) -- Call main function to setup rules

@@ -16,7 +16,7 @@ function fibaro.__ER.modules.engine(ER)
   local fmt= string.format
   local debugf = ER.debug
 
-  local function createProps(getProps,setProps,helpers)    
+  local function createProps(getProps,setProps,helpers)
     ER.definePropClass('StdPropObject')
     function StdPropObject:__init(id)
       PropObject.__init(self)
@@ -26,7 +26,7 @@ function fibaro.__ER.modules.engine(ER)
     for gp,map in pairs(getProps) do
       local m = map
       StdPropObject.getProp[gp] = function(id,prop,event) return m[2](id.id,m[3],event)  end-- fun(id,prop,event)
-      if m[5] then 
+      if m[5] then
         StdPropObject.trigger[gp] = function(self,id,gp) return {type=m[1], id=id, property=m[3]} end
       else StdPropObject.trigger[gp] = true end
       if m[4] then StdPropObject.map[gp] = m[4] end
@@ -39,7 +39,7 @@ function fibaro.__ER.modules.engine(ER)
     local stdPropObject = StdPropObject()
     ER.stdPropObject = stdPropObject
   end
-  
+
   ------- Rule variables -----------------------------------
   local vars,triggerVars = ER.vars,ER.triggerVars
   local reverseVarTable = {}
@@ -54,7 +54,7 @@ function fibaro.__ER.modules.engine(ER)
     end
   end
   function ER.reverseVar(id) return reverseVarTable[tostring(id)] or id end
-  
+
   ----------------------------------------------------------------------------------
   -- Runnning a corutine with ER "behaviour" - waits, callbacks etc.
   -- options = { success = function(success,...), error = function(err), suspended = function(success,...), trace = bool }
@@ -63,7 +63,7 @@ function fibaro.__ER.modules.engine(ER)
     local coroutine = ER.coroutine
     local function runner(...)
       local stat = {coroutine.resume(co,...)}
-      if not stat[1] then 
+      if not stat[1] then
         return options.error(stat[2])
       else
         if coroutine.status(co)=='suspended' then
@@ -92,8 +92,8 @@ function fibaro.__ER.modules.engine(ER)
   local function eval(str,options)
     assert(type(str)=='string',"first argument to eval must be a string (eventscript)")
     local str2 = str:gsub("(\xC2\xA0)","<*>")
-    if str2 ~= str and not ER.settings.ignoreInvisibleChars then 
-      error("String contains illegal chars: "..str2) 
+    if str2 ~= str and not ER.settings.ignoreInvisibleChars then
+      error("String contains illegal chars: "..str2)
     end
     str = trim(str)
     local coroutine = ER.coroutine
@@ -118,12 +118,12 @@ function fibaro.__ER.modules.engine(ER)
     return runCoroutine(co,options,table.unpack(options.args or {})) -- resume with handling of waits etc...
   end
   ER.eval = eval
-  
+
   createProps(ER.setupProps())
 end
 
 local function setup(ER)
-  
+
   local midnightFuns = {}
   function ER.midnightScheduler(fun) midnightFuns[#midnightFuns+1] = fun end
   local midnxt = (os.time() // 3600 +1)*3600
@@ -133,12 +133,12 @@ local function setup(ER)
     setTimeout(midnightLoop,(midnxt-os.time())*1000)
   end
   setTimeout(midnightLoop,(midnxt-os.time())*1000)
-  
+
   class 'PropObject'
   local ftype = 'func'..'tion' -- fool the autoindetation...
-  
+
   function ER.isPropObject(o) return type(o)=='userdata' and o.__type == '%PropObject%' end
-  function PropObject:__init() 
+  function PropObject:__init()
     self.__type = '%PropObject%'
     -- self.getProp = self.getProp or {}
     -- self.setProp = self.setProp or {}
@@ -152,7 +152,7 @@ local function setup(ER)
     return t and type(t) == ftype and t(self,id,prop) or type(t) == 'table' or nil
   end
   function PropObject:__tostring() return self.__str end
-  
+
   ER.PropObject = PropObject
   function ER.definePropClass(name)
     class(name)(PropObject)
@@ -162,25 +162,25 @@ local function setup(ER)
 end
 
 ----------------------------------------------------------------------------------
--- Setup engine and call main function 
+-- Setup engine and call main function
 function QuickApp:EventRunnerEngine(callback)
   quickApp = self
   self:setVersion("EventRunner5",self.E_SERIAL,self.E_VERSION)
   local vp = api.get("/settings/info").currentVersion.version
   local a,b,c = vp:match("(%d+)%.(%d+)%.(%d+)")
   vp = tonumber(string.format("%03d%03d%03d",a,b,c))
-  if vp < 5142083 then 
+  if vp < 5142083 then
     self:error("Sorry, EventRunner5 only works with FW v5.142.83 or later")
     return
   end
-  
+
   fibaro.debugFlags.html = true
   fibaro.debugFlags.onaction=false
-  
+
   local ER,er = fibaro.__ER,{}
   ER.settings = {}
   local _debug = {}
-  local _dbgHook = { 
+  local _dbgHook = {
     sourceTrigger = function(v) fibaro.debugFlags.sourceTrigger=v end,
     refreshEvents = function(v) fibaro.debugFlags._allRefreshStates=v end,
     post = function(v) fibaro.debugFlags.post=v end,
@@ -190,7 +190,7 @@ function QuickApp:EventRunnerEngine(callback)
     __newindex = function(t,k,v) _debug[k]=v if _dbgHook[k] then _dbgHook[k](v) end end
   })
   -- Global debug flags, can be overridden by ruleOptions
-  ER.debug.ruleTrigger    = true -- log rules being triggered 
+  ER.debug.ruleTrigger    = true -- log rules being triggered
   ER.debug.ruleTrue       = true -- log rules with condition succeeding
   ER.debug.ruleFalse      = true -- log rules with condition failing
   ER.debug.ruleResult     = false -- log results of rules running
@@ -198,16 +198,16 @@ function QuickApp:EventRunnerEngine(callback)
   ER.debug.post           = true -- log events being posted
   ER.debug.sourceTrigger  = true -- log incoming sourceTriggers
   ER.debug.refreshEvents  = true -- log incoming refreshEvents
-  
+
   -- Global settings
   ER.settings.marshall       = true          -- autoconvert globalVariables values to numbers, booleans, tables when accessed
   ER.settings.systemLogTag   = nil           -- log tag for ER system messages, defaults to __TAG
   ER.settings.ignoreInvisibleChars = false   -- Check code for invisible characters (xC2xA0) before evaluating
   ER.settings.truncLog       = 100           -- truncation of log output
   ER.settings.truncStr       = 80            -- truncation of log strings
-  ER.settings.bannerColor    = "orange"      -- color of banner in log, defaults to "orange"      
+  ER.settings.bannerColor    = "orange"      -- color of banner in log, defaults to "orange"
   ER.settings.listColor      = "purple"      -- color of list log (list rules etc), defaults to "purple"
-  ER.settings.statsColor     = "green"       -- color of statistics log, defaults to "green"  
+  ER.settings.statsColor     = "green"       -- color of statistics log, defaults to "green"
   ER.settings.logFunction = function(rule,tag,str) return fibaro.debug(tag,str) end -- function to use for user log(), defaults to fibaro.debug if nil
   ER.settings.asyncTimeout   = 10000         -- timeout for async functions, defaults to 10 seconds
 
@@ -220,8 +220,8 @@ function QuickApp:EventRunnerEngine(callback)
     __index = function(t,k) return vars[k] end,
     __newindex = function(t,k,v) vars[k] = {v} end
   })
-  
-  local triggerVars = {}  -- Trigger variables are marked here. 
+
+  local triggerVars = {}  -- Trigger variables are marked here.
   ER._triggerVars = triggerVars
   ER.triggerVars = setmetatable({},
   {
@@ -232,34 +232,34 @@ function QuickApp:EventRunnerEngine(callback)
   ER.builtins = {}
   ER.builtinArgs = {}
   ER.propFilters = {}
-  
-  local function multiLine(str) 
+
+  local function multiLine(str)
     if not str:find("\n") then return "'"..str.."'" end
     return "\n"..str
   end
-  
+
   function QuickApp:enableTriggerType(triggers) fibaro.enableSourceTriggers(triggers) end
-  
+
   ER.modules.utilities(ER) -- setup utilities, needed by all modules
   stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
   PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts =
   table.unpack(ER.utilities.export)
-  
+
   ER.utilities.printBanner("%s, deviceId:%s, version:%s",{self.name,self.id,self.E_VERSION})
-  
+
   setup(ER)
-  
-  ER.modules.tokenizer(ER) 
-  ER.modules.parser(ER) 
-  ER.modules.vm(ER) 
-  ER.modules.builtins(ER) 
+
+  ER.modules.tokenizer(ER)
+  ER.modules.parser(ER)
+  ER.modules.vm(ER)
+  ER.modules.builtins(ER)
   ER.modules.engine(ER)
-  ER.modules.rule(ER) 
+  ER.modules.rule(ER)
   ER.modules.compiler(ER)
-  
-  local eval = ER.eval 
-  
+
+  local eval = ER.eval
+
   -- Define user functions available in main from the er.* table
   function er.runFun(str,options) return er.compile(str,options or {})() end
   function er.eval0(str,options) return eval(str,options or {}) end
@@ -276,8 +276,8 @@ function QuickApp:EventRunnerEngine(callback)
       options.name = name
     else str,options = name,str end
     options = options or {}
-    
-    options.error = options.error or function(err) 
+
+    options.error = options.error or function(err)
       fibaro.error(__TAG,fmt("%s",err))
     end
     options.suspended = options.suspended or function(...) end       -- default, do nothing
@@ -289,7 +289,7 @@ function QuickApp:EventRunnerEngine(callback)
         if (not options.silent) and ER.debug.evalResult then LOG(fmt("%s > %s [done]",multiLine(str),argsStr(...))) end
       end
     end
-    
+
     local stat = {e_pcall(er.eval0,str,options)} -- This is a coroutine result; bool,bool,...
     if stat[1] then return table.unpack(stat,3) end
     options.error(stat[2])
@@ -299,11 +299,11 @@ function QuickApp:EventRunnerEngine(callback)
   function er.parse(str,options) return ER:parse(str,options or {}) end
   function er.isRule(p) return type(p)=='table' and p.type=='%RULE%' end
   er.definePropClass = ER.definePropClass
-  
+
   er.variables = ER.vars
   er.triggerVariables = ER.triggerVars
   function er.defvar(name,init) ER.vars[name]=init end
-  
+
   er.defTriggerVar = ER.defTriggerVar
   er.deftriggervar = ER.defTriggerVar
   er.rule = er.eval
@@ -316,8 +316,8 @@ function QuickApp:EventRunnerEngine(callback)
   function er.color(color,str) return "<font color="..color..">"..str.."</font>" end
   ER.color = er.color
 
-  local MTasyncCallback = { __call = 
-    function(cb,...) 
+  local MTasyncCallback = { __call =
+    function(cb,...)
       if not cb[1] then error("async callback not asyncronous called") end
       if not cb[2] then cb[1](...) end
     end
@@ -337,6 +337,7 @@ function QuickApp:EventRunnerEngine(callback)
     async = ER.asyncFun,
   }) do er[k] = v; ER.vars[k]=v end
   ER.vars.rule = function(i) return ER.rules[i] end
+  ER.vars.triggervar = ER.defTriggerVar
 
   er.Util = {
     defTriggerVar = ER.defTriggerVar,
@@ -344,10 +345,10 @@ function QuickApp:EventRunnerEngine(callback)
     defvars = er.defvars,
     reverseMapDef = ER.reverseMapDef
   }
-  
+
   for c,f in pairs(ER.constants) do ER:addInstr(c,f,"%s/%s") end
   for c,f in pairs(ER.builtins) do ER:addInstr(c,f,"%s/%s") end
-  
+
   function er.defmacro(name,str) -- Simple macro functions with optional arguments
     local pattern,params = "([%w_]+)",{}
     if name:find("%(") then pattern = pattern.."(%b())" end
@@ -369,28 +370,28 @@ function QuickApp:EventRunnerEngine(callback)
       return code
     end
   end
-  
+
   local uiHandler = self.UIHandler -- Handles button presses from ER QA UI
   function self:UIHandler(event)
     if event.deviceId == quickApp.id then
       self:post({type='UI',cmd=event.elementName,value=event.values[1]}) -- cmd is buttonID
     elseif uiHandler then uiHandler(self,event) end
   end
-  
-  local main = callback and function(_,er) callback(er) end or self.main 
+
+  local main = callback and function(_,er) callback(er) end or self.main
   if main then
     LOG("Setting up rules...")
     local t0 = os.clock()
     local stat,err = pcall(function() main(self,er) end)
-    if not stat then 
-      print(err) 
+    if not stat then
+      print(err)
       print("Rule setup error(s) - fix & restart...")
       return
     end
     local startupTime = os.clock()-t0
     ER.utilities.printBanner("Rules setup time: %.3f seconds",{startupTime})
   else self:debug("No main function") end
-  
+
   function self:eval(str) -- Terminal eval function
     str = trim(str)
     local opt = {}
@@ -411,6 +412,6 @@ function QuickApp:EventRunnerEngine(callback)
     err = err:gsub(" ","&nbsp;")
     if not stat then self:error(err) end
   end
-  
+
   return ER
 end
