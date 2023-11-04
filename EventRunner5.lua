@@ -75,8 +75,10 @@ function QuickApp:main(er)
     --     h = fibaro.event(event,function() fibaro.removeEvent(event,h) cb(true) end)
     --     return (timeout or 10)*1000 -- Timeout
     -- end
-    rule("#foo3 => log('foo3'); waitFor(#foo4); log('foo4')")
-    rule("wait(2); post(#foo3); wait(4); post(#foo4)")
+    -- rule("#foo3 => log('foo3'); waitFor(#foo4); log('foo4')")
+    -- rule("wait(2); post(#foo3); wait(4); post(#foo4)")
+
+    -- rule("log('Time:%s',http.get('http://worldtimeapi.org/api/timezone/Europe/Stockholm').data.datetime)")
 
     local ruleOpts = { silent=true }
     rule("#UI{cmd='listRules'} => listRules(false)",ruleOpts)
@@ -119,7 +121,7 @@ function QuickApp:onInit()
         function er.settings.runRuleLogFun(co,rule,ok,event)
           co.LOG("%s %s -> %s",ok and TRUE or FALSE,tostring(event) // 20,rule.src:gsub("\n","") // 40)
         end
-    
+
         function er.settings.userLogFunction(rule,tag,str) -- custom user log function with color and tag support,  #C:color# and #T:tag#
           local color = nil
           str = str:gsub("(#T:)(.-)(#)",function(_,t) tag=t return "" end)

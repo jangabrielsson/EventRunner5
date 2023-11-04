@@ -58,9 +58,9 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         local function profile(id,_) return api.get("/profiles/"..id.."?showHidden=true") end
         local function child(id,_) return quickApp.childDevices[id] end
         local function last(id,prop) local _,t=fibaro.get(id,prop); local r = t and os.time()-t or 0; return r end
-        local function cce(id,_,e) e=e.event; return e.type=='device' and e.property=='centralSceneEvent'and e.id==id and e.value or {} end
-        local function ace(id,_,e) e=e.event; return e.type=='device' and e.property=='accessControlEvent' and e.id==id and e.value or {} end
-        local function sae(id,_,e) e=e.event; return e.type=='device' and e.property=='sceneActivationEvent' and e.id==id and e.value.sceneId end
+        local function cce(id,_,e) return e.type=='device' and e.property=='centralSceneEvent'and e.id==id and e.value or {} end
+        local function ace(id,_,e) return e.type=='device' and e.property=='accessControlEvent' and e.id==id and e.value or {} end
+        local function sae(id,_,e) return e.type=='device' and e.property=='sceneActivationEvent' and e.id==id and e.value.sceneId end
         local mapOr,mapAnd,mapF=table.mapOr,table.mapAnd,function(f,l,s) table.mapf(f,l,s); return true end
         local function partition(id) return api.get("/alarms/v1/partitions/" .. id) or {} end
         local function arm(id,action)
