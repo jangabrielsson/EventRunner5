@@ -10,7 +10,7 @@ function fibaro.__ER.modules.rule(ER)
   local settings,debug = ER.settings,ER.debug
 
   local ruleID,rules = 0,{}
-  ER.rules = rules
+  ER.rules,ER.ruleID = rules,0
   local Rule = ER.Rule
   local stdPropObject,isPropObject = ER.stdPropObject,ER.isPropObject
   local htmlTable = ER.utilities.htmlTable
@@ -244,7 +244,7 @@ function fibaro.__ER.modules.rule(ER)
   function ER:createRuleObject(options)
     local rule = {type='%RULE%'}
     setmetatable(rule,{__tostring = ruleNameStr})
-    ruleID = ruleID+1
+    ruleID = ruleID+1; ER.ruleID = ruleID
     rule.id = ruleID
     rule._name = options.name or tostring(rule.id)
     rule._ltag = options.ltag -- or er.logtag?
@@ -380,7 +380,7 @@ function fibaro.__ER.modules.rule(ER)
       co.name = setmetatable({},{__tostring = function() return instname end})
       co.rtd.rule = rule
       rule.runners[co] = 'running'
-      local env = {event=ev,evid=id,vars=vars,rule=rule,name=co.name,co=co,instance=rule.instance}
+      local env = {event=ev,evid=id or '%%START%%',vars=vars,rule=rule,name=co.name,co=co,instance=rule.instance}
       local locals = co.rtd.env -- local variables
       locals.push('env',env)
       for k,v in pairs(vars or {}) do locals.push(k,v) end
@@ -392,7 +392,7 @@ function fibaro.__ER.modules.rule(ER)
         if ok then log = evOpts(options.ruleTrue,debug.ruleTrue)
         else log = evOpts(options.ruleFalse,debug.ruleFalse) end
         if log then
-          local logf = options.runRunLogFun or settings.runRuleLogFun or runRuleLogFun
+          local logf = options.runRuleLogFun or settings.runRuleLogFun or runRuleLogFun
           logf(co,rule,ok,ev)
         end
       end
@@ -424,13 +424,12 @@ function fibaro.__ER.modules.rule(ER)
         if rule.resultHook then rule.resultHook(conditionSucceeded,...) end
       end
       
-      function options.error(err) rule.runners[co] = nil co.ERROR(tostring(err)) end
+      function options.error(err) rule.runners[co] = nil co.ERROR("%s",err) end
       
       if evOpts(options.ruleTrigger,debug.ruleTrigger) then co.LOG("triggered %s",tostring(ev) // settings.truncStr) end
-      local res = {runCoroutine(co,options,env)}
-      --if res[1] then options.success(table.unpack(res,2)) end
+      runCoroutine(co,options,env)
       return rule
-    end
+    end -- start
     
     -- Internal rule housekeeping functions
     function rule._setTimeout(fun,time,descr) 

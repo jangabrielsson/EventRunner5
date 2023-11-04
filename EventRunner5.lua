@@ -23,6 +23,7 @@ function QuickApp:main(er)
     --     ruleFalse      = true,  -- log rule when condition fails
     --     ruleResult     = true,  -- log result of rule return value
     --     evalResult     = true,  -- log result of expression evaluation
+    --     userLogColor   = 'yellow',  -- if set, wraps user log messages in color
     -- }
     
     if fibaro.fibemu then -- Running in emulator, create 2 fake devices to play with...
@@ -41,24 +42,18 @@ function QuickApp:main(er)
     er.defvars(HT)
     er.reverseMapDef(HT)
 
+    local msgOpts = { evalResult=false, userLogColor='yellow' }
+    rule("log('Sunrise at %s, Sunset at %s',HM(sunrise),HM(sunset))",msgOpts)
+    rule("log('Weather condition is %s',weather:condition)",msgOpts)
+    rule("log('Temperature is %s°',weather:temperature)",msgOpts)
+    rule("log('Wind is %sms',weather:wind)",msgOpts)
+
     var.i = 0
-    rule("@@00:00:05 => i=i+1; log('5 seconds %s',i)",{ruleResult=false,ruleTrue=false})
-    --rule("wait(00:00:03) & test3=true")
+    rule("@@00:00:05 => i=i+1; log('ping: %s seconds',i*5)",{ruleResult=false,ruleTrue=false})
 
-    var.woonkamer = { gordijn = var.bs }
-
-    rule([[($Verl_Dagdeel == 'Avond_Vroeg' | 
-    $Verl_Dagdeel == 'Avond_Laat') & woonkamer.gordijn:isClosed =>
-    $Verl_Status_Blad = 'Avond';
-        log('#C:magenta#291- $Verl_Status_Blad - Avond')
-]])
-
+    -- rule("for _,qa in ipairs(sort([true,_:name++fmt(':%d',_) in quickapps])) do log(qa) end") -- Log all QAs in alphabetic order
     -- a = rule("@14:00 | #foo => log('foo:%s started',env.instance); wait(00:00:30); log('foo:%s ended',env.instance)").mode("killSelf")
     -- rule("post(#foo); wait(2); post(#foo)")
-    -- local msgOpts = { silent=true }
-    -- rule("log('Weather condition is %s',weather:condition)",msgOpts)
-    -- rule("log('Temperature is %s°',weather:temperature)",msgOpts)
-    -- rule("log('Wind is %sms',weather:wind)",msgOpts)
     
     -- --rule("wait(1); post(#info)")
     
@@ -68,8 +63,8 @@ function QuickApp:main(er)
     rule("#UI{cmd='listVars'} => listVariables()",ruleOpts)
     rule("#UI{cmd='listTimers'} => listTimers()",ruleOpts)
     
-    rule("#UI{cmd='test1'} => a.disable()",ruleOpts)
-    rule("#UI{cmd='test2'} => a.enable()",ruleOpts)
+    --rule("#UI{cmd='test1'} => a.disable()",ruleOpts)
+    --rule("#UI{cmd='test2'} => a.enable()",ruleOpts)
 end
 
 function QuickApp:onInit()

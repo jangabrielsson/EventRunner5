@@ -277,13 +277,23 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     args.log = {1,99}
     function builtin.log(i,st,p)
         local args,n = st.popm(i[3]),i[3]
+        local opts = p.co.options or {}
         local str = ""
         for i=1,#args do if type(args[i])=='table' then args[i]=encodeObj(args[i]) end end
         if #args < n then for i=1,n-#args do args[#args+1]='nil' end end
-        if #args == 1 then str=args[1]
-        elseif #args>1 then str = fmt(table.unpack(args)) end
+        if #args == 1 then str=tostring(args[1])
+        elseif #args>1 then
+            local stat,res = pcall(fmt,table.unpack(args))
+            if stat then str = res
+            else 
+                res = res:gsub("bad argument #(%d+)",function(n) return "bad argument #"..(n-1) end)
+                errorf(p,"log format: %s",res) 
+            end 
+        end
+        if opts.userLogColor then str = fmt("<font color=%s>%s</font>",opts.userLogColor,str) end
         local prFun = settings.userLogFunction or fibaro.debug
-        prFun(p.rule,p.rule and p.rule._ltag or ER.er.ltag or __TAG,str)
+        local stat,res = pcall(prFun,p.rule,p.rule and p.rule._ltag or ER.er.ltag or __TAG,str)
+        if not stat then errorf(p,"userLogFunction: %s",res) end
         st.push(str)
     end
     

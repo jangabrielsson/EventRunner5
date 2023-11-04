@@ -286,7 +286,7 @@ function QuickApp:EventRunnerEngine(callback)
       if #res==1 and type(res[1])=='table' and res[1].evalPrint then -- result is a table with evalPrint method
         res[1].evalPrint(res[1],str)                                 -- let object control its own print
       else
-        if (not options.silent) and ER.debug.evalResult then LOG(fmt("%s > %s [done]",multiLine(str),argsStr(...))) end
+        if (not options.silent) and evOpts(options.evalResult,ER.debug.evalResult) then LOG(fmt("%s > %s [done]",multiLine(str),argsStr(...))) end
       end
     end
 
@@ -313,6 +313,7 @@ function QuickApp:EventRunnerEngine(callback)
   er.xerror = e_error
   er._utilities = ER.utilities
   er.debug,er.settings = ER.debug,ER.settings
+  er.eventToString = ER.eventToString
   function er.color(color,str) return "<font color="..color..">"..str.."</font>" end
   ER.color = er.color
 
@@ -389,7 +390,7 @@ function QuickApp:EventRunnerEngine(callback)
       return
     end
     local startupTime = os.clock()-t0
-    ER.utilities.printBanner("Rules setup time: %.3f seconds",{startupTime})
+    ER.utilities.printBanner("Rules setup time: %.3f seconds (%s rules)",{startupTime,ER.ruleID})
   else self:debug("No main function") end
 
   function self:eval(str) -- Terminal eval function

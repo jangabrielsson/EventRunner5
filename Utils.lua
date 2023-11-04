@@ -219,14 +219,17 @@ function fibaro.__ER.modules.utilities(ER)
   local MTevent = { __tostring = Utils.eventStr }
 
   local _customEvent = {
-    daily = { __tostring=function(self) return string.format("#daily{%s}",self.id) end},
-    ['%interval%'] = { __tostring=function(self) return string.format("#interv{%s}",self.id) end},
-    ['global-variable'] = { __tostring=function(self) return string.format("#GV{%s=%s}",self.name,self.value // 30) end},
-    ['trigger-variable'] = { __tostring=function(self) return string.format("#TV{%s=%s}",self.name,tostring(self.value) // 30) end},
+    daily = { __tostring=function(self) return fmt("#daily{%s}",self.id) end},
+    ['%interval%'] = { __tostring=function(self) return fmt("#interv{%s}",self.id) end},
+    ['global-variable'] = { __tostring=function(self) return fmt("#GV{%s=%s}",self.name,self.value // 30) end},
+    ['trigger-variable'] = { __tostring=function(self) return fmt("#TV{%s=%s}",self.name,tostring(self.value) // 30) end},
   }
   function Utils.eventCustomToString(event)
     if _customEvent[event.type] then return setmetatable(event,_customEvent[event.type]) end
     return setmetatable(event,MTevent)
+  end
+  function ER.eventToString(type,fun)
+    _customEvent[type] = { __tostring=fun }
   end
 
   local _marshalBool={['true']=true,['True']=true,['TRUE']=true,['false']=false,['False']=false,['FALSE']=false}

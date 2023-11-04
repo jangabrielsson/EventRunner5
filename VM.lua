@@ -222,7 +222,7 @@ function instr.aset(i,st)
 end
 function instr.eventm(i,st,p)
   local env = p.args[1]
-  st.push(i[3]==env.evid)
+  st.push(i[3]==env.evid or env.evid=='%%START%%')
 end
 function instr.prop(i,st,p)
   local ids,prop,env = st.pop(),i[3],p.args[1] or {}
