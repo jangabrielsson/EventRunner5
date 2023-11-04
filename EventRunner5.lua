@@ -51,19 +51,40 @@ function QuickApp:main(er)
     var.i = 0
     rule("@@00:00:05 => i=i+1; log('ping: %s seconds',i*5)",{ruleResult=false,ruleTrue=false})
 
+    -- var.buttonCallback = nil
+    -- function var.async.getButton(cb)
+    --     var.buttonCallback = cb
+    --     return 100*1000 -- Timeout
+    -- end
+    -- rule("while true do btn = getButton(); if btn then log('Button %s pressed',btn) end end")
+
+    -- function var.async.myFun(cb,x,y)
+    --     setTimeout(function() cb(x+y) end,1000)
+    --     return 2000
+    -- end
+
+    -- rule("log('myFun returned %s',myFun(3,4))")
     -- rule("for _,qa in ipairs(sort([true,_:name++fmt(':%d',_) in quickapps])) do log(qa) end") -- Log all QAs in alphabetic order
     -- a = rule("@14:00 | #foo => log('foo:%s started',env.instance); wait(00:00:30); log('foo:%s ended',env.instance)").mode("killSelf")
     -- rule("post(#foo); wait(2); post(#foo)")
     
     -- --rule("wait(1); post(#info)")
     
+    -- function var.async.waitFor(cb,event,timeout)
+    --     local h
+    --     h = fibaro.event(event,function() fibaro.removeEvent(event,h) cb(true) end)
+    --     return (timeout or 10)*1000 -- Timeout
+    -- end
+    rule("#foo3 => log('foo3'); waitFor(#foo4); log('foo4')")
+    rule("wait(2); post(#foo3); wait(4); post(#foo4)")
+
     local ruleOpts = { silent=true }
     rule("#UI{cmd='listRules'} => listRules(false)",ruleOpts)
     rule("#UI{cmd='listRulesExt'} => listRules(true)",ruleOpts)
     rule("#UI{cmd='listVars'} => listVariables()",ruleOpts)
     rule("#UI{cmd='listTimers'} => listTimers()",ruleOpts)
     
-    --rule("#UI{cmd='test1'} => a.disable()",ruleOpts)
+    -- rule("#UI{cmd='test1'} => buttonCallback('test1')",ruleOpts)
     --rule("#UI{cmd='test2'} => a.enable()",ruleOpts)
 end
 

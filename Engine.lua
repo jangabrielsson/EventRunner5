@@ -1,6 +1,6 @@
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 0.026
+local version = 0.027
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -215,10 +215,14 @@ function QuickApp:EventRunnerEngine(callback)
 
   local vars = {}
   ER._vars = vars
+  local async 
   ER.vars = setmetatable({},
   {
-    __index = function(t,k) return vars[k] end,
+    __index = function(t,k) return k=='async' and async or vars[k] end,
     __newindex = function(t,k,v) vars[k] = {v} end
+  })
+  async = setmetatable({},{
+    __newindex = function(t,k,v) vars[k] = {er.async(v)} end
   })
 
   local triggerVars = {}  -- Trigger variables are marked here.

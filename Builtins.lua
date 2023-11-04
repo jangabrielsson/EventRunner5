@@ -404,7 +404,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         --- ToDo: check if again is called in a tryeFor rule
         local v = n>0 and st.pop() or math.huge
         flags.again = (flags.again or 0)+1
-        if v > flags.again then setTimeout(function() rule.start(flags.event) end,0) else flags.again,flags.even = nil,nil end
+        if v > flags.again then setTimeout(function() rule.start0(flags.event) end,0) else flags.again,flags.even = nil,nil end
         st.push(flags.again or v)
     end
     args.trueFor = {2,3}
@@ -425,7 +425,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
             flags.timer = Script.setTimeout(p,function()
                 flags.expired,flags.timer=true,nil; 
                 Script.post(p,{type='trueFor',id=id,status='action',time=time,rule=rule,_sh=true})
-                rule.start(event)
+                rule.start0(event)
             end,1000*time,"trueFor");
             if log then env.co.LOG("trueFor started") end
             flags.event = event

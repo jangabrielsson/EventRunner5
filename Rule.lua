@@ -289,7 +289,7 @@ function fibaro.__ER.modules.rule(ER)
     if triggers.interv then
       if options.ruleTrigger==nil then options.ruleTrigger=false end
       local ev = {type='%interval%',id=rule.id,_sh=true}
-      local fun = function(env) return rule.start(env.event,nil,env.p) end
+      local fun = function(env) return rule.start0(env.event,nil,env.p) end
       local handler = fibaro.event(ev,fun)
       rule.evhandlers[ev] = {fun,handler}
       rule.autostart = function()
@@ -301,13 +301,14 @@ function fibaro.__ER.modules.rule(ER)
       if rule._enabled then rule.autostart() end
     else -- interval trigger disables all other triggers for rule
       for evid,t in pairs(trs) do
-        local fun = function(env) return rule.start(env.event,evid,env.p) end
+        local fun = function(env) return rule.start0(env.event,evid,env.p) end
         local handler = fibaro.event(t,fun)
         rule.evhandlers[t] = {fun,handler}
       end
     end
 
     -- public rule functions
+    function rule.start(...) local args = {...} setTimeout(function() rule.start0(table.unpack(args)) end,1) return rule end
     function rule.name(name) rule._name = name; nameRule(rule) return rule end
     function rule.rtag(tag) rule._rtag = tag; return rule end
     function rule.ltag(tag) rule._ltag = tag; return rule end
@@ -367,7 +368,7 @@ function fibaro.__ER.modules.rule(ER)
     local coroutine = ER.coroutine 
     local runCoroutine = ER.runCoroutine
 
-    function rule.start(ev,id,vars)
+    function rule.start0(ev,id,vars)
       ev = ev or {type='start'}
       if rule._mode == 'killOthers' then rule.stop()
       elseif rule._mode == 'killSelf' and  next(rule.runners) then return rule end
@@ -467,7 +468,7 @@ function fibaro.__ER.modules.rule(ER)
       local ref
       LOG("%s>> scheduling %sdaily for %s",rule.rname,delay==0 and "and running/catchup " or "",hms(midnight()+time))
       ref = setTimeout(function()
-        rule.start({type='daily',id=rule.id,time=time})
+        rule.start0({type='daily',id=rule.id,time=time})
         rule._dailyTimers[ref]=nil
       end,delay*1000)
       rule._dailyTimers[ref]={'daily',time}

@@ -107,9 +107,13 @@ function fibaro.__ER.modules.vm(ER)
     if name then 
       PA={name}
       f = (p.env.get(name) or Script.get(name) or {})[1]
+      local mt = getmetatable(f)
+      if mt and mt.__call then local f0=f f = function(...) return mt.__call(f0,...) end end
       if type(f)~="function" then errorf(p,"'%s' is not a function",name) end
     else 
       f = st.pop()
+      local mt = getmetatable(f)
+      if mt and mt.__call then local f0=f f = function(...) return mt.__call(f0,...) end end
       if type(f)~="function" then errorf(p,"'%s' is not a function",tostring(f)) end
     end
     local res = {pcall(f,table.unpack(args))}
