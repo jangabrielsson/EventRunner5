@@ -3,7 +3,7 @@
 --%%remote=alarms/v1/partitions:1
 --%%var=x:5
 --%%var=y:6
---%%id=1249
+-- %%id=1249
 --%%u1={label='title',text='EventRunner5'}
 --%%u2={{button='listRules',text='List rules', onReleased='listRules'},{button='listRulesExt',text='List rules ext.', onReleased='listRulesExt'}}
 --%%u3={{button='listTimers',text='List timers', onReleased='listTimers'},{button='listVars',text='List variables', onReleased='listVariables'}}

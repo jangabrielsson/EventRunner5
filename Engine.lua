@@ -1,6 +1,6 @@
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 0.028
+local version = 0.030
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -107,6 +107,7 @@ function fibaro.__ER.modules.engine(ER)
       --if not options.silent then LOG("Defining [Rule:%s:%s]...",rule._name,rule.src // settings.truncStr) end
     end
     local p = ER:parse(tkns,options)
+    if options.listTree then print(json.encodeFormated(p)) end
     local fun = ER:compile(p,options)
     if fun == nil then error("can't compile "..str) end
     if options.listCode then print(fun.codeList()) end

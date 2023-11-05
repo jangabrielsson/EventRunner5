@@ -41,12 +41,12 @@ function fibaro.__ER.modules.vm(ER)
   end
   
   local Script = {}
-  local _DflSc = { 
+  local _DflSc = {  -- Default Script context
     _post = function(ev,t,dscr,p) return fibaro.post(ev,t) end, 
     _cancelPost = function(ref) return fibaro.cancel(ref) end, 
     _setTimeout = function(fun,delay,descr) return setTimeout(fun,delay) end,
     _clearTimeout = function(ref) return clearTimeout(ref) end,
-  } -- default script context, delas with variables timers etc for rules, coroutines, and plain functions
+  } -- default script context, deals with variables timers etc for rules, coroutines, and plain functions
   function Script.get(name) return vars[name] or {_G[name]} end
   function Script.set(name,value) 
     local v,old = vars[name],nil
@@ -64,6 +64,8 @@ function fibaro.__ER.modules.vm(ER)
   local PA = {}
   function instr.push(i,st)     st.push(i[3]) end
   function instr.pop(i,st)      st.pop() end
+  function instr.dup(i,st)      st.push(st.peek()) end
+  function instr.swap(i,st)     local b,a = st.pop(),st.pop(); st.push(b); st.push(a) end
   function instr.jmp(i,st,p)    p.pc = p.pc + i[3]-1 end
   function instr.jmpp(i,st,p)   st.pop(); p.pc = p.pc + i[3]-1 end
   function instr.jmpf(i,st,p)  local v = st.peek() if not v then p.pc = p.pc + i[3]-1 else st.pop() end end
@@ -216,6 +218,7 @@ function instr.aref(i,st,p)
   if tab == nil then errorf(p,"table is nil for array reference") end
   ---@diagnostic disable-next-line: need-check-nil
   st.push(tab[key])
+  if i[5] then st.push(tab) end -- for callobj
 end
 function instr.aset(i,st)
   local key,const,pop,var,v = i[3],i[4],i[5],i[6],nil
@@ -269,6 +272,7 @@ function instr.putprop(i,st,p)
   else v = itemFun(ids) end
   st.push(v)
 end
+
 function instr.betw(i,st,p)
   local t2,t1,time=tonumber(st.pop()),tonumber(st.pop()),os.time()
   if t1 == nil then errorf(p,"Bad first argument to between '..' - not a number") end
@@ -292,8 +296,7 @@ function instr.interv(i,st,p)
   Script.post(p,{type='%interval%',id=p.rule.id,_sh=true},t,'@@')
   st.push(true)
 end
-function instr.match(i,st) end
-function instr.assign(i,st) end
+function instr.match(i,st) end -- ToDo
 function instr.addto(i,st) local v = st.pop(); PA={v}; st.push(v+i[3]) end
 function instr.subto(i,st) local v = st.pop(); PA={v}; st.push(i[4] and v-i[3] or i[3]-v) end
 function instr.multo(i,st) local v = st.pop(); PA={v}; st.push(v*i[3]) end
@@ -304,7 +307,7 @@ function instr.modto(i,st) local v = st.pop(); PA={v}; st.push(i[4] and v%i[3] o
 function instr.eval(i,st)           st.push(ER.eval(st.pop(),{silent=true})) end
 
 function instr.rule(i,st,p) st.push(ER:createRule(i[3],i[4],p)) end
-function instr.rule_action(i,st,p)
+function instr.rule_action(i,st,p) -- Bridges condition and action, calls coroutines action handler (for logging etc)
   local cond = st.popm(1)
   if cond[1] then
     p.co._action(true,cond[2])
@@ -320,7 +323,7 @@ end
 for i,_ in pairs(instr) do ilog[i] = "%s/%s" end
 for i,n in pairs({
   push=1,var=1,gv=1,qv=1,jmp=1,jmpf=1,jmpt=1,jmpfp=1,jmpfip=1,jmpp=1,eventm=1,prop=1,mvstart=1,mvend=1,
-  setvar=3,aset=3,call=2,callexpr=1,collect=2,mv=4,aref=1,addto=2,subto=2,multo=2,divto=2,modto=2,['local']=1,
+  setvar=3,aset=3,call=1,callexpr=1,callobj=1,collect=2,mv=4,aref=1,addto=2,subto=2,multo=2,divto=2,modto=2,['local']=1,
   setgv=3,setqv=3,
 }) do ilog[i] = "%s/%s "..string.rep("%s",n," ") end
 
@@ -348,9 +351,9 @@ for _,i in ipairs({'call','callexpr','callobj',}) do
     local r={} for _,v in ipairs(t) do r[#r+1]=type(v)=='table' and encodeFast(v) or v end return table.unpack(r) 
   end
   local function instr2str(i)
-    -- local s = i[1]
-    -- local str = ilog[i[1]] or "%s/%s"
-    -- local args = {encodeArgs(i)}
+    local s = i[1]
+    local str = ilog[i[1]] or "%s/%s"
+    local args = {encodeArgs(i)}
     return fmt(ilog[i[1]] or "%s/%s",encodeArgs(i))
   end
   

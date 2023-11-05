@@ -157,9 +157,14 @@ function fibaro.__ER.modules.compiler(ER)
     out.instr(p,'call',false,#p.args)
   end
   function comp.callobj(p,out)
+    local tab = p.expr
+    local k = isParseConst(tab.key)
+    compile(tab.tab,out)              
+    out.instr(p,'aref',false,k,true) -- aref that pushes tab on the stack and becomes first arg to call
     for _,arg in ipairs(p.args) do compile(arg,out) end
-    out.instr(p,'call',p.name,#p.args)
+    out.instr(p,'call',false,#p.args+1)
   end
+
   local popInstr = { setvar = true, aset=true, push=false }
   function comp_op.progn(p,out)
     if #p.args == 0 then return end
@@ -252,7 +257,7 @@ function fibaro.__ER.modules.compiler(ER)
       out.instr(p,'setqv',p.name,false,false)
     end
   end
-  function comp_op.f_local(p,out)
+  function comp_op.f_local(p,out)   -- like massign but assignments creates locals
     compile(p.arg,out)
     for i,v in ipairs(p.dest) do compile(v,out) end
   end

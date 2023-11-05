@@ -413,6 +413,11 @@ function fibaro.__ER.modules.parser(ER)
     return p 
   end
   
+  -- ToDo, optimize these
+  function trans_op.addto(p) return transform({type='op', op='assign', args={p.args[1],{type='op', op='add', args={p.args[1],p.args[2]}}}}) end
+  function trans_op.subto(p) return transform({type='op', op='assign', args={p.args[1],{type='op', op='sub', args={p.args[1],p.args[2]}}}}) end
+  function trans_op.multo(p) return transform({type='op', op='assign', args={p.args[1],{type='op', op='mul', args={p.args[1],p.args[2]}}}}) end
+
   local tops = {}
   function tops.add(a,b) return a+b end
   function tops.sub(a,b) return a-b end
@@ -533,6 +538,7 @@ function fibaro.__ER.modules.parser(ER)
   
   function trans.call(p) transformList(p.args); return p end
   function trans.callexpr(p) transformList(p.args); p.expr = transform(p.expr); return p end
+  function trans.callobj(p) transformList(p.args); p.expr = transform(p.expr); return p end
   
   -- function trans.filter(p)
   --   p.expr = transform(p.expr)
@@ -633,7 +639,7 @@ function fibaro.__ER.modules.parser(ER)
     return p
   end
   
-  function simp(v) return simpTab[v.type] and simpTab[v.type](v) or v[1] and simpList(v) or v end
+  function simp(v) v.d=nil return simpTab[v.type] and simpTab[v.type](v) or v[1] and simpList(v) or v end
   function simpList(l) local r = {}; for _,v in ipairs(l) do r[#r+1]=simp(v) end; return r end
 
   function ER:parse(input,options) -- codeStr/tokens -> parseTree

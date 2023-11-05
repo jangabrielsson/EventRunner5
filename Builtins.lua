@@ -64,44 +64,19 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         local mapOr,mapAnd,mapF=table.mapOr,table.mapAnd,function(f,l,s) table.mapf(f,l,s); return true end
         local function partition(id) return api.get("/alarms/v1/partitions/" .. id) or {} end
         local function arm(id,action)
-            local PIN = Script.get('PIN')[1]
-            if PIN == nil then return false end
-            local url = id == 0 and 'http://192.168.1.57/api/alarms/v1/partitions/actions/arm' or 'http://192.168.1.57/api/alarms/v1/partitions/' .. id .. '/actions/arm'
-            local method = action == 'arm' and 'POST' or 'DELETE'
-            net.HTTPClient():request(url, { 
-                options = { 
-                    method=method,
-                    headers = { 
-                        ['Fibaro-User-PIN'] = PIN,
-                        ['Authorization'] = fibaro.utils.basicAuthorization("admin","admin"),
-                        ['X-Fibaro-Version'] = '2',
-                        ['accept'] = '*/*'
-                     }
-                },
-                success = function(resp) end,
-                error = function(err) fibaro.post({type='alarm',id=id,action=action,property='error',value=err}) end
-            })
+            if action=='arm' then 
+                local _,res = fibaro.armPartition(id); return res == 200
+            else
+                local _,res = fibaro.unarmPartition(id); return res == 200
+            end
         end
         local function tryArm(id)
-            local PIN = Script.get('PIN')[1]
-            if PIN == nil then return false end
-            local url = id == 0 and 'http://192.168.1.57/api/alarms/v1/partitions/actions/tryArm' or 'http://192.168.1.57/api/alarms/v1/partitions/' .. id .. '/actions/tryArm'
-            net.HTTPClient():request(url, { 
-                options = { 
-                    method='POST',
-                    headers = { 
-                        ['Fibaro-User-PIN'] = PIN,
-                        ['Authorization'] = fibaro.utils.basicAuthorization("admin","admin"),
-                        ['X-Fibaro-Version'] = '2',
-                        ['accept'] = '*/*'
-                     }
-                },
-                success = function(resp)
-                    resp = json.decode(resp.data)
-                    if resp.result == 'armDelayed' then fibaro.post({type='alarm',id=id,action='tryArm',property='armDelayed',value=resp.breachedDevices}) end
-                end,
-                error = function(err) fibaro.post({type='alarm',id=id,action='tryArm',property='error',value=err}) end
-            })
+            local data,res = fibaro.tryArmPartition(id)
+            if res ~= 200 then return false end
+            if type(data) == 'table' then
+                fibaro.post({type='alarm',id=id,action='tryArm',property='delayed',value=data})
+            end
+            return true
         end
         local helpers = { BN=BN, get=get, on=on, off=off, call=call, profile=profile, child=child, last=last, cce=cce, ace=ace, sae=sae, mapOr=mapOr, mapAnd=mapAnd, mapF=mapF }
         
@@ -167,7 +142,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         getProps.isSecure={'device',on,'secured',mapAnd,true}
         getProps.isUnsecure={'device',off,'secured',mapOr,true}
         getProps.name={'device',function(id) return fibaro.getName(id) end,nil,nil,false}
-        getProps.HTname={'device',function(id) return Util.reverseVar(id) end,nil,nil,false}
+        getProps.HTname={'device',function(id) return ER.reverseVar(id) end,nil,nil,false}
         getProps.roomName={'device',function(id) return fibaro.getRoomNameByDeviceID(id) end,nil,nil,false}
         getProps.trigger={'device',function() return true end,'value',nil,true}
         getProps.time={'device',get,'time',nil,true}
@@ -190,7 +165,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         local function setState(id,_,val) fibaro.call(id,"updateProperty","state",val); return val end
         local function setProps(id,cmd,val) fibaro.call(id,"updateProperty",cmd,val); return val end
         local function dim2(id,_,val) ER.utilities.dimLight(id,table.unpack(val)) end
-        local function pushMsg(id,cmd,val) fibaro.alert(fibaro._pushMethod,{id},val,false,''); return val end
+        local function pushMsg(id,cmd,val) fibaro.alert(fibaro._pushMethod,{id},val); return val end
         local function setAlarm(id,cmd,val) arm(id,val and 'arm' or 'disarm') return val end
         helpers.set, helpers.set2, helpers.setProfile, helpers.setState, helpers.setProps, helpers.dim2, helpers.pushMsg = set, set2, setProfile, setState, setProps, dim2, pushMsg
         
@@ -401,7 +376,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         local env,n = p.args[1] or {},i[3]
         local rule = env.rule
         local flags = rule.trueForFlags or {}; rule.trueForFlags=flags
-        --- ToDo: check if again is called in a tryeFor rule
+        --- ToDo: check if again is called in a trueFor rule
         local v = n>0 and st.pop() or math.huge
         flags.again = (flags.again or 0)+1
         if v > flags.again then setTimeout(function() rule.start0(flags.event) end,0) else flags.again,flags.even = nil,nil end
@@ -562,7 +537,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         __TAG = t
     end
     defVars.print = function(...) quickApp:printTagAndColor(...) end
-    --defVars.QA = quickApp
+    defVars.QA = quickApp
     
   definePropClass('Weather')
   function Weather:__init() PropObject.__init(self) end

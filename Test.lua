@@ -19,6 +19,17 @@ function QuickApp:main(er)
   PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts =
   table.unpack(ER.utilities.export)
   
+  local HT = { 
+    keyfob = 46, 
+    motion= 87,
+    temp = 22,
+    lux = 23,
+    gardenlight =24
+  }
+
+  er.defvars(HT)
+  er.reverseMapDef(HT)
+
   if false then -- test coroutines
     function multval() return 1,2,3 end
     local fun = er.compile("x,y = _args; log('values %s %s',x,y); log(7); yield(2); z = yield(3); return 3+z,88")
@@ -44,6 +55,7 @@ function QuickApp:main(er)
     local answer = r[2]
     local name = string.format("%s",str)
     local options = {codeList=true,trace=opts.trace}
+    for k,v in pairs(opts) do options[k]=v end
     
     function options.suspended(...)
       local res = {...}
@@ -73,7 +85,7 @@ function QuickApp:main(er)
     end
   end
   
-  local function runExprs(exprs) for i,r in ipairs(exprs) do runExpr(r,{}) end end
+  local function runExprs(exprs) for i,r in ipairs(exprs) do runExpr(r,r[3] or {}) end end
   
   local function runRules(exprs)
     local rules = {}
@@ -127,7 +139,13 @@ function QuickApp:main(er)
   er.defTriggerVar("tv1",nil)
   function Foo() return 7 end
   local exprs1 = {
+    {"46:HTname",{'keyfob'}},
+    {"a=2; a+=3; a",{5}},
+    {"a=2; a-=3; a",{-1}},
+    {"a=2; a*=3; a",{6}},
     {"$A=9",{9}},
+    {"$$B = 9; $$B",{9}},
+    {"QA:getVariable('B')",{9}}, -- foo:B(x)   aref foo,B
     {"Foo()-4",{3}},
     {"5* -4",{-20}},
     {"7;8;9",{9}},
@@ -267,13 +285,13 @@ function QuickApp:main(er)
     -- {"{bs1,bs2}:isOn => 101",{true,101},{"bs2:on"}},
     -- {"ms2:value => wait(1); {ms2,ms3}:value",{true,{19,0}},{"ms2:value=19"}},
     -- {"@{catch,07:00} => 66",{true,66}},
-    {"@now+1 => a = asyncfun(2,3);a",{true,5}},
+    -- {"@now+1 => a = asyncfun(2,3);a",{true,5}},
+    -- {"555:central.keyAttribute == 'Pressed' => 109",{true,109},{{type='device',id=555,property='centralSceneEvent',value={keyId=2,keyAttribute='Pressed'}}}},
+    -- {"556:scene == S2.double => 110",{true,110},{{type='device',id=556,property='sceneActivationEvent',value={sceneId="24"}}}},
   }
   
-  -- print(er.eval("@{02:00,03:00} & ms1:value & 01:00..02:00 => 99").description)
-  -- local r = er.eval("@now+4 => wait(2); 66")--.trace(true)
-  -- print(r)
-  setTimeout(function() runRules(rules3) end,1000)
+
+  -- setTimeout(function() runRules(rules3) end,1000)
   
   --er.defVar('fopp',function() print("fopp") end)
   local rulesError = {
