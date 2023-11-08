@@ -8,9 +8,9 @@ function fibaro.__ER.modules.utilities(ER)
   
   local toTime,midnight,encodeFast = fibaro.toTime,fibaro.midnight,json.encodeFast
   local fmt = string.format
-
+  
   function Utils.evOpts(...) for _,v in pairs({...}) do if not v then return false end end return true end
-
+  
   function Utils.stack()
     local p,px,st,self=0,0,{},{}
     function self.push(v) p=p+1 st[p]=v px=p end
@@ -49,7 +49,7 @@ function fibaro.__ER.modules.utilities(ER)
     str = str:gsub("\n","</br>")
     return str:gsub("(#CCC#)",function(c) i=i+1 return cols[i] end)
   end
-
+  
   local function LOGGER(df,f,...)
     if #{...} > 0 then
       local msg = f:format(...)
@@ -60,13 +60,13 @@ function fibaro.__ER.modules.utilities(ER)
       df(ER.settings.systemLogTag or __TAG,f) 
     end
   end
-
+  
   function Utils.LOG(f,...) LOGGER(fibaro.trace,f,...) end
   function Utils.LOGERR(f,...) LOGGER(fibaro.error,f,...) end
-
+  
   local LOG = Utils.LOG
   local LOGERR = Utils.LOGERR
-
+  
   function Utils.PrintBuffer(...)
     local self = { buff = {...} }
     local buff = self.buff
@@ -79,7 +79,7 @@ function fibaro.__ER.modules.utilities(ER)
     function self:tostring(div) return table.concat(buff,div or "\n") end
     return setmetatable(self,{__tostring=function(obj) return obj:tostring() end})
   end
-
+  
   local function maxLen(list) local m = 0 for _,e in ipairs(list) do m=math.max(m,e:len()) end return m end
   if hc3_emulator then 
     function Utils.htmlTable(list,opts)
@@ -129,7 +129,7 @@ function fibaro.__ER.modules.utilities(ER)
       return pr:tostring("")
     end
   end
-
+  
   function Utils.strPad(str,args,ch,w)
     ch,w=ch or "-",w or 100
     str = fmt(str,table.unpack(args or {}))
@@ -138,7 +138,7 @@ function fibaro.__ER.modules.utilities(ER)
     local l2=100/2-n/2
     return string.rep(ch,l2).." "..str.." "..string.rep(ch,l2)
   end
-
+  
   function Utils.makeBanner(str,args,ch,w) return Utils.strPad(str,args,ch,w) end
   if fibaro.fibemu then
     function Utils.printBanner(str,args,col,ch,w) LOG('\n<font color="%s">%s</font>',col or "orange",Utils.makeBanner(str,args,ch,w)) end
@@ -148,7 +148,7 @@ function fibaro.__ER.modules.utilities(ER)
       LOG(Utils.htmlTable({fmt(str,table.unpack(args or {}))},{table="width='100%' border=1 bgcolor='"..col.."'",td="align='center'"}))
     end
   end
-
+  
   getmetatable("").__idiv = function(str,len) return (#str < len or #str < 4) and str or str:sub(1,len-2)..".." end
   
   function Utils.argsStr(...)
@@ -196,11 +196,12 @@ function fibaro.__ER.modules.utilities(ER)
   
   function Utils.errorLine(str,from,to)
     if not str:find("\n") then 
-      if not(from and to) then return nil end
+      if not(from or to) then return nil end
       local msg = str.."\n"
       msg = msg..string.rep(" ",from-1)..string.rep("^",to-from+1)
       return msg
     else
+      if not(from or to) then return nil end
       local n = 0
       local lines = str:split("\n")
       for _,l in ipairs(lines) do
@@ -217,7 +218,7 @@ function fibaro.__ER.modules.utilities(ER)
   end
   
   local MTevent = { __tostring = Utils.eventStr }
-
+  
   local _customEvent = {
     daily = { __tostring=function(self) return fmt("#daily{%s}",self.id) end},
     ['%interval%'] = { __tostring=function(self) return fmt("#interv{%s}",self.id) end},
@@ -231,7 +232,7 @@ function fibaro.__ER.modules.utilities(ER)
   function ER.eventToString(type,fun)
     _customEvent[type] = { __tostring=fun }
   end
-
+  
   local _marshalBool={['true']=true,['True']=true,['TRUE']=true,['false']=false,['False']=false,['FALSE']=false}
   
   function Utils.marshallFrom(v) 
@@ -332,19 +333,110 @@ function fibaro.__ER.modules.utilities(ER)
     return sunInfo
   end
   
+  ----------- spec format -----------------------------
+  do
+    local function hm(t)
+      if t > 3600*100 then return os.date("%H:%M",t)
+      else return fmt("%2d:%2d",t//3600,t % 3600 // 60) end
+    end
+    local function hms(t) 
+      if t > 3600*100 then return os.date("%X",t)
+      else return fmt("%2d:%2d:%2d",t//3600,t % 3600 // 60,t % 60) end
+    end
+    
+    local function mkTruncer(n,fun,a) return function(s) return fun(s):sub(1,n),a end end
+    local function mkSpacer(n,fun,a)
+      local e = n < 0 and 1 or 0
+      n = math.abs(n)
+      return function(s)
+        s = fun(s)
+        local l = #s
+        if l>=n then return s,a
+        else return e==1 and (s..string.rep(' ',n-l)) or (string.rep(' ',n-l)..s),a end
+      end
+    end
+    
+    local specs = {}
+    function specs.s(f) 
+      local fun = function(s) return tostring(s),1 end
+      local space,trunc = f:match("(-?%d*),?(%d*)")
+      if trunc and trunc~="" then fun = mkTruncer(tonumber(trunc),fun,1) end
+      if space and space~="" then fun = mkSpacer(tonumber(space),fun,1) end
+      return fun
+    end
+    function specs.d(f) f = "%"..f.."d" return function(s) return fmt(f,s),1 end end
+    function specs.f(f) f = "%"..f.."f" return function(s) return fmt(f,s),1 end end
+    function specs.x(f) f = "%"..f.."x" return function(s) return fmt(f,s),1 end end
+    function specs.o(f) f = "%"..f.."o" return function(s) return fmt(f,s),1 end end
+    function specs.t(f)
+      local s = f:match(".")
+      if s then return function(s) return hms(s),1 end else return function(s) return hm(s),1 end end
+    end
+    function specs.l(f)
+      local fun = function(s)
+        local r = {} for _,e in ipairs(s) do r[#r+1]=tostring(e) end
+        return table.concat(r,","),1 
+      end
+      local space,trunc = f:match("(-?%d*),?(%d*)")
+      if trunc and trunc~="" then fun = mkTruncer(tonumber(trunc),fun,1) end
+      if space and space~="" then fun = mkSpacer(tonumber(space),fun,1) end
+      return fun
+    end
+    function specs.r(f)
+      local n,c = f:match("%d*%w?")
+      n = tonumber(n) or 80
+      c = c~= "" and c or "-"
+      return function() return c:rep(n),0 end
+    end
+    
+    local fmtcache = {}
+    function Utils.format(fmt,...)
+      local frms = fmtcache[fmt]
+      if not frms then
+        local forms,strs,globs,n = {},{},{},0
+        local res,rest = {},""
+        fmt = fmt:gsub("(.-)%%([%d%-%.,%w%*]*)([sfdxlotr])",
+        function(p,s,f)
+          res[#res+1]=p
+          local fun = specs[f](s)
+          assert(fun,"Bad format specifier")
+          res[#res+1]=fun
+          return ""
+        end)
+      if fmt~="" then res[#res+1]=fmt end
+        for i,p in ipairs(res) do
+          if type(p) == 'string' then
+            if p ~= "" then
+              n=n+1
+              strs[n]=p
+            end
+          else n=n+1 forms[#forms+1] = {i=n,f=p} end
+        end
+        frms = {forms=forms,strs=strs,globs=globs}
+        fmtcache[fmt]=frms
+      end
+      local i,n,args,forms,strs,globs = 1,0,{...},frms.forms,frms.strs,frms.globs
+      for _,f in ipairs(forms) do strs[f.i],n = f.f(args[i],i,args) i=i+n end
+      local str = table.concat(strs)
+      if globs[1] then
+        for _,g in ipairs(globs) do str = g(str) end
+      else return str end
+    end
+  end
   ------------------------------------------------------
   
   ER.utilities.export = {
     Utils.stack, Utils.stream, Utils.errorMsg, Utils.isErrorMsg, Utils.xerror, Utils.pcall, Utils.errorLine,
     Utils.marshallFrom, Utils.marshallTo, toTime, midnight, encodeFast, Utils.argsStr, Utils.eventStr,
-    Utils.PrintBuffer, Utils.sunData, Utils.LOG, Utils.LOGERR, Utils.htmlTable, Utils.evOpts, Utils.eventCustomToString
+    Utils.PrintBuffer, Utils.sunData, Utils.LOG, Utils.LOGERR, Utils.htmlTable, Utils.evOpts, Utils.eventCustomToString,
+    Utils.format
   }
   for _,f in ipairs(extraSetups) do f() end
   
   
   -- stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   -- marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
-  -- PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts,eventCustomToString =
+  -- PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts,eventCustomToString,formatt =
   -- table.unpack(ER.utilities.export)
   
 end

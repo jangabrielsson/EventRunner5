@@ -4,7 +4,7 @@ function fibaro.__ER.modules.builtins(ER)
     
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
-  PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts,eventCustomToString =
+  PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts,eventCustomToString,formatt =
   table.unpack(ER.utilities.export)
     
     local builtin = ER.builtins
@@ -93,15 +93,16 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         getProps.isAnyOff={'device',off,'value',mapOr,true}
         getProps.last={'device',last,'value',nil,true}
         
+        getProps.arm={'alarm',arm,nil,'alarm',false}
         getProps.tryArm={'alarm',tryArm,nil,'alarm',false}
-        getProps.armed={'alarm',function(id) return partition(id).armed end,'armed',mapOr,true}
-        getProps.allArmed={'alarm',function(id) return partition(id).armed end,'armed',mapAnd,true,true}
-        getProps.disarmed={'alarm',function(id) return partition(id).armed==false end,'armed',mapAnd,true}
-        getProps.anyDisarmed={'alarm',function(id) return partition(id).armed==false end,'armed',mapOr,true,false}
-        getProps.alarmBreached={'alarm',function(id) return partition(id).breached end,'breached',mapOr,true}
-        getProps.alarmSafe={'alarm',function(id) return partition(id).breached==false end,'breached',mapAnd,true}
-        getProps.allAlarmBreached={'alarm',function(id) return partition(id).breached end,'breached',mapAnd,true}
-        getProps.anyAlarmSafe={'alarm',function(id) return partition(id).breached==false end,'breached',mapOr,true,false}
+        getProps.isArmed={'alarm',function(id) return partition(id).armed end,'armed',mapOr,true}
+        getProps.isAllArmed={'alarm',function(id) return partition(id).armed end,'armed',mapAnd,true,true}
+        getProps.isDisarmed={'alarm',function(id) return partition(id).armed==false end,'armed',mapAnd,true}
+        getProps.isAnyDisarmed={'alarm',function(id) return partition(id).armed==false end,'armed',mapOr,true,false}
+        getProps.isAlarmBreached={'alarm',function(id) return partition(id).breached end,'breached',mapOr,true}
+        getProps.isAlarmSafe={'alarm',function(id) return partition(id).breached==false end,'breached',mapAnd,true}
+        getProps.isAllAlarmBreached={'alarm',function(id) return partition(id).breached end,'breached',mapAnd,true}
+        getProps.isAnyAlarmSafe={'alarm',function(id) return partition(id).breached==false end,'breached',mapOr,true,false}
 
         getProps.child={'device',child,nil,nil,false}
         getProps.profile={'device',profile,nil,nil,false}
@@ -271,9 +272,26 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         if not stat then errorf(p,"userLogFunction: %s",res) end
         st.push(str)
     end
-    
+    args.logt = {1,99}
+    function builtin.logt(i,st,p)
+        local args,n = st.popm(i[3]),i[3]
+        local opts = p.co.options or {}
+        local stat,str = pcall(formatt,table.unpack(args))
+        if not stat then
+            str = str:gsub("bad argument #(%d+)",function(n) return "bad argument #"..(n-1) end)
+            errorf(p,"log format: %s",str) 
+        end
+        if opts.userLogColor then str = fmt("<font color=%s>%s</font>",opts.userLogColor,str) end
+        local prFun = settings.userLogFunction or fibaro.debug
+        local stat,res = pcall(prFun,p.rule,p.rule and p.rule._ltag or ER.er.ltag or __TAG,str)
+        if not stat then errorf(p,"userLogFunction: %s",res) end
+        st.push(str)
+    end
+
     args.fmt = {1,99}
-    function builtin.fmt(i,st,p) st.push(string.format(table.unpack(st.lift(i[3])))) end
+    function builtin.fmt(i,st,p) st.push(fmt(table.unpack(st.lift(i[3])))) end
+    args.fmtt = {1,99}
+    function builtin.fmtt(i,st,p) st.push(formatt(table.unpack(st.lift(i[3])))) end
     args.HM = {1,1}
     function builtin.HM(i,st,p) local t = st.pop(); st.push(os.date("%H:%M",t < os.time() and t+midnight() or t)) end  
     args.HMS = {1,1}
@@ -322,21 +340,17 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     function builtin.adde(i,st,p) local v,t=st.pop(),st.pop() table.insert(t,v) st.push(t) end
     args.remove = {2,2}
     function builtin.remove(i,st,p) local v,t=st.pop(),st.pop() table.remove(t,v) st.push(t) end
-    args.enable = {0,1}
+    args.enable = {0,2}
     function builtin.enable(i,st,p)
-        if i[3] == 0 then
-            p.rule.enable()
-            st.push(true)
-            return
-        end
-        local t,g = st.pop(),false; if n==2 then g,t=t,st.pop() end 
-        st.push(fibaro.EM.enable(t,g))
+        if i[3] == 0 then p.rule.enable() st.push(true) return end
+        local tag,g = st.popm(i[3])
+        st.push(ER.enable(tag,g))
     end
     args.disable = {0,1}
     function builtin.disable(i,st,p)
         if i[3] == 0 then p.rule.disable() st.push(true) return end
         local r = st.pop()
-        st.push(r.disable())
+        st.push(ER.disable(r))
     end
     args.yield = {0,99}
     function builtin.yield(i,st,p) 
@@ -349,7 +363,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     function builtin.filter(i,st,p) 
         local out,list,cond = st.pop(),st.pop(),st.pop()
         local v = p.env.get('_')[1]
-        if cond then list[#list+1] = out end
+        if cond and out ~= nil then list[#list+1] = out end
         st.push(out)
     end
     args.wait = {1,2}
@@ -514,6 +528,25 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
             if o[k]==v then return o end
         end
     end
+
+    local function enable(r,mode)
+        if ER.isRule(r) then return r[mode]()
+        elseif tonumber(r) and ER.rules[tonumber(r)] then
+            return ER.rules[tonumber(r)][mode]()
+        elseif type(r) == 'table' then
+            for _,r0 in ipairs(r) do enable(r0,mode) end
+        elseif type(r) == 'string' then
+            for id,r0 in ipairs(ER.rules) do
+                if r0._rtag == r then r0[mode]() end
+            end
+        else
+            error(mode..": not a rule")
+        end
+    end
+    
+    function ER.enable(r) return enable(r,'enable') end
+    function ER.disable(r) return enable(r,'disable') end
+
     defVars.LOC = function(name) return getFibObj("/panels/location",nil,"name",name) end
     defVars.USER = function(name) return getFibObj("/users",nil,"name",name) end
     defVars.PHONE = function(name) return getFibObj("/iosDevices",nil,"name",name) end

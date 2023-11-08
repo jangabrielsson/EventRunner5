@@ -28,6 +28,7 @@ function QuickApp:main(er)
     
     if fibaro.fibemu then -- Running in emulator, create 2 fake devices to play with...
         var.bs = fibaro.fibemu.create.binarySwitch().id
+        var.bs2 = fibaro.fibemu.create.binarySwitch().id
         var.ms = fibaro.fibemu.create.multilevelSwitch().id
     end
     
@@ -43,13 +44,15 @@ function QuickApp:main(er)
     er.reverseMapDef(HT)
 
     local msgOpts = { evalResult=false, userLogColor='yellow' }
-    rule("log('Sunrise at %s, Sunset at %s',HM(sunrise),HM(sunset))",msgOpts)
+    rule("logt('Sunrise at %t, Sunset at %t',sunrise,sunset)",msgOpts)
     rule("log('Weather condition is %s',weather:condition)",msgOpts)
     rule("log('Temperature is %s°',weather:temperature)",msgOpts)
     rule("log('Wind is %sms',weather:wind)",msgOpts)
 
     var.i = 0
+    er.ruleOpts.rtag = 'test'
     rule("@@00:00:05 => i=i+1; log('ping: %s seconds',i*5)",{ruleResult=false,ruleTrue=false})
+    rule("logt('Devices with <50 battery are %l',[_:bat&_:bat<50,fmt('%s:%s',_,_:name) in devices])")
 
     -- var.buttonCallback = nil
     -- function var.async.getButton(cb)

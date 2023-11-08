@@ -202,8 +202,6 @@ function fibaro.__ER.modules.rule(ER)
       end
     end
   end)
-  
-  local function ruleNameStr(r) return r.rname end
 
   local function printInfo(rule)
     local s = {fmt("%s info:",rule.rname)} for k,t in pairs(rule.triggers) do s[#s+1] = "->Event:"..eventStr(t) end
@@ -243,13 +241,14 @@ function fibaro.__ER.modules.rule(ER)
 
   function ER:createRuleObject(options)
     local rule = {type='%RULE%'}
-    setmetatable(rule,{__tostring = ruleNameStr})
     ruleID = ruleID+1; ER.ruleID = ruleID
     rule.id = ruleID
     rule._name = options.name or tostring(rule.id)
     rule._ltag = options.ltag -- or er.logtag?
+    rule._rtag = options.rtag -- or er.logtag?
     rule.src = options.src
     nameRule(rule)
+    setmetatable(rule,{__tostring = rule.rname})
     return rule
   end
 
@@ -310,17 +309,23 @@ function fibaro.__ER.modules.rule(ER)
     -- public rule functions
     function rule.start(...) local args = {...} setTimeout(function() rule.start0(table.unpack(args)) end,1) return rule end
     function rule.name(name) rule._name = name; nameRule(rule) return rule end
-    function rule.rtag(tag) rule._rtag = tag; return rule end
+    function rule.rtag(tag) 
+      print(rule.id,tag); 
+      rule._rtag = tag; 
+      return rule 
+    end
     function rule.ltag(tag) rule._ltag = tag; return rule end
     function rule.mode(mode) rule._mode = mode; return rule end -- 'killOthers', 'killSelf'
     function rule.enable() 
-      if rule._enabled then return end
+      if rule._enabled then return end 
+      if not evOpts(options.silent,debug.silent,false) then LOG("%s %s",ER.color("lightgreen","Enabled"),rule.rname) end
       rule._enabled = true
       for _,eh in pairs(rule.evhandlers) do eh[2].enable() end
       return rule.autostart and rule.autostart() or rule
     end
     function rule.disable()
       if not rule._enabled then return end
+      if not evOpts(options.silent,debug.silent,false) then LOG("%s %s",ER.color("lightred","Disabled"),rule.rname) end
       rule._enabled = false
       rule.stop()
       for _,eh in pairs(rule.evhandlers) do eh[2].disable() end

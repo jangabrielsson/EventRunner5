@@ -1,6 +1,6 @@
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 0.030
+local version = 0.032
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -280,7 +280,8 @@ function QuickApp:EventRunnerEngine(callback)
       options = options or {}
       options.name = name
     else str,options = name,str end
-    options = options or {}
+    options = options and table.copy(options) or {}
+    for k,v in pairs(er.ruleOpts) do if options[k]==nil then options[k]=v end end
 
     options.error = options.error or function(err)
       fibaro.error(__TAG,fmt("%s",err))
@@ -303,6 +304,7 @@ function QuickApp:EventRunnerEngine(callback)
   er.runCoroutine = ER.runCoroutine
   function er.parse(str,options) return ER:parse(str,options or {}) end
   function er.isRule(p) return type(p)=='table' and p.type=='%RULE%' end
+  ER.isRule = er.isRule
   er.definePropClass = ER.definePropClass
 
   er.variables = ER.vars
@@ -321,6 +323,7 @@ function QuickApp:EventRunnerEngine(callback)
   er.eventToString = ER.eventToString
   function er.color(color,str) return "<font color="..color..">"..str.."</font>" end
   ER.color = er.color
+  er.ruleOpts = {}
 
   local MTasyncCallback = { __call =
     function(cb,...)
@@ -339,6 +342,7 @@ function QuickApp:EventRunnerEngine(callback)
 
   for k,v in pairs({
     listRules= ER.listRules,listVariables=ER.listVariables,listTimers=ER.listTimers,
+    enable=ER.enable,disable=ER.disable,
     defvars = function(t) for k,v in pairs(t) do er.defvar(k,v) end end,
     async = ER.asyncFun,
   }) do er[k] = v; ER.vars[k]=v end
