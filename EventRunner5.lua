@@ -46,21 +46,20 @@ function QuickApp:main(er)
     --er.setTime("12/01/2023 12:00:00") --mm/dd/yyyy-hh:mm:ss
     --er.speedTime(2*24) -- 24 hours
 
-    rule("0:tryArm")
-    --rule("#alarm => log('Alarm %s',env.event)")
-    rule([[#alarm{property='delayed'} =>
-        for p,d in pairs(env.event.value) do
-            fibaro.warning(__TAG,efmt('Partition %s breached devices %l',p,d))
-        end;
-        fibaro.warning(__TAG,efmt('Disarming'));
-        0:armed=false
-    ]])
-    rule([[#alarm{id='$id', property='breached'} => 
-        fibaro.warning(__TAG,efmt('BREACHED partition:%s',env.event.id))
-    ]]).info()
-    rule([[#alarm{property='homeBreached'} => 
-        fibaro.warning(__TAG,efmt('BREACHED home'))
-    ]]).info()
+    -- rule("0:tryArm")
+    -- rule([[#alarm{property='delayed'} =>
+    --     for p,d in pairs(env.event.value) do
+    --         fibaro.warning(__TAG,efmt('Partition %s breached, devices %l',p,d))
+    --     end;
+    --     fibaro.warning(__TAG,efmt('Disarming'));
+    --     0:armed=false
+    -- ]])
+    -- rule([[#alarm{id='$id', property='breached'} =>  
+    --     fibaro.warning(__TAG,efmt('BREACHED partition:%s',env.event.id))
+    -- ]])
+    -- rule([[#alarm{property='homeBreached'} => 
+    --     fibaro.warning(__TAG,efmt('BREACHED home'))
+    -- ]])
 
     local msgOpts = { evalResult=false, userLogColor='yellow' }
     rule("elog('Sunrise at %t, Sunset at %t',sunrise,sunset)",msgOpts)
@@ -70,10 +69,10 @@ function QuickApp:main(er)
 
     var.i = 0
     er.ruleOpts.tag = 'test'
-    --rule("@@00:00:05 => i=i+1; log('ping: %s seconds',i*5)",{ruleResult=false,ruleTrue=false})
-    rule("elog('Devices with <50 battery are %l',[_:bat&_:bat<50,fmt('%s:%s',_,_:name) in devices])")
-    triggerVar.toffs = 0
-    rule("@sunset+toffs => log('OK')").info()
+    rule("@@00:00:05 => i=i+1; log('ping: %s seconds',i*5)",{ruleResult=false,ruleTrue=false})
+    rule("elog('Devices with <50 battery are %l',[_:bat&_:bat<50,fmt('%s:%s',_,_:name) in devices])",{silent=true})
+    triggerVar.sunoffs = 10*60 -- 10 minutes
+    rule("@sunset+sunoffs => log('Ok, sunset+00:10')").info()
 
     -- var.buttonCallback = nil
     -- function var.async.getButton(cb)
@@ -126,8 +125,8 @@ function QuickApp:onInit()
         er.debug.ruleResult     = false -- log results of rules running
         er.debug.evalResult     = true  -- log results of evaluations
         er.debug.post           = true  -- log events being posted
-        er.debug.sourceTrigger  = true  -- log incoming sourceTriggers
-        er.debug.refreshEvents  = true  -- log incoming refreshEvents
+        er.debug.sourceTrigger  = false  -- log incoming sourceTriggers
+        er.debug.refreshEvents  = false  -- log incoming refreshEvents
         
         -- Global settings
         er.settings.marshall       = true          -- autoconvert globalVariables values to numbers, booleans, tables when accessed

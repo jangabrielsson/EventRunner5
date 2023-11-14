@@ -406,6 +406,7 @@ function QuickApp:EventRunnerEngine(callback)
     if not stat then
       fibaro.error(__TAG,err)
       fibaro.error(__TAG,"Rule setup error(s) - fix & restart...")
+      for i,r in pairs(ER.rules) do r.disable() end
       return
     end
     local startupTime = os.clock()-t0
