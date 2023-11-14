@@ -4,7 +4,7 @@ function fibaro.__ER.modules.builtins(ER)
     
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
-  PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts,eventCustomToString,formatt =
+  PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts,eventCustomToString,eformat =
   table.unpack(ER.utilities.export)
     
     local builtin = ER.builtins
@@ -40,12 +40,6 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         quickvars = function(_,st) st.push(table.map(function(g) return g.name end,__fibaro_get_device_property(quickApp.id, "quickAppVariables").value or {})) end,
         globals = function(_,st) st.push(table.map(function(g) return g.name end,api.get('/globalVariables'))) end,
     }
-    
-    local function alarmLoop()
-        local p = api.get("/alarms/v1/partitions/1")
-        --print(p.id,p.armed,p.secondsToArm,json.encodeFast(p)) 
-    end
-    setInterval(alarmLoop,2000)
 
     -------------- builtin props -------------------------
     function ER.setupProps()
@@ -93,7 +87,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         getProps.isAnyOff={'device',off,'value',mapOr,true}
         getProps.last={'device',last,'value',nil,true}
         
-        getProps.arm={'alarm',arm,nil,'alarm',false}
+        getProps.armed={'alarm',function(id) return partition(id).armed end,'armed',mapOr,true}
         getProps.tryArm={'alarm',tryArm,nil,'alarm',false}
         getProps.isArmed={'alarm',function(id) return partition(id).armed end,'armed',mapOr,true}
         getProps.isAllArmed={'alarm',function(id) return partition(id).armed end,'armed',mapAnd,true,true}
@@ -272,14 +266,14 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         if not stat then errorf(p,"userLogFunction: %s",res) end
         st.push(str)
     end
-    args.logt = {1,99}
-    function builtin.logt(i,st,p)
+    args.elog = {1,99}
+    function builtin.elog(i,st,p)
         local args,n = st.popm(i[3]),i[3]
         local opts = p.co.options or {}
-        local stat,str = pcall(formatt,table.unpack(args))
+        local stat,str = pcall(eformat,table.unpack(args))
         if not stat then
-            str = str:gsub("bad argument #(%d+)",function(n) return "bad argument #"..(n-1) end)
-            errorf(p,"log format: %s",str) 
+            str = str:gsub("#(%d+)",function(n) return "bad argument #"..(n-1) end)
+            errorf(p,"elog format: %s",str) 
         end
         if opts.userLogColor then str = fmt("<font color=%s>%s</font>",opts.userLogColor,str) end
         local prFun = settings.userLogFunction or fibaro.debug
@@ -291,7 +285,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     args.fmt = {1,99}
     function builtin.fmt(i,st,p) st.push(fmt(table.unpack(st.lift(i[3])))) end
     args.fmtt = {1,99}
-    function builtin.fmtt(i,st,p) st.push(formatt(table.unpack(st.lift(i[3])))) end
+    function builtin.efmt(i,st,p) st.push(eformat(table.unpack(st.lift(i[3])))) end
     args.HM = {1,1}
     function builtin.HM(i,st,p) local t = st.pop(); st.push(os.date("%H:%M",t < os.time() and t+midnight() or t)) end  
     args.HMS = {1,1}
@@ -342,9 +336,13 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     function builtin.remove(i,st,p) local v,t=st.pop(),st.pop() table.remove(t,v) st.push(t) end
     args.enable = {0,2}
     function builtin.enable(i,st,p)
-        if i[3] == 0 then p.rule.enable() st.push(true) return end
-        local tag,g = st.popm(i[3])
-        st.push(ER.enable(tag,g))
+        if i[3] == 0 then 
+            p.rule.enable() 
+            st.push(true) 
+        else
+            local tag = st.popm(i[3])
+            st.push(ER.enable(tag[1]))
+        end
     end
     args.disable = {0,1}
     function builtin.disable(i,st,p)

@@ -9,7 +9,7 @@ function fibaro.__ER.modules.vm(ER)
   
 ---@diagnostic disable-next-line: deprecated
   local maxn = table.maxn
-  local coerce = fibaro.EM.coerce
+  local function coerce(x,y) local x1 = tonumber(x) if x1 then return x1,tonumber(y) else return x,y end end
   local vars,triggerVars = ER._vars,ER._triggerVars
   local fmt = string.format
   local settings = ER.settings

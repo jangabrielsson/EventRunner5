@@ -102,7 +102,8 @@ function fibaro.__ER.modules.rule(ER)
     if isPropObject(id) then return id end
   end
   ER.getDeviceObject = getDeviceObject
-  
+  local getTriggers
+
   function triggerHandlers.prop(p,t)
     local ids = compute(p.args[1],t.opts)
     local prop,isTable,tn = p.args[2],false,0
@@ -121,11 +122,26 @@ function fibaro.__ER.modules.rule(ER)
       t.srct[prop..tostring(id)] = id[1]:getTrigger(id[2],prop)
     end
   end
-  function triggerHandlers.var(p,t) if triggerVars[p.name] then t.srct["TV:"..p.name]={type='trigger-variable', name=p.name} end end
-  function triggerHandlers.gv(p,t) t.srct["GV:"..p.name]={type='global-variable', name=p.name} end
-  function triggerHandlers.qv(p,t) t.srct["QV:"..p.name]={type='quickvar', name=p.name} end
+  function triggerHandlers.var(p,t) 
+    if triggerVars[p.name] then 
+      local evn = "TV:"..p.name
+      if t.cd then t.dt[evn] = true end
+      t.srct[evn]={type='trigger-variable', name=p.name} 
+    end
+  end
+  function triggerHandlers.gv(p,t) 
+    local evn = "GV:"..p.name
+    if t.cd then t.dt[evn] = true end
+    t.srct[evn]={type='global-variable', name=p.name} 
+  end
+  function triggerHandlers.qv(p,t) 
+    local evn = "QV:"..p.name
+    if t.cd then t.dt[evn] = true end
+    t.srct[evn]={type='quickvar', name=p.name} 
+  end
   local eid = 0
   function triggerHandlers.table(p,t)
+    getTriggers(p.value,t)
     local ev = compute(p,t.opts)
     if ev.type then eid = eid+1 t.srct["EV:"..eid]=compute(p,t.opts) end
   end
@@ -146,6 +162,9 @@ function fibaro.__ER.modules.rule(ER)
   end
   function triggerHandlers.daily(p,t)   -- collect daily expressions, @10:00, @{$mytime,$othertime+10:00}
     if t.daily~=nil then errorf(t.opts.rule,p,"Only one @daily in a rule is supported") end
+    t.cd = true
+    getTriggers(p.args[1],t)
+    t.cd = false
     t.daily = compile(p.args[1],t.opts)
     local times,n = t.daily(),0
     if type(times) == 'table' then
@@ -160,7 +179,7 @@ function fibaro.__ER.modules.rule(ER)
     t.interv = compile(p.args[1],t.opts)
   end
   
-  local function getTriggers(p,t)
+  function getTriggers(p,t)
     if type(p) == 'table' then
       if p[1] then 
         for _,v in ipairs(p) do getTriggers(v,t) end
@@ -181,7 +200,7 @@ function fibaro.__ER.modules.rule(ER)
       local v = texpr() v = type(v)=='table' and v or {v}
       local flag = false
       for _,t in ipairs(v) do
-        if not tonumber(t) then errorf(rule,{},"Invalid daily time: %s",time) end
+        if not tonumber(t) then errorf(rule,{},"Invalid daily time: %s",tostring(t)) end
         if t < n and rule.catchup and catchup then -- time passed and catchup is on
           rule._addDailyTimer(0,t)               -- run rule 
           catchup = false                        -- but only once
@@ -244,11 +263,11 @@ function fibaro.__ER.modules.rule(ER)
     ruleID = ruleID+1; ER.ruleID = ruleID
     rule.id = ruleID
     rule._name = options.name or tostring(rule.id)
-    rule._ltag = options.ltag -- or er.logtag?
-    rule._rtag = options.rtag -- or er.logtag?
+    rule._ltag = options.log 
+    rule._rtag = options.tag 
     rule.src = options.src
     nameRule(rule)
-    setmetatable(rule,{__tostring = rule.rname})
+    setmetatable(rule,{__tostring = function(rule) return rule.rname end})
     return rule
   end
 
@@ -265,7 +284,7 @@ function fibaro.__ER.modules.rule(ER)
   
     nameRule(rule)
     
-    local triggers = { daily=nil, interv=nil, timers={}, srct={}, opts = { src = rule.src, rule = rule } }
+    local triggers = { daily=nil, interv=nil, timers={}, srct={}, dt = {}, opts = { src = rule.src, rule = rule } }
     getTriggers(cond,triggers)
     local trs = triggers.srct
     
@@ -300,7 +319,10 @@ function fibaro.__ER.modules.rule(ER)
       if rule._enabled then rule.autostart() end
     else -- interval trigger disables all other triggers for rule
       for evid,t in pairs(trs) do
-        local fun = function(env) return rule.start0(env.event,evid,env.p) end
+        local fun = function(env) 
+          if triggers.dt[evid] then rule._setupDailys(false) end
+          return rule.start0(env.event,evid,env.p) 
+        end
         local handler = fibaro.event(t,fun)
         rule.evhandlers[t] = {fun,handler}
       end
@@ -309,12 +331,8 @@ function fibaro.__ER.modules.rule(ER)
     -- public rule functions
     function rule.start(...) local args = {...} setTimeout(function() rule.start0(table.unpack(args)) end,1) return rule end
     function rule.name(name) rule._name = name; nameRule(rule) return rule end
-    function rule.rtag(tag) 
-      print(rule.id,tag); 
-      rule._rtag = tag; 
-      return rule 
-    end
-    function rule.ltag(tag) rule._ltag = tag; return rule end
+    function rule.tag(tag) rule._rtag = tag; return rule end
+    function rule.log(tag) rule._ltag = tag; return rule end
     function rule.mode(mode) rule._mode = mode; return rule end -- 'killOthers', 'killSelf'
     function rule.enable() 
       if rule._enabled then return end 
@@ -483,9 +501,6 @@ function fibaro.__ER.modules.rule(ER)
     if #dailys>0 then rule._setupDailys(true) end
     
     function rule.evalPrint() nameRule(rule) if not options.silent then LOG("%s %s %s",ER.color("lightgreen","Defined"),rule.rname,rule.src:gsub("\n","") // settings.truncLog) rule.evalPrint=nil end end
-    setmetatable(rule.triggers,{
-      __tostring = function(t) return ruleTriggersStr(t,rule) end,
-     })
 
     rules[rule.id] = rule
     return rule

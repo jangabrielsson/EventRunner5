@@ -1,6 +1,6 @@
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 0.032
+local version = 0.040
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -124,16 +124,25 @@ function fibaro.__ER.modules.engine(ER)
 end
 
 local function setup(ER)
-
+  
   local midnightFuns = {}
   function ER.midnightScheduler(fun) midnightFuns[#midnightFuns+1] = fun end
-  local midnxt = (os.time() // 3600 +1)*3600
-  local function midnightLoop()
-    for _,f in ipairs(midnightFuns) do f() end
-    midnxt = midnxt+3600
-    setTimeout(midnightLoop,(midnxt-os.time())*1000)
+  local mref = nil
+  function ER.startMidnightScheduler() 
+    if mref then clearTimeout(mref) end
+    local d = os.date("*t")
+    d.hour,d.min,d.sec = 24,0,0
+    local midnxt = os.time(d)
+    local function midnightLoop()
+      for _,f in ipairs(midnightFuns) do f() end
+      local d = os.date("*t")
+      d.hour,d.min,d.sec = 24,0,0
+      midnxt = os.time(d)
+      mref = setTimeout(midnightLoop,(midnxt-os.time())*1000)
+    end
+    mref = setTimeout(midnightLoop,(midnxt-os.time())*1000)
   end
-  setTimeout(midnightLoop,(midnxt-os.time())*1000)
+  ER.startMidnightScheduler()
 
   class 'PropObject'
   local ftype = 'func'..'tion' -- fool the autoindetation...
@@ -144,7 +153,7 @@ local function setup(ER)
     -- self.getProp = self.getProp or {}
     -- self.setProp = self.setProp or {}
     -- self.trigger = self.trigger or {}
-    self.__str="PropObject:"..fibaro._orgToString({}):match("(%d.*)")
+    self.__str="PropObject:"..tostring({}):match("(%d.*)")
   end
   function PropObject:isProp(prop) return self.getProp[prop] or self.setProp[prop] end
   function PropObject:isTrigger(prop) return self.trigger[prop] end
@@ -175,21 +184,19 @@ function QuickApp:EventRunnerEngine(callback)
     return
   end
 
+  local st = SourceTrigger()
+  function fibaro.post(event,time,logStr,hook,customLog) return st:post(event,time,logStr,hook,customLog) end 
+  function fibaro.event(event,fun) return st:subscribe(event,fun) end
+  function fibaro.cancel(ref) clearTimeout(ref) end
+  function fibaro.registerSourceTriggerCallback(fun) return st:registerCallback(fun) end
+  st:run()
+
   fibaro.debugFlags.html = true
   fibaro.debugFlags.onaction=false
 
   local ER,er = fibaro.__ER,{}
-  ER.settings = {}
-  local _debug = {}
-  local _dbgHook = {
-    sourceTrigger = function(v) fibaro.debugFlags.sourceTrigger=v end,
-    refreshEvents = function(v) fibaro.debugFlags._allRefreshStates=v end,
-    post = function(v) fibaro.debugFlags.post=v end,
-  }
-  ER.debug = setmetatable({},{
-    __index = function(t,k) return _debug[k] end,
-    __newindex = function(t,k,v) _debug[k]=v if _dbgHook[k] then _dbgHook[k](v) end end
-  })
+  ER.settings = fibaro.settings or {}
+  ER.debug = fibaro.debugFlags or {}
   -- Global debug flags, can be overridden by ruleOptions
   ER.debug.ruleTrigger    = true -- log rules being triggered
   ER.debug.ruleTrue       = true -- log rules with condition succeeding
@@ -243,7 +250,7 @@ function QuickApp:EventRunnerEngine(callback)
     return "\n"..str
   end
 
-  function QuickApp:enableTriggerType(triggers) fibaro.enableSourceTriggers(triggers) end
+  function QuickApp:enableTriggerType(triggers) end
 
   ER.modules.utilities(ER) -- setup utilities, needed by all modules
   stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -324,6 +331,9 @@ function QuickApp:EventRunnerEngine(callback)
   function er.color(color,str) return "<font color="..color..">"..str.."</font>" end
   ER.color = er.color
   er.ruleOpts = {}
+  er.startMidnightScheduler = ER.startMidnightScheduler
+  er.speedTime = ER.utilities.speedTime
+  er.setTime = ER.utilities.setTime
 
   local MTasyncCallback = { __call =
     function(cb,...)
@@ -394,12 +404,13 @@ function QuickApp:EventRunnerEngine(callback)
     local t0 = os.clock()
     local stat,err = pcall(function() main(self,er) end)
     if not stat then
-      print(err)
-      print("Rule setup error(s) - fix & restart...")
+      fibaro.error(__TAG,err)
+      fibaro.error(__TAG,"Rule setup error(s) - fix & restart...")
       return
     end
     local startupTime = os.clock()-t0
     ER.utilities.printBanner("Rules setup time: %.3f seconds (%s rules)",{startupTime,ER.ruleID})
+    if ER.__speedTime then ER.utilities.runTimers() end
   else self:debug("No main function") end
 
   function self:eval(str) -- Terminal eval function

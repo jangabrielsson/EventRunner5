@@ -70,7 +70,7 @@ function fibaro.__ER.modules.parser(ER)
   local transform
   local GS = 789790
   local function gensym() GS = GS + 1; return "GSV"..GS end
-  local currentSource,currentRule = ""
+  local currentSource,currentRule = "",nil
 
   local function DB(t) return t.d and {from=t.d.from,to=t.d.to} or {from=t.from,to=t.to} end
   local function errorf(tk,fm,...)

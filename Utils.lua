@@ -42,6 +42,8 @@ function fibaro.__ER.modules.utilities(ER)
     return self
   end
   
+  local floor = math.floor
+  
   local function htmlify(str)
     local cols,i = {},0
     str = str:gsub("(<font .->)",function(c) cols[#cols+1]=c return "#CCC#" end)
@@ -149,8 +151,6 @@ function fibaro.__ER.modules.utilities(ER)
     end
   end
   
-  getmetatable("").__idiv = function(str,len) return (#str < len or #str < 4) and str or str:sub(1,len-2)..".." end
-  
   function Utils.argsStr(...)
     local args = {...}
     local n = table.maxn(args)
@@ -241,7 +241,10 @@ function fibaro.__ER.modules.utilities(ER)
     if fc == '[' or fc == '{' then local s,t = pcall(json.decode,v); if s then return t end end
     if tonumber(v) then return tonumber(v)
     elseif _marshalBool[v ]~=nil then return _marshalBool[v ] end
-    local s,t = pcall(toTime,v); return s and t or v 
+    if v=='nil' then 
+      return nil 
+    end
+    local s,t = pcall(toTime,v,true); return s and t or v 
   end
   
   local function safeEncode(s) local stat,res = pcall(encodeFast,s) return stat and res or nil end
@@ -307,7 +310,7 @@ function fibaro.__ER.modules.utilities(ER)
   end
   
   extraSetups[#extraSetups+1] = function()
-    quickApp:event({type='%dimLight'},function(env)
+    fibaro.event({type='%dimLight'},function(env)
       local e = env.event
       local ev,currV = e.v or -1,tonumber(fibaro.getValue(e.id,"value"))
       if not currV then
@@ -333,95 +336,122 @@ function fibaro.__ER.modules.utilities(ER)
     return sunInfo
   end
   
-  ----------- spec format -----------------------------
-  do
-    local function hm(t)
-      if t > 3600*100 then return os.date("%H:%M",t)
-      else return fmt("%2d:%2d",t//3600,t % 3600 // 60) end
+  local traceCalls = { 'call', 'getVariable', 'setVariable','alarm','alert', 'emitCustomEvent', 'scene','profile' }
+  local nonSpeedCalls = { 'call','alarm','alert', 'scene', 'profile' }
+  local nonSpeedApis = { 'put','delete' }
+  for _,name in ipairs(traceCalls) do
+    local fun = fibaro[name]
+    fibaro[name] = function(...)
+      local stat = {true}
+      if not nonSpeedCalls[name] or not ER.__speedTime then
+        stat = {pcall(fun,...)}
+      end
+      if not stat[1] then error(stat[2]) end
+      if ER.settings.logFibaro then
+        local args = {...}
+        local str = string.eformat("Fibaro call: fibaro.%s(%l) = %l",name,args,{table.unpack(stat,2)})
+        LOG(str)
+      end
+      return table.unpack(stat,2)
+    end 
+  end
+  
+  for _,name in ipairs({'get','post','put','delete'}) do
+    local fun = api[name]
+    api[name] = function(...)
+      local stat = {true,{},200}
+      if not nonSpeedApis[name] or not ER.__speedTime then
+        stat = {pcall(fun,...)}
+      end
+      if not stat[1] then error(stat[2]) end
+      if ER.settings.logApi then 
+        local args = {...}
+        for i=1,#args do if type(args[i])=='table' then args[i]=json.encode(args[i]) end end
+        local str = string.eformat("API call: api.%s(%l) = %,40l",name,args,{json.encode(stat[2]),tostring(stat[3])})
+        LOG(str) 
+      end
+      return table.unpack(stat,2)
+    end 
+  end
+  
+  local timeOffset = 0
+
+  local oldTime,oldDate = os.time,os.date
+
+  function os.time(t) return t and oldTime(t) or oldTime()+timeOffset end
+  function os.date(s,b) return (not b) and oldDate(s,os.time()) or oldDate(s,b) end
+
+  function Utils.setTime(str) -- str = "mm/dd/yyyy-hh:mm:ss"
+    local function tn(s, v) return tonumber(s) or v end
+    local d, hour, min, sec = str:match("(.-)%-?(%d+):(%d+):?(%d*)")
+    local month, day, year = d:match("(%d*)/?(%d*)/?(%d*)")
+    local t = os.date("*t")
+    t.year, t.month, t.day = tn(year, t.year), tn(month, t.month), tn(day, t.day)
+    t.hour, t.min, t.sec = tn(hour, t.hour), tn(min, t.min), tn(sec, 0)
+    local t1 = os.time(t)
+    local t2 = os.date("*t", t1)
+    if t.isdst ~= t2.isdst then
+        t.isdst = t2.isdst
+        t1 = oldTime(t)
     end
-    local function hms(t) 
-      if t > 3600*100 then return os.date("%X",t)
-      else return fmt("%2d:%2d:%2d",t//3600,t % 3600 // 60,t % 60) end
+    timeOffset = t1 - oldTime()
+  end
+
+  local runTimers,speedHours = nil,0
+  function Utils.speedTime(hours)
+    speedHours = hours
+    local startTime = os.time()*1000
+    timeOffset = 0
+    local endTime = startTime + hours*60*60*1000
+    local function milliseconds() return startTime+timeOffset end
+    function os.time(t) return t and oldTime(t) or math.floor(0.5+milliseconds()/1000) end
+    function os.date(s,b) return (not b) and oldDate(s,os.time()) or oldDate(s,b) end
+    local oldSetTimeout,oldSetInterval = setTimeout,setInterval
+    local timerQueue = {}
+    function setTimeout(f,t)
+      t = milliseconds() + t
+      local ref = {f=f,t=t}
+      for i,e in ipairs(timerQueue) do
+        if e.t >  t then table.insert(timerQueue,i,ref) return ref end
+      end
+      timerQueue[#timerQueue+1] = ref
+      return ref
     end
-    
-    local function mkTruncer(n,fun,a) return function(s) return fun(s):sub(1,n),a end end
-    local function mkSpacer(n,fun,a)
-      local e = n < 0 and 1 or 0
-      n = math.abs(n)
-      return function(s)
-        s = fun(s)
-        local l = #s
-        if l>=n then return s,a
-        else return e==1 and (s..string.rep(' ',n-l)) or (string.rep(' ',n-l)..s),a end
+    function runTimers()
+      local now = milliseconds()
+      while timerQueue[1] and timerQueue[1].t <= now do
+        local e = table.remove(timerQueue,1)
+        e.f()
+      end
+      if now > endTime then
+        fibaro.warning(__TAG," SpeedTime ended")
+        timerQueue = {}
+        ER.__speedTime = false
+        os.time,os.date = oldTime,oldDate
+        setTimeout,setInterval = oldSetTimeout,oldSetInterval
+        ER.startMidnightScheduler()
+        return
+      end
+      if #timerQueue > 0 then
+        local t = timerQueue[1].t - now
+        if t < 0 then t = 0 end
+        timeOffset = timeOffset + t
+        oldSetTimeout(runTimers,0)
+      else
+        oldSetTimeout(runTimers,10)
       end
     end
-    
-    local specs = {}
-    function specs.s(f) 
-      local fun = function(s) return tostring(s),1 end
-      local space,trunc = f:match("(-?%d*),?(%d*)")
-      if trunc and trunc~="" then fun = mkTruncer(tonumber(trunc),fun,1) end
-      if space and space~="" then fun = mkSpacer(tonumber(space),fun,1) end
-      return fun
-    end
-    function specs.d(f) f = "%"..f.."d" return function(s) return fmt(f,s),1 end end
-    function specs.f(f) f = "%"..f.."f" return function(s) return fmt(f,s),1 end end
-    function specs.x(f) f = "%"..f.."x" return function(s) return fmt(f,s),1 end end
-    function specs.o(f) f = "%"..f.."o" return function(s) return fmt(f,s),1 end end
-    function specs.t(f)
-      local s = f:match(".")
-      if s then return function(s) return hms(s),1 end else return function(s) return hm(s),1 end end
-    end
-    function specs.l(f)
-      local fun = function(s)
-        local r = {} for _,e in ipairs(s) do r[#r+1]=tostring(e) end
-        return table.concat(r,","),1 
+    function clearTimeout(ref)
+      for i,e in ipairs(timerQueue) do
+        if e == ref then table.remove(timerQueue,i) return end
       end
-      local space,trunc = f:match("(-?%d*),?(%d*)")
-      if trunc and trunc~="" then fun = mkTruncer(tonumber(trunc),fun,1) end
-      if space and space~="" then fun = mkSpacer(tonumber(space),fun,1) end
-      return fun
     end
-    function specs.r(f)
-      local n,c = f:match("%d*%w?")
-      n = tonumber(n) or 80
-      c = c~= "" and c or "-"
-      return function() return c:rep(n),0 end
-    end
-    
-    local fmtcache = {}
-    function Utils.format(fmt,...)
-      local frms = fmtcache[fmt]
-      if not frms then
-        local forms,strs,globs,n = {},{},{},0
-        local res,rest = {},""
-        fmt = fmt:gsub("(.-)%%([%d%-%.,%w%*]*)([sfdxlotr])",
-        function(p,s,f)
-          res[#res+1]=p
-          local fun = specs[f](s)
-          assert(fun,"Bad format specifier")
-          res[#res+1]=fun
-          return ""
-        end)
-      if fmt~="" then res[#res+1]=fmt end
-        for i,p in ipairs(res) do
-          if type(p) == 'string' then
-            if p ~= "" then
-              n=n+1
-              strs[n]=p
-            end
-          else n=n+1 forms[#forms+1] = {i=n,f=p} end
-        end
-        frms = {forms=forms,strs=strs,globs=globs}
-        fmtcache[fmt]=frms
-      end
-      local i,n,args,forms,strs,globs = 1,0,{...},frms.forms,frms.strs,frms.globs
-      for _,f in ipairs(forms) do strs[f.i],n = f.f(args[i],i,args) i=i+n end
-      local str = table.concat(strs)
-      if globs[1] then
-        for _,g in ipairs(globs) do str = g(str) end
-      else return str end
-    end
+    ER.startMidnightScheduler()
+    ER.__speedTime = true
+  end
+  Utils.runTimers = function() 
+    fibaro.warningf(__TAG," SpeedTime started (%shours)",speedHours)
+    runTimers() 
   end
   ------------------------------------------------------
   
@@ -429,7 +459,7 @@ function fibaro.__ER.modules.utilities(ER)
     Utils.stack, Utils.stream, Utils.errorMsg, Utils.isErrorMsg, Utils.xerror, Utils.pcall, Utils.errorLine,
     Utils.marshallFrom, Utils.marshallTo, toTime, midnight, encodeFast, Utils.argsStr, Utils.eventStr,
     Utils.PrintBuffer, Utils.sunData, Utils.LOG, Utils.LOGERR, Utils.htmlTable, Utils.evOpts, Utils.eventCustomToString,
-    Utils.format
+    string.eformat
   }
   for _,f in ipairs(extraSetups) do f() end
   

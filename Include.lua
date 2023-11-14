@@ -2,7 +2,8 @@
 --%%type=com.fibaro.genericDevice
 --%%debug=refresh:true
 
---%%file=fibaroExtra.lua,extra;
+--%%file=ERlib.lua,erlib;
+--%%file=fibaroLib.lua,fiblib;
 --%%file=Engine.lua,engine;
 --%%file=Parser.lua,parser;
 --%%file=Tokenizer.lua,tokenizer;
