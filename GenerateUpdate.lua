@@ -4,7 +4,7 @@ local entry = [[
   {
   "896846032517892":{
    "name":"EventRunner5",   
-   "type":"com.fibaro.deviceController",   
+   "type":"com.fibaro.deviceController",
    "versions":[
   {
   "version":%%VERSION%%,     
@@ -13,7 +13,8 @@ local entry = [[
   },     
   "descr":"First version (alpha, not for production)",     
   "files":{    
-   "fibaroExtra":"$base1/fibaroExtra.lua",   
+   "ERlib":"$base1/ERlib.lua",
+   "fibLib":"$base1/fibaroLib.lua", 
    "parser":"$base1/Parser.lua",
    "tokenizer":"$base1/Tokenizer.lua",
    "compiler":"$base1/Compiler.lua",
