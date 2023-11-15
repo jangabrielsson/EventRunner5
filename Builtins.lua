@@ -16,6 +16,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
 
     local definePropClass = ER.definePropClass
     local PropObject = ER.PropObject
+    local function isEvent(e) return type(e) == 'table' and type(e.type)=='string' end
 
     local function errorf(p,fm,...)
         local dbg = p.fun.dbg[p.fun.code[p.pc]]
@@ -203,7 +204,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         setProps.email={function(id,_,val) local _,_ = val:match("(.-):(.*)"); fibaro.alert('email',{id},val) return val end,""}
         setProps.start={function(id,_,val) 
             if isEvent(val) then 
-                quickApp:postRemote(id,val) return true
+                fibaro.postRemote(id,val) return true
             else 
                 fibaro.scene("execute",{id}) return true
             end
@@ -261,7 +262,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
             end 
         end
         if opts.userLogColor then str = fmt("<font color=%s>%s</font>",opts.userLogColor,str) end
-        local prFun = settings.userLogFunction or fibaro.debug
+        local prFun = settings.userLogFunction or function(_,tag,str) fibaro.debug(tag,str) end
         local stat,res = pcall(prFun,p.rule,p.rule and p.rule._ltag or ER.er.ltag or __TAG,str)
         if not stat then errorf(p,"userLogFunction: %s",res) end
         st.push(str)
@@ -321,13 +322,13 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     args.deleteglobal = {1,1}
     function builtin.deleteglobal(i,st) st.push(api.delete("/globalVariables/"..st.pop())) end
     args.subscribe = {1,1}
-    function builtin.subscribe(i,st,p) quickApp:subscribe(st.pop()) st.push(true) end
+    function builtin.subscribe(i,st,p) fibaro.subscribe(st.pop()) st.push(true) end
     args.publish = {1,2}
-    function builtin.publish(i,st,p) local e,t=st.pop(),nil; if i[3]==2 then t=e; e=st.pop() end quickApp:publish(e,t) st.push(e) end
+    function builtin.publish(i,st,p) local e,t=st.pop(),nil; if i[3]==2 then t=e; e=st.pop() end fibaro.publish(e,t) st.push(e) end
     args.remote = {2,2}
     function builtin.remote(i,st,p) 
         local e,u=st.pop(),st.pop(); 
-        quickApp:postRemote(u,e)
+        fibaro.postRemote(u,e)
         st.push(true) 
     end
     args.add = {2,2}
@@ -552,7 +553,20 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     defVars.PROF = function(name) return getFibObj("/profiles","profiles","name",name) end
     defVars.CLIM = function(name) return getFibObj("/panels/climate",nil,"name",name) end
     defVars.SPRINK = function(name) return getFibObj("/panels/sprinklers",nil,"name",name) end
-    
+
+    local function makeDateFun(str,cache)
+        if cache[str] then return cache[str] end
+        local f = fibaro.dateTest(str)
+        cache[str] = f
+        return f
+      end
+  
+    local cache = { date={}, day = {}, month={}, wday={} }
+    defVars.date = function(s) return (cache.date[s] or makeDateFun(s,cache.date))() end               -- min,hour,days,month,wday
+    defVars.day = function(s) return (cache.day[s] or makeDateFun("* * "..s,cache.day))() end          -- day('1-31'), day('1,3,5')
+    defVars.month = function(s) return (cache.month[s] or makeDateFun("* * * "..s,cache.month))() end  -- month('jan-feb'), month('jan,mar,jun')
+    defVars.wday = function(s) return (cache.wday[s] or makeDateFun("* * * * "..s,cache.wday))() end   -- wday('fri-sat'), wday('mon,tue,wed')
+
     defVars.S1 = {click = "16", double = "14", tripple = "15", hold = "12", release = "13"}
     defVars.S2 = {click = "26", double = "24", tripple = "25", hold = "22", release = "23"}
     defVars.catch = math.huge

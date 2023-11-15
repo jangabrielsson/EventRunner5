@@ -244,6 +244,8 @@ function fibaro.__ER.modules.utilities(ER)
     if v=='nil' then 
       return nil 
     end
+    local test = v:match("^[0-9%$s]")
+    if not test then return v end
     local s,t = pcall(toTime,v,true); return s and t or v 
   end
   

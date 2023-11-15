@@ -12,7 +12,7 @@ function QuickApp:main(er)
   er.debug.ruleTrue       = false -- log rules with condition succeeding
   er.debug.ruleFalse      = false -- log rules with condition failing
   er.debug.refreshEvents  = false -- log refresh of states
-  er.debug.sourceTrigger  = false -- log refresh of devices
+  er.debug.sourceTrigger  = true -- log refresh of devices
 
   local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
@@ -236,6 +236,9 @@ function QuickApp:main(er)
     {"[_%2==0 in {2,7,4,8,1}]",{{2,4,8}}},
     {"[_%2==0,2*_ in {2,7,4,8,1}]",{{4,8,16}}}, 
     {"[_%2==0,2*_ in {2,7,4,8,1}]:sum",{28}}, 
+    {"month('nov')",{true}}, 
+    {"month('jun')",{false}}, 
+  
   }
   
   runExprs(exprs1)
@@ -288,10 +291,11 @@ function QuickApp:main(er)
     -- {"@now+1 => a = asyncfun(2,3);a",{true,5}},
     -- {"555:central.keyAttribute == 'Pressed' => 109",{true,109},{{type='device',id=555,property='centralSceneEvent',value={keyId=2,keyAttribute='Pressed'}}}},
     -- {"556:scene == S2.double => 110",{true,110},{{type='device',id=556,property='sceneActivationEvent',value={sceneId="24"}}}},
+    {"#myRemote => 543",{true,543},{"remote(QA.id,#myRemote)"}},
   }
   
 
-  -- setTimeout(function() runRules(rules3) end,1000)
+  setTimeout(function() runRules(rules3) end,1000)
   
   --er.defVar('fopp',function() print("fopp") end)
   local rulesError = {

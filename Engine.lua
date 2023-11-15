@@ -1,6 +1,6 @@
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 0.050
+local version = 0.051
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -189,6 +189,7 @@ function QuickApp:EventRunnerEngine(callback)
   function fibaro.event(event,fun) return st:subscribe(event,fun) end
   function fibaro.cancel(ref) clearTimeout(ref) end
   function fibaro.registerSourceTriggerCallback(fun) return st:registerCallback(fun) end
+  function fibaro.postRemote(id,event) return st:postRemote(id,event) end
   st:run()
 
   fibaro.debugFlags.html = true

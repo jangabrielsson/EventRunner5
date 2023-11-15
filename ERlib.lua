@@ -439,6 +439,89 @@ do
     local sunset_t = fmt("%.2d:%.2d", set_time_t.hour, set_time_t.min)
     return sunrise, sunset, sunrise_t, sunset_t
   end
+
+  local function dateTest(dateStr0)
+    local days = {sun=1,mon=2,tue=3,wed=4,thu=5,fri=6,sat=7}
+    local months = {jan=1,feb=2,mar=3,apr=4,may=5,jun=6,jul=7,aug=8,sep=9,oct=10,nov=11,dec=12}
+    local last,month = {31,28,31,30,31,30,31,31,30,31,30,31},nil
+
+    local function seq2map(seq) local s = {} for _,v in ipairs(seq) do s[v] = true end return s; end
+
+    local function flatten(seq,res) -- flattens a table of tables
+      res = res or {}
+      if type(seq) == 'table' then for _,v1 in ipairs(seq) do flatten(v1,res) end else res[#res+1] = seq end
+      return res
+    end
+
+    local function _assert(test,msg,...) if not test then error(fmt(msg,...),3) end end
+
+    local function expandDate(w1,md)
+      local function resolve(id)
+        local res
+        if id == 'last' then month = md res=last[md] 
+        elseif id == 'lastw' then month = md res=last[md]-6 
+        else res= type(id) == 'number' and id or days[id] or months[id] or tonumber(id) end
+        _assert(res,"Bad date specifier '%s'",id) return res
+      end
+      local step = 1
+      local w,m = w1[1],w1[2]
+      local start,stop = w:match("(%w+)%p(%w+)")
+      if (start == nil) then return resolve(w) end
+      start,stop = resolve(start), resolve(stop)
+      local res,res2 = {},{}
+      if w:find("/") then
+        if not w:find("-") then -- 10/2
+          step=stop; stop = m.max
+        else step=(w:match("/(%d+)")) end
+      end
+      step = tonumber(step)
+      _assert(start>=m.min and start<=m.max and stop>=m.min and stop<=m.max,"illegal date intervall")
+      while (start ~= stop) do -- 10-2
+        res[#res+1] = start
+        start = start+1; if start>m.max then start=m.min end  
+      end
+      res[#res+1] = stop
+      if step > 1 then for i=1,#res,step do res2[#res2+1]=res[i] end; res=res2 end
+      return res
+    end
+
+    local function parseDateStr(dateStr) --,last)
+      local map = table.map
+      local seq = string.split(dateStr," ")   -- min,hour,day,month,wday
+      local lim = {{min=0,max=59},{min=0,max=23},{min=1,max=31},{min=1,max=12},{min=1,max=7},{min=2000,max=3000}}
+      for i=1,6 do if seq[i]=='*' or seq[i]==nil then seq[i]=tostring(lim[i].min).."-"..lim[i].max end end
+      seq = map(function(w) return string.split(w,",") end, seq)   -- split sequences "3,4"
+      local month0 = os.date("*t",os.time()).month
+      seq = map(function(t) local m = table.remove(lim,1);
+          return flatten(map(function (g) return expandDate({g,m},month0) end, t))
+        end, seq) -- expand intervalls "3-5"
+      return map(seq2map,seq)
+    end
+    local sun,offs,day,sunPatch = dateStr0:match("^(sun%a+) ([%+%-]?%d+)")
+    if sun then
+      sun = sun.."Hour"
+      dateStr0=dateStr0:gsub("sun%a+ [%+%-]?%d+","0 0")
+      sunPatch=function(dateSeq)
+        local h,m = (fibaro.getValue(1,sun)):match("(%d%d):(%d%d)")
+        dateSeq[1]={[(tonumber(h)*60+tonumber(m)+tonumber(offs))%60]=true}
+        dateSeq[2]={[math.floor((tonumber(h)*60+tonumber(m)+tonumber(offs))/60)]=true}
+      end
+    end
+    local dateSeq = parseDateStr(dateStr0)
+    return function() -- Pretty efficient way of testing dates...
+      local t = os.date("*t",os.time())
+      if month and month~=t.month then dateSeq=parseDateStr(dateStr0) end -- Recalculate 'last' every month
+      if sunPatch and (month and month~=t.month or day~=t.day) then sunPatch(dateSeq) day=t.day end -- Recalculate sunset/sunrise
+      return
+      dateSeq[1][t.min] and    -- min     0-59
+      dateSeq[2][t.hour] and   -- hour    0-23
+      dateSeq[3][t.day] and    -- day     1-31
+      dateSeq[4][t.month] and  -- month   1-12
+      dateSeq[5][t.wday] or false      -- weekday 1-7, 1=sun, 7=sat
+    end
+  end
+
+  fibaro.dateTest = dateTest
 end 
 
 --------------- Event engine -------------------
@@ -484,7 +567,8 @@ local function createEventEngine()
     end
     return pattern
   end
-  
+  self.compilePattern = compilePattern
+
   local function match(pattern0, expr0)
     local matches = {}
     local function unify(pattern,expr)
@@ -503,7 +587,8 @@ local function createEventEngine()
     end
     return unify(pattern0,expr0) and matches or false
   end
-  
+  self.match = match
+
   local function invokeHandler(env)
     local t = os.time()
     env.last,env.rule.time = t-(env.rule.time or 0),t
@@ -522,272 +607,414 @@ local function createEventEngine()
     t = type(t)=='string' and toTime(t) or t or 0
     if t < 0 then return elseif t < now then t = t+now end
     if debugFlags.post and (type(ev)=='function' or not ev._sh) then 
-      (customLog or fibaro.trace)(__TAG,fmt("Posting %s at %s %s",tostring(ev),os.date("%c",t),type(log)=='string' and ("("..log..")") or "")) end
-      if type(ev) == 'function' then
-        return setTimeout(function() ev(ev) end,1000*(t-now),log),t
-      elseif type(ev)=='table' and type(ev.type)=='string' then
-        return setTimeout(function() if hook then hook() end self.handleEvent(ev) end,1000*(t-now),log),t
-      else
-        error("post(...) not event or function;"..tostring(ev))
-        end
+      (customLog or fibaro.trace)(__TAG,fmt("Posting %s at %s %s",tostring(ev),os.date("%c",t),type(log)=='string' and ("("..log..")") or "")) 
+    end
+    if type(ev) == 'function' then
+      return setTimeout(function() ev(ev) end,1000*(t-now),log),t
+    elseif type(ev)=='table' and type(ev.type)=='string' then
+      return setTimeout(function() if hook then hook() end self.handleEvent(ev) end,1000*(t-now),log),t
+    else
+      error("post(...) not event or fun;"..tostring(ev))
+    end
+  end
+  
+  function self.cancel(id) clearTimeout(id) end
+  
+  local toHash,fromHash={},{}
+  fromHash['device'] = function(e) return {"device"..e.id..e.property,"device"..e.id,"device"..e.property,"device"} end
+  fromHash['global-variable'] = function(e) return {'global-variable'..e.name,'global-variable'} end
+  fromHash['quickvar'] = function(e) return {"quickvar"..e.id..e.name,"quickvar"..e.id,"quickvar"..e.name,"quickvar"} end
+  fromHash['profile'] = function(e) return {'profile'..e.property,'profile'} end
+  fromHash['weather'] = function(e) return {'weather'..e.property,'weather'} end
+  fromHash['custom-event'] = function(e) return {'custom-event'..e.name,'custom-event'} end
+  fromHash['deviceEvent'] = function(e) return {"deviceEvent"..e.id..e.value,"deviceEvent"..e.id,"deviceEvent"..e.value,"deviceEvent"} end
+  fromHash['sceneEvent'] = function(e) return {"sceneEvent"..e.id..e.value,"sceneEvent"..e.id,"sceneEvent"..e.value,"sceneEvent"} end
+  toHash['device'] = function(e) return "device"..(e.id or "")..(e.property or "") end   
+  
+  toHash['global-variable'] = function(e) return 'global-variable'..(e.name or "") end
+  toHash['quickvar'] = function(e) return 'quickvar'..(e.id or "")..(e.name or "") end
+  toHash['profile'] = function(e) return 'profile'..(e.property or "") end
+  toHash['weather'] = function(e) return 'weather'..(e.property or "") end
+  toHash['custom-event'] = function(e) return 'custom-event'..(e.name or "") end
+  toHash['deviceEvent'] = function(e) return 'deviceEvent'..(e.id or "")..(e.value or "") end
+  toHash['sceneEvent'] = function(e) return 'sceneEvent'..(e.id or "")..(e.value or "") end
+  
+  
+  local MTrule = { __tostring = function(self) return fmt("SourceTriggerSub:%s",self.event.type) end }
+  function self.addEventHandler(pattern,fun,doc)
+    if not isEvent(pattern) then error("Bad event pattern, needs .type field") end
+    assert(type(fun)=='func'..'tion', "Second argument must be Lua func")
+    local cpattern = compilePattern(pattern)
+    local hashKey = toHash[pattern.type] and toHash[pattern.type](pattern) or pattern.type
+    handlers[hashKey] = handlers[hashKey] or {}
+    local rules = handlers[hashKey]
+    local rule,fn = {[HANDLER]=cpattern, event=pattern, action=fun, doc=doc}, true
+    for _,rs in ipairs(rules) do -- Collect handlers with identical patterns. {{e1,e2,e3},{e1,e2,e3}}
+      if equal(cpattern,rs[1].event) then 
+        rs[#rs+1] = rule
+        fn = false break 
       end
-      
-      function self.cancel(id) clearTimeout(id) end
-      
-      local toHash,fromHash={},{}
-      fromHash['device'] = function(e) return {"device"..e.id..e.property,"device"..e.id,"device"..e.property,"device"} end
-      fromHash['global-variable'] = function(e) return {'global-variable'..e.name,'global-variable'} end
-      fromHash['quickvar'] = function(e) return {"quickvar"..e.id..e.name,"quickvar"..e.id,"quickvar"..e.name,"quickvar"} end
-      fromHash['profile'] = function(e) return {'profile'..e.property,'profile'} end
-      fromHash['weather'] = function(e) return {'weather'..e.property,'weather'} end
-      fromHash['custom-event'] = function(e) return {'custom-event'..e.name,'custom-event'} end
-      fromHash['deviceEvent'] = function(e) return {"deviceEvent"..e.id..e.value,"deviceEvent"..e.id,"deviceEvent"..e.value,"deviceEvent"} end
-      fromHash['sceneEvent'] = function(e) return {"sceneEvent"..e.id..e.value,"sceneEvent"..e.id,"sceneEvent"..e.value,"sceneEvent"} end
-      toHash['device'] = function(e) return "device"..(e.id or "")..(e.property or "") end   
-      
-      toHash['global-variable'] = function(e) return 'global-variable'..(e.name or "") end
-      toHash['quickvar'] = function(e) return 'quickvar'..(e.id or "")..(e.name or "") end
-      toHash['profile'] = function(e) return 'profile'..(e.property or "") end
-      toHash['weather'] = function(e) return 'weather'..(e.property or "") end
-      toHash['custom-event'] = function(e) return 'custom-event'..(e.name or "") end
-      toHash['deviceEvent'] = function(e) return 'deviceEvent'..(e.id or "")..(e.value or "") end
-      toHash['sceneEvent'] = function(e) return 'sceneEvent'..(e.id or "")..(e.value or "") end
-      
-      
-      local MTrule = { __tostring = function(self) return fmt("SourceTriggerSub:%s",self.event.type) end }
-      function self.addEventHandler(pattern,fun,doc)
-        if not isEvent(pattern) then error("Bad event pattern, needs .type field") end
-        assert(type(fun)=='func'..'tion', "Second argument must be Lua func")
-        local cpattern = compilePattern(pattern)
-        local hashKey = toHash[pattern.type] and toHash[pattern.type](pattern) or pattern.type
-        handlers[hashKey] = handlers[hashKey] or {}
-        local rules = handlers[hashKey]
-        local rule,fn = {[HANDLER]=cpattern, event=pattern, action=fun, doc=doc}, true
-        for _,rs in ipairs(rules) do -- Collect handlers with identical patterns. {{e1,e2,e3},{e1,e2,e3}}
-          if equal(cpattern,rs[1].event) then 
-            rs[#rs+1] = rule
-            fn = false break 
+    end
+    if fn then rules[#rules+1] = {rule} end
+    rule.enable = function() rule._disabled = nil return rule end
+    rule.disable = function() rule._disabled = true return rule end
+    return rule
+  end
+  
+  function self.removeEventHandler(rule)
+    local pattern,fun = rule.event,rule.action
+    local hashKey = toHash[pattern.type] and toHash[pattern.type](pattern) or pattern.type
+    local rules,i,j= handlers[hashKey] or {},1,1
+    while j <= #rules do
+      local rs = rules[j]
+      while i <= #rs do
+        if rs[i].action==fun then
+          table.remove(rs,i)
+        else i=i+i end
+      end
+      if #rs==0 then table.remove(rules,j) else j=j+1 end
+    end
+  end
+  
+  local callbacks = {}
+  function self.registerCallback(fun) callbacks[#callbacks+1] = fun end
+  
+  function self.handleEvent(ev,firingTime)
+    for _,cb in ipairs(callbacks) do cb(ev) end
+    
+    local hasKeys = fromHash[ev.type] and fromHash[ev.type](ev) or {ev.type}
+    for _,hashKey in ipairs(hasKeys) do
+      for _,rules in ipairs(handlers[hashKey] or {}) do -- Check all rules of 'type'
+        local i,m=1,nil
+        for j=1,#rules do
+          if not rules[j]._disabled then    -- find first enabled rule, among rules with same head
+            m = match(rules[i][HANDLER],ev) -- and match against that rule
+            break
           end
         end
-        if fn then rules[#rules+1] = {rule} end
-        rule.enable = function() rule._disabled = nil return rule end
-        rule.disable = function() rule._disabled = true return rule end
-        return rule
-      end
-      
-      function self.removeEventHandler(rule)
-        local pattern,fun = rule.event,rule.action
-        local hashKey = toHash[pattern.type] and toHash[pattern.type](pattern) or pattern.type
-        local rules,i,j= handlers[hashKey] or {},1,1
-        while j <= #rules do
-          local rs = rules[j]
-          while i <= #rs do
-            if rs[i].action==fun then
-              table.remove(rs,i)
-            else i=i+i end
-          end
-          if #rs==0 then table.remove(rules,j) else j=j+1 end
-        end
-      end
-      
-      local callbacks = {}
-      function self.registerCallback(fun) callbacks[#callbacks+1] = fun end
-      
-      function self.handleEvent(ev,firingTime)
-        for _,cb in ipairs(callbacks) do cb(ev) end
-        
-        local hasKeys = fromHash[ev.type] and fromHash[ev.type](ev) or {ev.type}
-        for _,hashKey in ipairs(hasKeys) do
-          for _,rules in ipairs(handlers[hashKey] or {}) do -- Check all rules of 'type'
-            local i,m=1,nil
-            for j=1,#rules do
-              if not rules[j]._disabled then    -- find first enabled rule, among rules with same head
-                m = match(rules[i][HANDLER],ev) -- and match against that rule
-                break
-              end
+        if m then                           -- we have a match
+          for j=i,#rules do                 -- executes all rules with same head
+            local rule=rules[j]
+            if not rule._disabled then 
+              if invokeHandler({event = ev, time = firingTime, p=m, rule=rule}) == BREAK then return end
             end
-            if m then                           -- we have a match
-              for j=i,#rules do                 -- executes all rules with same head
-                local rule=rules[j]
-                if not rule._disabled then 
-                  if invokeHandler({event = ev, time = firingTime, p=m, rule=rule}) == BREAK then return end
-                end
-              end
-            end
           end
         end
       end
-      return self
-    end -- createEventEngine
-    
-    local function quickVarEvent(d,_,post)
-      local old={}; for _,v in ipairs(d.oldValue) do old[v.name] = v.value end 
-      for _,v in ipairs(d.newValue) do
-        if not equal(v.value,old[v.name]) then
-          post({type='quickvar', id=d.id, name=v.name, value=v.value, old=old[v.name]})
+    end
+  end
+
+  -- This can be used to "post" an event into this QA... Ex. fibaro.call(ID,'RECIEVE_EVENT',{type='myEvent'})
+  function QuickApp.RECIEVE_EVENT(_,ev)
+    assert(isEvent(ev),"Bad argument to remote event")
+    local time = ev.ev._time
+    ev,ev.ev._time = ev.ev,nil
+    if time and time+5 < os.time() then fibaro.warning(__TAG,fmt("Slow events %s, %ss",tostring(ev),os.time()-time)) end
+    self.post(ev)
+  end
+
+  function self.postRemote(uuid,id,ev)
+    if ev == nil then
+      id,ev = uuid,id
+      assert(tonumber(id) and isEvent(ev),"Bad argument to postRemote")
+      ev._from,ev._time = plugin.mainDeviceId,os.time()
+      fibaro.call(id,'RECIEVE_EVENT',{type='EVENT',ev=ev}) -- We need this as the system converts "99" to 99 and other "helpful" conversions
+    else
+      -- post to slave box in the future
+    end
+  end
+
+  return self
+end -- createEventEngine
+
+local function quickVarEvent(d,_,post)
+  local old={}; for _,v in ipairs(d.oldValue) do old[v.name] = v.value end 
+  for _,v in ipairs(d.newValue) do
+    if not equal(v.value,old[v.name]) then
+      post({type='quickvar', id=d.id, name=v.name, value=v.value, old=old[v.name]})
+    end
+  end
+end
+
+-- There are more, but these are what I seen so far...
+
+local EventTypes = { 
+  AlarmPartitionArmedEvent = function(d,_,post) post({type='alarm', property='armed', id = d.partitionId, value=d.armed}) end,
+  AlarmPartitionBreachedEvent = function(d,_,post) post({type='alarm', property='breached', id = d.partitionId, value=d.breached}) end,
+  AlarmPartitionModifiedEvent = function(d,_,post) print(json.encode(d)) end,
+  HomeArmStateChangedEvent = function(d,_,post) post({type='alarm', property='homeArmed', value=d.newValue}) end,
+  HomeDisarmStateChangedEvent = function(d,_,post) post({type='alarm', property='homeArmed', value=not d.newValue}) end,
+  HomeBreachedEvent = function(d,_,post) post({type='alarm', property='homeBreached', value=d.breached}) end,
+  WeatherChangedEvent = function(d,_,post) post({type='weather',property=d.change, value=d.newValue, old=d.oldValue}) end,
+  GlobalVariableChangedEvent = function(d,_,post) post({type='global-variable', name=d.variableName, value=d.newValue, old=d.oldValue}) end,
+  GlobalVariableAddedEvent = function(d,_,post) post({type='global-variable', name=d.variableName, value=d.value, old=nil}) end,
+  DevicePropertyUpdatedEvent = function(d,_,post)
+    if d.property=='quickAppVariables' then quickVarEvent(d,_,post)
+    else
+      post({type='device', id=d.id, property=d.property, value=d.newValue, old=d.oldValue})
+    end
+  end,
+  CentralSceneEvent = function(d,_,post) 
+    d.id,d.icon = d.id or d.deviceId,nil
+    post({type='device', property='centralSceneEvent', id=d.id, value={keyId=d.keyId, keyAttribute=d.keyAttribute}}) 
+  end,
+  SceneActivationEvent = function(d,_,post) 
+    d.id = d.id or d.deviceId
+    post({type='device', property='sceneActivationEvent', id=d.id, value={sceneId=d.sceneId}})     
+  end,
+  AccessControlEvent = function(d,_,post) 
+    post({type='device', property='accessControlEvent', id=d.id, value=d}) 
+  end,
+  CustomEvent = function(d,_,post) 
+    local value = api.get("/customEvents/"..d.name) 
+    post({type='custom-event', name=d.name, value=value and value.userDescription}) 
+  end,
+  PluginChangedViewEvent = function(d,_,post) post({type='PluginChangedViewEvent', value=d}) end,
+  WizardStepStateChangedEvent = function(d,_,post) post({type='WizardStepStateChangedEvent', value=d})  end,
+  UpdateReadyEvent = function(d,_,post) post({type='updateReadyEvent', value=d}) end,
+  DeviceRemovedEvent = function(d,_,post)  post({type='deviceEvent', id=d.id, value='removed'}) end,
+  DeviceChangedRoomEvent = function(d,_,post)  post({type='deviceEvent', id=d.id, value='changedRoom'}) end,
+  DeviceCreatedEvent = function(d,_,post)  post({type='deviceEvent', id=d.id, value='created'}) end,
+  DeviceModifiedEvent = function(d,_,post) post({type='deviceEvent', id=d.id, value='modified'}) end,
+  PluginProcessCrashedEvent = function(d,_,post) post({type='deviceEvent', id=d.deviceId, value='crashed', error=d.error}) end,
+  SceneStartedEvent = function(d,_,post)   post({type='sceneEvent', id=d.id, value='started'}) end,
+  SceneFinishedEvent = function(d,_,post)  post({type='sceneEvent', id=d.id, value='finished'})end,
+  SceneRunningInstancesEvent = function(d,_,post) post({type='sceneEvent', id=d.id, value='instance', instance=d}) end,
+  SceneRemovedEvent = function(d,_,post)  post({type='sceneEvent', id=d.id, value='removed'}) end,
+  SceneModifiedEvent = function(d,_,post)  post({type='sceneEvent', id=d.id, value='modified'}) end,
+  SceneCreatedEvent = function(d,_,post)  post({type='sceneEvent', id=d.id, value='created'}) end,
+  OnlineStatusUpdatedEvent = function(d,_,post) post({type='onlineEvent', value=d.online}) end,
+  ActiveProfileChangedEvent = function(d,_,post) 
+    post({type='profile',property='activeProfile',value=d.newActiveProfile, old=d.oldActiveProfile}) 
+  end,
+  ClimateZoneChangedEvent = function(d,_,post) --ClimateZoneChangedEvent
+    if d.changes and type(d.changes)=='table' then
+      for _,c in ipairs(d.changes) do
+        c.type,c.id='ClimateZone',d.id
+        post(c)
+      end
+    end
+  end,
+  ClimateZoneSetpointChangedEvent = function(d,_,post) d.type = 'ClimateZoneSetpoint' post(d,_,post) end,
+  NotificationCreatedEvent = function(d,_,post) post({type='notification', id=d.id, value='created'}) end,
+  NotificationRemovedEvent = function(d,_,post) post({type='notification', id=d.id, value='removed'}) end,
+  NotificationUpdatedEvent = function(d,_,post) post({type='notification', id=d.id, value='updated'}) end,
+  RoomCreatedEvent = function(d,_,post) post({type='room', id=d.id, value='created'}) end,
+  RoomRemovedEvent = function(d,_,post) post({type='room', id=d.id, value='removed'}) end,
+  RoomModifiedEvent = function(d,_,post) post({type='room', id=d.id, value='modified'}) end,
+  SectionCreatedEvent = function(d,_,post) post({type='section', id=d.id, value='created'}) end,
+  SectionRemovedEvent = function(d,_,post) post({type='section', id=d.id, value='removed'}) end,
+  SectionModifiedEvent = function(d,_,post) post({type='section', id=d.id, value='modified'}) end,
+  QuickAppFilesChangedEvent = function(_) end,
+  ZwaveDeviceParametersChangedEvent = function(_) end,
+  ZwaveNodeAddedEvent = function(_) end,
+  RefreshRequiredEvent = function(_) end,
+  DeviceFirmwareUpdateEvent = function(_) end,
+  GeofenceEvent = function(d,_,post) post({type='location',id=d.userId,property=d.locationId,value=d.geofenceAction,timestamp=d.timestamp}) end,
+  DeviceActionRanEvent = function(d,e,post)
+    if e.sourceType=='user' then  
+      post({type='user',id=e.sourceId,value='action',data=d})
+    elseif e.sourceType=='system' then 
+      post({type='system',value='action',data=d})
+    end
+  end,
+}
+
+local eventMT = { __tostring = function(ev) 
+  local s = encode(ev) 
+  return fmt("#%s{%s}",ev.type,s:match(",(.*)}") or "") end 
+}
+
+local aEventEngine = nil
+class 'SourceTrigger'
+function SourceTrigger:__init()
+  self.refresh = RefreshStateSubscriber()
+  self.eventEngine = createEventEngine()
+  aEventEngine = self.eventEngine
+  local function post(event,firingTime)
+    setmetatable(event,eventMT)
+    if debugFlags.sourceTrigger then fibaro.trace(__TAG,fmt("SourceTrigger: %s",tostring(event) // fibaro.settings.truncLog)) end
+    self.eventEngine.handleEvent(event,firingTime) 
+  end
+  local function filter(ev) 
+    if debugFlags.refreshEvents then 
+      fibaro.trace(__TAG,fmt("RefreshEvent: %s:%s",ev.type,encode(ev.data)) // fibaro.settings.truncLog) 
+    end
+    return true 
+  end
+  local function handler(ev) 
+    if EventTypes[ev.type] then 
+      EventTypes[ev.type](ev.data,ev,post) 
+    end 
+  end
+  self.refresh:subscribe(filter,handler)
+end
+function SourceTrigger:run() self.refresh:run() end
+function SourceTrigger:subscribe(event,handler) --> subscription
+  return self.eventEngine.addEventHandler(event,handler)
+end
+function SourceTrigger:unsubscribe(subscription)
+  self.eventEngine.removeEventHandler(subscription)
+end
+function SourceTrigger:enableSubscription(subscription)
+  subscription.enable()
+end
+function SourceTrigger:disableSubscription(subscription)
+  subscription.disable()
+end
+function SourceTrigger:post(event,time,log,hook,customLog)
+  return self.eventEngine.post(event,time,log,hook,customLog)
+end
+function SourceTrigger:registerCallback(fun)
+  return self.eventEngine.registerCallback(fun)
+end
+function SourceTrigger:cancel(ref)
+  return self.eventEngine.cancel(ref)
+end
+function SourceTrigger:postRemote(id,event)
+  return self.eventEngine.postRemote(id,event)
+end
+
+--------------------- Pub/Sub ---------------------
+do
+  local debugFlags = fibaro.debugFlags
+  local SUB_VAR = "TPUBSUB"
+  local idSubs = {}
+  local function DEBUG(...) if debugFlags.pubsub then fibaro.debug(__TAG,fmt(...)) end end
+  local inited,initPubSub,match,compile
+  local member,equal,copy = table.member,table.equal,table.copy
+  
+  function fibaro.publish(event)
+    if not inited then initPubSub(quickApp) end
+    assert(type(event)=='table' and event.type,"Not an event")
+    local subs = idSubs[event.type] or {}
+    for _,e in ipairs(subs) do
+      if match(e.pattern,event) then
+        for id,_ in pairs(e.ids) do 
+          DEBUG("Sending sub QA:%s",id)
+          fibaro.call(id,"SUBSCRIPTION",event)
         end
       end
     end
-    
-    -- There are more, but these are what I seen so far...
-    
-    local EventTypes = { 
-      AlarmPartitionArmedEvent = function(d,_,post) post({type='alarm', property='armed', id = d.partitionId, value=d.armed}) end,
-      AlarmPartitionBreachedEvent = function(d,_,post) post({type='alarm', property='breached', id = d.partitionId, value=d.breached}) end,
-      AlarmPartitionModifiedEvent = function(d,_,post) print(json.encode(d)) end,
-      HomeArmStateChangedEvent = function(d,_,post) post({type='alarm', property='homeArmed', value=d.newValue}) end,
-      HomeDisarmStateChangedEvent = function(d,_,post) post({type='alarm', property='homeArmed', value=not d.newValue}) end,
-      HomeBreachedEvent = function(d,_,post) post({type='alarm', property='homeBreached', value=d.breached}) end,
-      WeatherChangedEvent = function(d,_,post) post({type='weather',property=d.change, value=d.newValue, old=d.oldValue}) end,
-      GlobalVariableChangedEvent = function(d,_,post) post({type='global-variable', name=d.variableName, value=d.newValue, old=d.oldValue}) end,
-      GlobalVariableAddedEvent = function(d,_,post) post({type='global-variable', name=d.variableName, value=d.value, old=nil}) end,
-      DevicePropertyUpdatedEvent = function(d,_,post)
-        if d.property=='quickAppVariables' then quickVarEvent(d,_,post)
-        else
-          post({type='device', id=d.id, property=d.property, value=d.newValue, old=d.oldValue})
+  end
+  
+  function fibaro.subscribe(events,handler)
+    if not inited then initPubSub(quickApp) end
+    if not events[1] then events = {events} end
+    local subs = quickApp:getVariable(SUB_VAR)
+    if subs == "" then subs = {} end
+    for _,e in ipairs(events) do
+      assert(type(e)=='table' and e.type,"Not an event")
+      if not member(e,subs) then subs[#subs+1]=e end
+    end
+    DEBUG("Setting subscription")
+    quickApp:setVariable(SUB_VAR,subs)
+    if handler then
+      fibaro.event(events,handler)
+    end
+  end
+  
+  --  idSubs = {
+  --    <type> = { { ids = {... }, event=..., pattern = ... }, ... }
+  --  }
+  
+  function match(...) return aEventEngine.match(...) end
+  function compile(...) return aEventEngine.compile(...) end
+  
+  function QuickApp.SUBSCRIPTION(_,e)
+    fibaro.post(e)
+  end
+  
+  local function updateSubscriber(id,events)
+    if not idSubs[id] then DEBUG("New subscriber, QA:%s",id) end
+    for _,ev in ipairs(events) do
+      local subs = idSubs[ev.type] or {}
+      for _,s in ipairs(subs) do s.ids[id]=nil end
+    end
+    for _,ev in ipairs(events) do
+      local subs = idSubs[ev.type]
+      if subs == nil then
+        subs = {}
+        idSubs[ev.type]=subs
+      end
+      for _,e in ipairs(subs) do
+        if equal(ev,e.event) then
+          e.ids[id]=true
+          goto nxt
         end
-      end,
-      CentralSceneEvent = function(d,_,post) 
-        d.id,d.icon = d.id or d.deviceId,nil
-        post({type='device', property='centralSceneEvent', id=d.id, value={keyId=d.keyId, keyAttribute=d.keyAttribute}}) 
-      end,
-      SceneActivationEvent = function(d,_,post) 
-        d.id = d.id or d.deviceId
-        post({type='device', property='sceneActivationEvent', id=d.id, value={sceneId=d.sceneId}})     
-      end,
-      AccessControlEvent = function(d,_,post) 
-        post({type='device', property='accessControlEvent', id=d.id, value=d}) 
-      end,
-      CustomEvent = function(d,_,post) 
-        local value = api.get("/customEvents/"..d.name) 
-        post({type='custom-event', name=d.name, value=value and value.userDescription}) 
-      end,
-      PluginChangedViewEvent = function(d,_,post) post({type='PluginChangedViewEvent', value=d}) end,
-      WizardStepStateChangedEvent = function(d,_,post) post({type='WizardStepStateChangedEvent', value=d})  end,
-      UpdateReadyEvent = function(d,_,post) post({type='updateReadyEvent', value=d}) end,
-      DeviceRemovedEvent = function(d,_,post)  post({type='deviceEvent', id=d.id, value='removed'}) end,
-      DeviceChangedRoomEvent = function(d,_,post)  post({type='deviceEvent', id=d.id, value='changedRoom'}) end,
-      DeviceCreatedEvent = function(d,_,post)  post({type='deviceEvent', id=d.id, value='created'}) end,
-      DeviceModifiedEvent = function(d,_,post) post({type='deviceEvent', id=d.id, value='modified'}) end,
-      PluginProcessCrashedEvent = function(d,_,post) post({type='deviceEvent', id=d.deviceId, value='crashed', error=d.error}) end,
-      SceneStartedEvent = function(d,_,post)   post({type='sceneEvent', id=d.id, value='started'}) end,
-      SceneFinishedEvent = function(d,_,post)  post({type='sceneEvent', id=d.id, value='finished'})end,
-      SceneRunningInstancesEvent = function(d,_,post) post({type='sceneEvent', id=d.id, value='instance', instance=d}) end,
-      SceneRemovedEvent = function(d,_,post)  post({type='sceneEvent', id=d.id, value='removed'}) end,
-      SceneModifiedEvent = function(d,_,post)  post({type='sceneEvent', id=d.id, value='modified'}) end,
-      SceneCreatedEvent = function(d,_,post)  post({type='sceneEvent', id=d.id, value='created'}) end,
-      OnlineStatusUpdatedEvent = function(d,_,post) post({type='onlineEvent', value=d.online}) end,
-      ActiveProfileChangedEvent = function(d,_,post) 
-        post({type='profile',property='activeProfile',value=d.newActiveProfile, old=d.oldActiveProfile}) 
-      end,
-      ClimateZoneChangedEvent = function(d,_,post) --ClimateZoneChangedEvent
-        if d.changes and type(d.changes)=='table' then
-          for _,c in ipairs(d.changes) do
-            c.type,c.id='ClimateZone',d.id
-            post(c)
-          end
-        end
-      end,
-      ClimateZoneSetpointChangedEvent = function(d,_,post) d.type = 'ClimateZoneSetpoint' post(d,_,post) end,
-      NotificationCreatedEvent = function(d,_,post) post({type='notification', id=d.id, value='created'}) end,
-      NotificationRemovedEvent = function(d,_,post) post({type='notification', id=d.id, value='removed'}) end,
-      NotificationUpdatedEvent = function(d,_,post) post({type='notification', id=d.id, value='updated'}) end,
-      RoomCreatedEvent = function(d,_,post) post({type='room', id=d.id, value='created'}) end,
-      RoomRemovedEvent = function(d,_,post) post({type='room', id=d.id, value='removed'}) end,
-      RoomModifiedEvent = function(d,_,post) post({type='room', id=d.id, value='modified'}) end,
-      SectionCreatedEvent = function(d,_,post) post({type='section', id=d.id, value='created'}) end,
-      SectionRemovedEvent = function(d,_,post) post({type='section', id=d.id, value='removed'}) end,
-      SectionModifiedEvent = function(d,_,post) post({type='section', id=d.id, value='modified'}) end,
-      QuickAppFilesChangedEvent = function(_) end,
-      ZwaveDeviceParametersChangedEvent = function(_) end,
-      ZwaveNodeAddedEvent = function(_) end,
-      RefreshRequiredEvent = function(_) end,
-      DeviceFirmwareUpdateEvent = function(_) end,
-      GeofenceEvent = function(d,_,post) post({type='location',id=d.userId,property=d.locationId,value=d.geofenceAction,timestamp=d.timestamp}) end,
-      DeviceActionRanEvent = function(d,e,post)
-        if e.sourceType=='user' then  
-          post({type='user',id=e.sourceId,value='action',data=d})
-        elseif e.sourceType=='system' then 
-          post({type='system',value='action',data=d})
-        end
-      end,
-    }
-    
-    local eventMT = { __tostring = function(ev) 
-      local s = encode(ev) 
-      return fmt("#%s{%s}",ev.type,s:match(",(.*)}") or "") end 
-    }
-    
-    class 'SourceTrigger'
-    function SourceTrigger:__init()
-      self.refresh = RefreshStateSubscriber()
-      self.eventEngine = createEventEngine()
-      local function post(event,firingTime)
-        setmetatable(event,eventMT)
-        if debugFlags.sourceTrigger then fibaro.trace(__TAG,fmt("SourceTrigger: %s",tostring(event) // fibaro.settings.truncLog)) end
-        self.eventEngine.handleEvent(event,firingTime) 
       end
-      local function filter(ev) 
-        if debugFlags.refreshEvents then 
-          fibaro.trace(__TAG,fmt("RefreshEvent: %s:%s",ev.type,encode(ev.data)) // fibaro.settings.truncLog) 
-        end
-        return true 
-      end
-      local function handler(ev) 
-        if EventTypes[ev.type] then 
-          EventTypes[ev.type](ev.data,ev,post) 
-        end 
-      end
-      self.refresh:subscribe(filter,handler)
+      subs[#subs+1] = { ids={[id]=true}, event=copy(ev), pattern=compile(ev) }
+      ::nxt::
     end
-    function SourceTrigger:run() self.refresh:run() end
-    function SourceTrigger:subscribe(event,handler) --> subscription
-      return self.eventEngine.addEventHandler(event,handler)
+  end
+  
+  local function checkVars(id,vars)
+    for _,var in ipairs(vars or {}) do 
+      if var.name==SUB_VAR then return updateSubscriber(id,var.value) end
     end
-    function SourceTrigger:unsubscribe(subscription)
-      self.eventEngine.removeEventHandler(subscription)
-    end
-    function SourceTrigger:enableSubscription(subscription)
-      subscription.enable()
-    end
-    function SourceTrigger:disableSubscription(subscription)
-      subscription.disable()
-    end
-    function SourceTrigger:post(event,time,log,hook,customLog)
-      return self.eventEngine.post(event,time,log,hook,customLog)
-    end
-    function SourceTrigger:registerCallback(fun)
-      return self.eventEngine.registerCallback(fun)
-    end
-    function SourceTrigger:cancel(ref)
-      return self.eventEngine.cancel(ref)
+  end
+  
+  function initPubSub(quickApp)
+    -- At startup, check all QAs for subscriptions
+    for _,d in ipairs(api.get("/devices?interface=quickApp") or {}) do
+      checkVars(d.id,d.properties.quickAppVariables)
     end
     
-    ----------- QuickApp Startup -----------
-    local _init,_onInit = QuickApp.__init,nil
+    fibaro.event({type='quickvar',name=SUB_VAR},            -- If some QA changes subscription
+    function(env) 
+      local id = env.event.id
+      DEBUG("QA:%s updated quickvar sub",id)
+      updateSubscriber(id,env.event.value)                  -- update
+    end) 
     
-    function QuickApp:setVersion(model,serial,version)
-      local m = model..":"..serial.."/"..version
-      if __fibaro_get_device_property(self.id,'model') ~= m then
-        quickApp:updateProperty('model',m) 
+    fibaro.event({type='deviceEvent',value='removed'},      -- If some QA is removed
+    function(env) 
+      local id = env.event.id
+      if id ~= quickApp.id then
+        DEBUG("QA:%s removed",id)
+        updateSubscriber(env.event.id,{})                   -- update
       end
-    end
-    local function initQA(selfv)
-      local dev = __fibaro_get_device(selfv.id)
-      if not dev.enabled then
-        if fibaro.__disabled then pcall(fibaro.__disabled,selfv) end -- Hook if you want to do something when your QA is disabled
-        selfv:debug("QA ",selfv.name," disabled")
-      else
-        quickApp = selfv
-        if _onInit then _onInit(selfv) end
+    end)
+    
+    fibaro.event({
+      {type='deviceEvent',value='created'},                 -- If some QA is added or modified
+      {type='deviceEvent',value='modified'}
+    },
+    function(env)                                           -- update
+      local id = env.event.id
+      if id ~= quickApp.id then
+        DEBUG("QA:%s created/modified",id)
+        checkVars(id,api.get("/devices/"..id).properties.quickAppVariables)
       end
-    end
-    
-    function QuickApp.__init(self,...) -- We hijack the __init methods so we can control users :onInit() method
-      _onInit = self.onInit
-      self.onInit = initQA
-      _init(self,...)
-    end
-    
-    ------------- Exports --------------
-    fibaro.toTime,fibaro.midnight,fibaro.getWeekNumber,fibaro.now = lib.toTime,lib.midnight,lib.getWeekNumber,lib.now
+    end)
+  end
+end
+
+----------- QuickApp Startup -----------
+local _init,_onInit = QuickApp.__init,nil
+
+function QuickApp:setVersion(model,serial,version)
+  local m = model..":"..serial.."/"..version
+  if __fibaro_get_device_property(self.id,'model') ~= m then
+    quickApp:updateProperty('model',m) 
+  end
+end
+local function initQA(selfv)
+  local dev = __fibaro_get_device(selfv.id)
+  if not dev.enabled then
+    if fibaro.__disabled then pcall(fibaro.__disabled,selfv) end -- Hook if you want to do something when your QA is disabled
+    selfv:debug("QA ",selfv.name," disabled")
+  else
+    quickApp = selfv
+    if _onInit then _onInit(selfv) end
+  end
+end
+
+function QuickApp.__init(self,...) -- We hijack the __init methods so we can control users :onInit() method
+  _onInit = self.onInit
+  self.onInit = initQA
+  _init(self,...)
+end
+
+------------- Exports --------------
+fibaro.toTime,fibaro.midnight,fibaro.getWeekNumber,fibaro.now = lib.toTime,lib.midnight,lib.getWeekNumber,lib.now

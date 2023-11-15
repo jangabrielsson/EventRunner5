@@ -17,7 +17,7 @@ function QuickApp:main(er)
     -- local expressionOptions = {
     --     listCode       = true,  -- list code when expression/rule is created
     --     trace          = false, -- trace code when expression/rule is run
-    --     silent         = true,  -- don't log rule creation
+    --     silent         = true,  -- don't log rule creation and rule results
     --     ruleTrigger    = true,  -- log rule being triggered 
     --     ruleTrue       = true,  -- log rule when condition succeeds
     --     ruleFalse      = true,  -- log rule when condition fails
