@@ -151,11 +151,16 @@ function fibaro.__ER.modules.utilities(ER)
     end
   end
   
+  local function table2str(t)
+    if type(t) == 'table' and not getmetatable(t) then
+      return encodeFast(t)
+    else return tostring(t) end
+  end
   function Utils.argsStr(...)
     local args = {...}
     local n = table.maxn(args)
     if n == 0 then return "nil" end
-    local r = {} for i=1,n do r[i] = tostring(args[i]) end
+    local r = {} for i=1,n do r[i] = table2str(args[i]) end
     return table.concat(r,",")
   end
   

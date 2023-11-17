@@ -285,7 +285,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
 
     args.fmt = {1,99}
     function builtin.fmt(i,st,p) st.push(fmt(table.unpack(st.lift(i[3])))) end
-    args.fmtt = {1,99}
+    args.efmt = {1,99}
     function builtin.efmt(i,st,p) st.push(eformat(table.unpack(st.lift(i[3])))) end
     args.HM = {1,1}
     function builtin.HM(i,st,p) local t = st.pop(); st.push(os.date("%H:%M",t < os.time() and t+midnight() or t)) end  
@@ -484,7 +484,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     
     --------------------------
     
-    local function httpCall(url,options,data)
+    local function httpCall(cb,url,options,data,dflt)
         local opts = table.copy(options)
         opts.headers = opts.headers or {}
         if opts.type then
@@ -494,7 +494,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         if not opts.headers["content-type"] then
             opts.headers["content-type"] = 'application/json'
         end
-        if opts.user or opts.pwd then 
+        if opts.user and opts.pwd then 
             opts.headers['Authorization']= fibaro.utils.basicAuthorization((opts.user or ""),(opts.pwd or ""))
             opts.user,opts.pwd=nil,nil
         end
@@ -506,19 +506,85 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
                 pcall(function()
                     res0.data = json.decode(res0.data)  
                 end)
-                basket[1](res0) 
+                cb(res0.data or dflt,res0.status)
             end,
-            error = function(res0) basket[1](res0) end
+            error = function(err) cb(dflt,err) end
         })
-        return '%magic_suspend%',basket
+        return opts.timeout and opts.timeout//1000 or 30*1000,"HTTP"
     end
     
-    local http = {}
-    function http.get(url,options) options=options or {}; options.method="GET" return httpCall(url,options) end
-    function http.put(url,options,data) options=options or {}; options.method="PUT" return httpCall(url,options,data) end
-    function http.post(url,options,data) options=options or {}; options.method="POST" return httpCall(url,options,data) end
-    function http.delete(url,options) options=options or {}; options.method="DELETE" return httpCall(url,options) end
+    local http = {
+        get = ER.asyncFun(function(cb,url,options,dflt) options=options or {}; options.method="GET" return httpCall(cb,url,options,dflt) end),
+        put = ER.asyncFun(function(cb,url,options,data,dflt) options=options or {}; options.method="PUT" return httpCall(cb,url,options,data,dflt) end),
+        post = ER.asyncFun(function(cb,url,options,data,dflt) options=options or {}; options.method="POST" return httpCall(cb,url,options,data,dflt) end),
+        delete = ER.asyncFun(function(cb,url,options,dflt) options=options or {}; options.method="DELETE" return httpCall(cb,url,options,dflt) end),
+    }
     defVars.http = http
+    
+    ------------------ NoreRed support ---------------------------
+    local NR_trans = {}
+    function quickApp:fromNodeRed(ev)
+        ev = type(ev)=='string' and json.decode(ev) or ev
+        local tag = ev._transID
+        ev._IP,ev._async,ev._from,ev._transID=nil,nil,nil,nil
+        local f = NR_trans[tag]
+        if f then
+            NR_trans[tag] = nil
+            f(ev,200)
+        else fibaro.post(ev) end
+    end
+
+    --local noderedURL = "http://192.168.1.128:1880/ER_HC3"
+    local function nodePost(event,cb)
+        event._from = quickApp.id
+        event._IP = fibaro.getIPaddress()
+        local noderedURL = defVars.noderedURL and defVars.noderedURL[1]
+        assert(noderedURL,"noderedURL not defined")
+        local params =  {
+            options = {
+                headers = {['Accept']='application/json',['Content-Type']='application/json'},
+                data = json.encode(event), timeout=4000, method = 'POST'
+            },
+            success = function(res)
+                _,res.data = pcall(json.decode,res.data)
+                cb(res.status,res.data) 
+            end,
+            error = function(err) cb(err) end
+        }
+        net.HTTPClient():request(noderedURL,params)
+    end
+
+   local function nodered(cb,event,dflt)
+        event = table.copy(event)
+        event._async = false
+        nodePost(event,function(status,data)
+            if status==200 then
+                cb(data,200)
+            else
+                cb(dflt,status)
+            end
+        end)
+        return 10*1000,"NodeRed"-- Timeout
+    end
+
+    local NRID = 1
+    local function nodered_as(cb,event,dflt)
+        event = table.copy(event)
+        event._async = true
+        event._transID = NRID; NRID=NRID+1
+        NR_trans[event._transID] = cb
+        nodePost(event,function(status,data)
+            if status==200 then
+            else
+                fibaro.warningf(__TAG,"Nodered %s",status)
+                NR_trans[event._transID] = nil
+                cb(dflt,status)
+            end
+        end)
+        return 10*1000,"NodeRed" -- Timeout
+    end
+    defVars.nr = { post = ER.asyncFun(nodered), post_as = ER.asyncFun(nodered_as) }
+    --------------------- end NR -----------------------
     
     local function getFibObj(path,p,k,v)
         local oo = api.get(path) or {}

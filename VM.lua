@@ -133,7 +133,8 @@ function fibaro.__ER.modules.vm(ER)
       tref = Script.setTimeout(p,function() --  timeout handler
         cb[2] = true
         tref = nil
-        p.co.options.error(fmt("Timeout for function '%s'",name or tostring(f)))
+        ER.runCoroutine(p.co,nil,nil,'%timeout%')
+        --p.co.options.error(fmt("Timeout for function '%s'",name or tostring(f)))
       end,
       timeout) 
       st.push('%callback%'); return true -- ToDo add msg
@@ -362,8 +363,10 @@ for _,i in ipairs({'call','callexpr','callobj',}) do
   end
   
   local function run2(fun,rtd,...)
-    if rtd._inited then ER.returnMultipleValues(rtd.stack,table.unpack(rtd.args or {})) end
+    if rtd._inited then ER.returnMultipleValues(rtd.stack,table.unpack(rtd.args or {})) 
+    else
     for _,v in ipairs({...}) do rtd.stack.push0(v) end
+    end
     local code,codeLen = fun.code,#fun.code
     local p,st = rtd,rtd.stack
     local stat,res

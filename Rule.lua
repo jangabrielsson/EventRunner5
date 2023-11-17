@@ -157,6 +157,9 @@ function fibaro.__ER.modules.rule(ER)
     end
   end
   function triggerHandlers.betw(p,t)
+    t.cd = true
+    getTriggers(p.args,t)
+    t.cd = false
     t.timers[#t.timers+1] = compile(p.args[1],t.opts); 
     t.timers[#t.timers+1] = compile({type='op',op='add',args={{type='num',value=1,},p.args[2]}},t.opts) 
   end
@@ -500,7 +503,7 @@ function fibaro.__ER.modules.rule(ER)
     
     if #dailys>0 then rule._setupDailys(true) end
     
-    function rule.evalPrint() nameRule(rule) if not options.silent then LOG("%s %s %s",ER.color("lightgreen","Defined"),rule.rname,rule.src:gsub("\n","") // settings.truncLog) rule.evalPrint=nil end end
+    function rule.evalPrint() nameRule(rule) if not options.silent then LOG("%s %s %s",ER.color("lightgreen","Defined"),rule.rname,rule.src:gsub("\n[%s%c]*","") // settings.truncLog) rule.evalPrint=nil end end
 
     rules[rule.id] = rule
     return rule

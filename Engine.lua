@@ -1,6 +1,6 @@
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 0.051
+local version = 0.052
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -241,7 +241,20 @@ function QuickApp:EventRunnerEngine(callback)
     __index = function(t,k) return triggerVars[k] end,
     __newindex = function(t,k,v) triggerVars[k]=true; ER.vars[k]=v end
   })
-
+  local MTasyncCallback = { __call =
+    function(cb,...)
+      if not cb[1] then error("async callback not asyncronous called") end
+      if not cb[2] then cb[1](...) end
+    end
+  }
+  function ER.asyncFun(f)
+    local function afun(...)
+        local cb = setmetatable({},MTasyncCallback)
+        local delay,msg = f(cb,...)
+        return '%magic_suspend%',cb,tonumber(delay),msg
+    end
+    return afun
+  end
   ER.builtins = {}
   ER.builtinArgs = {}
   ER.propFilters = {}
@@ -335,21 +348,6 @@ function QuickApp:EventRunnerEngine(callback)
   er.startMidnightScheduler = ER.startMidnightScheduler
   er.speedTime = ER.utilities.speedTime
   er.setTime = ER.utilities.setTime
-
-  local MTasyncCallback = { __call =
-    function(cb,...)
-      if not cb[1] then error("async callback not asyncronous called") end
-      if not cb[2] then cb[1](...) end
-    end
-  }
-  function ER.asyncFun(f)
-    local function afun(...)
-        local cb = setmetatable({},MTasyncCallback)
-        local delay,msg = f(cb,...)
-        return '%magic_suspend%',cb,tonumber(delay),msg
-    end
-    return afun
-  end
 
   for k,v in pairs({
     listRules= ER.listRules,listVariables=ER.listVariables,listTimers=ER.listTimers,

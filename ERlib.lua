@@ -87,6 +87,14 @@ do -- fastEncode
   json.encodeFast = encode
 end
 
+local function shallowCopy(t) local r = {}; for k,v in pairs(t) do r[k]=v end; return r end
+local EventMT = {
+  __tostring = function(ev) 
+      local s = encode(ev)
+      return fmt("#%s{%s}",ev.type or "unknown",s:match(",(.*)}") or "")
+  end,
+}
+
 ----------- spec format -----------------------------
 do
   local function hm(t)
@@ -214,7 +222,7 @@ function urlencode(str) -- very useful
 end
 local function getIPaddress(name)
   if IPaddress then return IPaddress end
-  if fibemu then return fibemu.IPaddress
+  if fibemu then return fibemu.config.hostIP..":"..fibemu.config.wport
   else
     name = name or ".*"
     local networkdata = api.get("/proxy?url=http://localhost:11112/api/settings/network")
@@ -223,6 +231,7 @@ local function getIPaddress(name)
     end
   end
 end
+fibaro.getIPaddress = getIPaddress
 
 ---------------- Debug ---------------------------------------------
 function QuickApp:debugf(fmt,...) self:debug(fmt:format(...)) end
@@ -612,6 +621,7 @@ local function createEventEngine()
     if type(ev) == 'function' then
       return setTimeout(function() ev(ev) end,1000*(t-now),log),t
     elseif type(ev)=='table' and type(ev.type)=='string' then
+      if not getmetatable(ev) then setmetatable(ev,EventMT) end
       return setTimeout(function() if hook then hook() end self.handleEvent(ev) end,1000*(t-now),log),t
     else
       error("post(...) not event or fun;"..tostring(ev))
