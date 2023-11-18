@@ -343,6 +343,20 @@ function fibaro.__ER.modules.utilities(ER)
     return sunInfo
   end
   
+  do
+    local emulatedDevices = {}
+    local oldCall,oldGet = fibaro.call,__fibaro_get_device_property
+    function fibaro.call(id,...) 
+      if emulatedDevices[id] then return emulatedDevices[id]:call(...) end
+      return oldCall(id,...) 
+    end
+    function __fibaro_get_device_property(id,prop)
+      if emulatedDevices[id] then return {value=emulatedDevices[id]:get(prop),modified=emulatedDevices[id].modified} end
+      return oldGet(id,prop)
+    end
+    Utils.emulatedDevices = emulatedDevices
+  end
+
   local traceCalls = { 'call', 'getVariable', 'setVariable','alarm','alert', 'emitCustomEvent', 'scene','profile' }
   local nonSpeedCalls = { 'call','alarm','alert', 'scene', 'profile' }
   local nonSpeedApis = { 'put','delete' }

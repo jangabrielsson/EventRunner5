@@ -209,6 +209,9 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
                 fibaro.scene("execute",{id}) return true
             end
         end,""}
+        setProps.sim_pressed={function(id,_,val) fibaro.post({type='device',id=id,property='centralSceneEvent',value={keyId=val,keyAttribute='Pressed'}}) end,"push"} -- For simulated button presses
+        setProps.sim_helddown={function(id,_,val) fibaro.post({type='device',id=id,property='centralSceneEvent',value={keyId=val,keyAttribute='HeldDown'}}) end,"push"}
+        setProps.sim_released={function(id,_,val) fibaro.post({type='device',id=id,property='centralSceneEvent',value={keyId=val,keyAttribute='Released'}}) end,"push"}
 
         local filters = ER.propFilters
         local function NB(x) if type(x)=='number' then return x~=0 and 1 or 0 else return x end end

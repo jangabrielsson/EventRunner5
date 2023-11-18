@@ -10,12 +10,14 @@ function QuickApp:main(er) -- Main function, place to define rules
     local rule,eval,var,triggerVar,Util = er.eval,er.eval,er.variables,er.triggerVariables,er
     self:enableTriggerType({"device","global-variable","custom-event","profile","alarm","weather","location","quickvar","user"}) -- types of events we want
 
-    local HT = { 
+    local HT = { -- Test Home Table with "fake" devices - create your own...
         keyfob = 46, 
-        motion= 87,
-        temp = 22,
-        lux = 23,
-        gardenlight =24
+        doorSensor = er.createBinaryDevice(),
+        temp = er.createMultilevelDevice(),
+        lux = er.createMultilevelDevice(),
+        roomlight = er.createMultilevelDevice(),
+        gardenlight = er.createBinaryDevice(),
+        frontlight = er.createBinaryDevice(),
     }
 
     er.defvars(HT) -- Make HomeTable variables available as variables in rules. 
@@ -30,6 +32,9 @@ function QuickApp:main(er) -- Main function, place to define rules
     rule([[#alarm{property='homeBreached'} =>   -- Log when home is breached
         fibaro.warning(__TAG,efmt('BREACHED home'))
     ]])
+
+    rule("keyfob:central.keyId == 1 => log('Keyfob button 1 pressed')")
+    rule("wait(2); keyfob:sim_pressed=1") -- Fake key press
 
     local msgOpts = { evalResult=false, userLogColor='yellow' }
     rule("elog('Sunrise at %t, Sunset at %t',sunrise,sunset)",msgOpts)

@@ -1,6 +1,6 @@
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 0.052
+local version = 0.053
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -169,6 +169,41 @@ local function setup(ER)
     local cl = _G[name]
     cl.getProp,cl.setProp,cl.trigger,cl.map={},{},{},{}
   end
+
+  class 'VirtDevice'
+  function VirtDevice:__init(id) self.id = id self.modified=os.time() end
+  function VirtDevice:call(method,...)
+    local args = {...}
+    if method=='turnOn' then self:turnOn() self:stateChange('state',true)
+    elseif method=='turnOff' then self:turnOff() self:stateChange('state',false)
+    elseif method=='setValue' then self:setValue(args[1])
+    elseif method=='updateProperty' then self:updateProperty(args[1],args[2])
+    else error("Unknown method "..method) end
+  end
+  function VirtDevice:turnOn() self:stateChange('value',true) end
+  function VirtDevice:turnOff() self:stateChange('value',false) end
+  function VirtDevice:setValue(value) self:stateChange('value',value) end
+  function VirtDevice:updateProperty(prop,value) self:stateChange(prop,value) end
+  function VirtDevice:__tostring() return self._name..tostring(self.id) end
+  function VirtDevice:stateChange(prop,value)
+    local old = self.props[prop]
+    self.props[prop] = value
+    if old ~= value then self.modified=os.time(); fibaro.post({type='device',id=self.id,property=prop,value=value,old=old}) end
+  end
+  function VirtDevice:get(prop) return self.props[prop] end
+
+  class 'VirtBinarySwitch'(VirtDevice)
+  function VirtBinarySwitch:__init(id) 
+    VirtDevice.__init(self,id) self.props = {value=false,state=false} 
+    self._name = "VirtBinaryDevice"
+  end
+  class 'VirtMultilevelSwitch'(VirtDevice)
+  function VirtMultilevelSwitch:__init(id) 
+    VirtDevice.__init(self,id) self.props = {value=0,state=false} 
+    self._name = "VirtMultilevelDevice"
+  end
+  function VirtMultilevelSwitch:turnOn() self:stateChange('value',99) self:stateChange('state',true) end
+  function VirtMultilevelSwitch:turnOff() self:stateChange('value',0) self:stateChange('state',true) end
 end
 
 ----------------------------------------------------------------------------------
@@ -388,6 +423,21 @@ function QuickApp:EventRunnerEngine(callback)
       end)
       return code
     end
+  end
+
+  local vID = 10000
+  function er.createBinaryDevice(id) 
+    if not id then vID = vID + 1; id = vID end
+    local d = VirtBinarySwitch(id)
+    ER.utilities.emulatedDevices[id] = d
+    return id
+  end
+
+  function er.createMultilevelDevice(id) 
+    if not id then vID = vID + 1; id = vID end
+    local d = VirtMultilevelSwitch(id)
+    ER.utilities.emulatedDevices[id] = d
+    return id
   end
 
   local uiHandler = self.UIHandler -- Handles button presses from ER QA UI

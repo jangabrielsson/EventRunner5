@@ -87,6 +87,11 @@ do -- fastEncode
   json.encodeFast = encode
 end
 
+local eventMT = { __tostring = function(ev) 
+  local s = encode(ev) 
+  return fmt("#%s{%s}",ev.type,s:match(",(.*)}") or "") end 
+}
+
 local function shallowCopy(t) local r = {}; for k,v in pairs(t) do r[k]=v end; return r end
 local EventMT = {
   __tostring = function(ev) 
@@ -541,7 +546,7 @@ local function createEventEngine()
   self.BREAK = BREAK
   local handlers = {}
   local function isEvent(e) return type(e) == 'table' and type(e.type)=='string' end
-  
+
   local function coerce(x,y) local x1 = tonumber(x) if x1 then return x1,tonumber(y) else return x,y end end
   local constraints = {}
   constraints['=='] = function(val) return function(x) x,val=coerce(x,val) return x == val end end
@@ -612,15 +617,16 @@ local function createEventEngine()
   
   local toTime = self.toTime 
   function self.post(ev,t,log,hook,customLog)
-    local now = os.time()
+    local now,isEv = os.time(),isEvent(ev)
     t = type(t)=='string' and toTime(t) or t or 0
     if t < 0 then return elseif t < now then t = t+now end
-    if debugFlags.post and (type(ev)=='function' or not ev._sh) then 
+    if debugFlags.post and (type(ev)=='function' or not ev._sh) then
+      if isEv and not getmetatable(ev) then setmetatable(ev,EventMT) end
       (customLog or fibaro.trace)(__TAG,fmt("Posting %s at %s %s",tostring(ev),os.date("%c",t),type(log)=='string' and ("("..log..")") or "")) 
     end
     if type(ev) == 'function' then
       return setTimeout(function() ev(ev) end,1000*(t-now),log),t
-    elseif type(ev)=='table' and type(ev.type)=='string' then
+    elseif isEv then
       if not getmetatable(ev) then setmetatable(ev,EventMT) end
       return setTimeout(function() if hook then hook() end self.handleEvent(ev) end,1000*(t-now),log),t
     else
@@ -719,6 +725,7 @@ local function createEventEngine()
     assert(isEvent(ev),"Bad argument to remote event")
     local time = ev.ev._time
     ev,ev.ev._time = ev.ev,nil
+    setmetatable(ev,EventMT)
     if time and time+5 < os.time() then fibaro.warning(__TAG,fmt("Slow events %s, %ss",tostring(ev),os.time()-time)) end
     self.post(ev)
   end
@@ -828,11 +835,6 @@ local EventTypes = {
       post({type='system',value='action',data=d})
     end
   end,
-}
-
-local eventMT = { __tostring = function(ev) 
-  local s = encode(ev) 
-  return fmt("#%s{%s}",ev.type,s:match(",(.*)}") or "") end 
 }
 
 local aEventEngine = nil
