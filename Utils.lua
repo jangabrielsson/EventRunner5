@@ -343,8 +343,8 @@ function fibaro.__ER.modules.utilities(ER)
     return sunInfo
   end
   
+  local emulatedDevices = {}
   do
-    local emulatedDevices = {}
     local oldCall,oldGet = fibaro.call,__fibaro_get_device_property
     function fibaro.call(id,...) 
       if emulatedDevices[id] then return emulatedDevices[id]:call(...) end
@@ -364,7 +364,8 @@ function fibaro.__ER.modules.utilities(ER)
     local fun = fibaro[name]
     fibaro[name] = function(...)
       local stat = {true}
-      if not nonSpeedCalls[name] or not ER.__speedTime then
+      local virt = name=='call' and emulatedDevices[({...})[1] or ""]
+      if virt or (not nonSpeedCalls[name]) or (not ER.__speedTime) then
         stat = {pcall(fun,...)}
       end
       if not stat[1] then error(stat[2]) end
