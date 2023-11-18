@@ -47,6 +47,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         -- getProps helpers
         local function BN(x) if type(x)=='boolean' then return x and 1 or 0 else return tonumber(x) or 0 end end
         local function get(id,prop) return fibaro.get(id,prop) end
+        local function getnum(id,prop) return tonumber((fibaro.get(id,prop))) or nil end
         local function on(id,prop) return BN(fibaro.get(id,prop)) > 0 end
         local function off(id,prop) return BN(fibaro.get(id,prop)) == 0 end
         local function call(id,cmd) fibaro.call(id,cmd); return true end
@@ -79,8 +80,8 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         -- { type, function to get prop, property name in sourceTrigger, reduce function, if props is a rule trigger }
         getProps.value={'device',get,'value',nil,true}
         getProps.state={'device',get,'state',nil,true}
-        getProps.bat={'device',get,'batteryLevel',nil,true}
-        getProps.power={'device',get,'power',nil,true}
+        getProps.bat={'device',getnum,'batteryLevel',nil,true}
+        getProps.power={'device',getnum,'power',nil,true}
         getProps.isDead={'device',get,'dead',mapOr,true}
         getProps.isOn={'device',on,'value',mapOr,true}
         getProps.isOff={'device',off,'value',mapAnd,true}
@@ -108,10 +109,10 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         getProps.breached={'device',on,'value',mapOr,true}
         getProps.isOpen={'device',on,'value',mapOr,true}
         getProps.isClosed={'device',off,'value',mapAnd,true}
-        getProps.lux={'device',get,'value',nil,true}
+        getProps.lux={'device',getnum,'value',nil,true}
         getProps.volume={'device',get,'volume',nil,true}
         getProps.position={'device',get,'position',nil,true}
-        getProps.temp={'device',get,'value',nil,true}
+        getProps.temp={'device',getnum,'value',nil,true}
         getProps.coolingThermostatSetpoint={'device',get,'coolingThermostatSetpoint',nil,true}
         getProps.coolingThermostatSetpointCapabilitiesMax={'device',get,'coolingThermostatSetpointCapabilitiesMax',nil,true}
         getProps.coolingThermostatSetpointCapabilitiesMin={'device',get,'coolingThermostatSetpointCapabilitiesMin',nil,true}

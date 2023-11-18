@@ -105,6 +105,7 @@ function fibaro.__ER.modules.vm(ER)
   
   function instr.call(i,st,p)
     local args = st.popm(i[4])
+    if not next(args) then args={nil,0} end --hack to get around lua limits...
     local name,f = i[3],nil
     if name then 
       PA={name}
