@@ -178,7 +178,7 @@ function fibaro.__ER.modules.utilities(ER)
     err.type = 'error'
     if err.src then err.srcInfo = err.srcInfo or Utils.errorLine(err.src,err.from,err.to) end
     setmetatable(err,{__tostring=function(self)
-      local e = string.format("%s %s: %s",self.rule and self.rule.rname or "Expr",self.class,self.msg)
+      local e = string.format("%s %s: %s",self.rule and self.rule.longName or "Expr",self.class,self.msg)
       if err.srcInfo then e = e.."\n"..err.srcInfo end
       return e
     end})

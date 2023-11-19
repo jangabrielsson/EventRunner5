@@ -283,7 +283,6 @@ function fibaro.__ER.modules.rule(ER)
     currRule = rule
     rule.instance = 0
     rule._enabled = true
-    local tostring = fibaro._orgToString
   
     nameRule(rule)
     

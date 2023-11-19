@@ -394,7 +394,7 @@ function fibaro.__ER.modules.parser(ER)
       table.insert(t2.args,1,t1)
       return t2
     else
-      return {type=typ, op=op, args={t1,t2}}
+      return {type=typ, op=op, d=p.d, args={t1,t2}}
     end
   end
   
@@ -414,9 +414,9 @@ function fibaro.__ER.modules.parser(ER)
   end
   
   -- ToDo, optimize these
-  function trans_op.addto(p) return transform({type='op', op='assign', args={p.args[1],{type='op', op='add', args={p.args[1],p.args[2]}}}}) end
-  function trans_op.subto(p) return transform({type='op', op='assign', args={p.args[1],{type='op', op='sub', args={p.args[1],p.args[2]}}}}) end
-  function trans_op.multo(p) return transform({type='op', op='assign', args={p.args[1],{type='op', op='mul', args={p.args[1],p.args[2]}}}}) end
+  function trans_op.addto(p) return transform({type='op', op='assign', d=p.d, args={p.args[1],{type='op', op='add', args={p.args[1],p.args[2]}}}}) end
+  function trans_op.subto(p) return transform({type='op', op='assign', d=p.d, args={p.args[1],{type='op', op='sub', args={p.args[1],p.args[2]}}}}) end
+  function trans_op.multo(p) return transform({type='op', op='assign', d=p.d, args={p.args[1],{type='op', op='mul', args={p.args[1],p.args[2]}}}}) end
 
   local tops = {}
   function tops.add(a,b) return a+b end
@@ -448,8 +448,8 @@ function fibaro.__ER.modules.parser(ER)
   trans_op.mod = trans_op_calc
   function trans_op.neg(p)
     local t1 = transform(p.args[1])
-    if t1.type == 'num' then return {type='num', value=-t1.value}
-    else return {type='op', op='neg', args={t1}} end
+    if t1.type == 'num' then return {type='num', value=-t1.value, d=p.d}
+    else return {type='op', op='neg', args={t1}, d=p.d} end
   end
   
   local _rvalues = {var='var',aref='aref',prop='prop',gv='gv',qv='qv'}

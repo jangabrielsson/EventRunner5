@@ -336,7 +336,7 @@ for _,i in ipairs({'add','sub','mul','div','mod'}) do
     if not tonumber(PA[2]) then return fmt("%s expected number as second argument, got %s",i,type(PA[2])) end
   end
 end
-for _,i in ipairs({'addto','subto','multo','divto','modto'}) do
+for _,i in ipairs({'addto','subto','multo','divto','modto','neg'}) do
   errh[i] = function(i) 
     if not tonumber(PA[1]) then return fmt("%s expected number as first argument, got %s",i,type(PA[1])) end
   end
