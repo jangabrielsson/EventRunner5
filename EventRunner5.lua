@@ -21,14 +21,13 @@ function QuickApp:main(er) -- Main function, place to define rules
         frontlight = er.createBinaryDevice(),
     }
 
-    a = fibaro.get(48,"batteryLevel")
     er.defvars(HT) -- Make HomeTable variables available as variables in rules. 
     er.reverseMapDef(HT)
 
+    rule("elog('YYY:%l',[_:isOn in devices])")
     --er.setTime("12/01/2023 12:00:00") --mm/dd/yyyy-hh:mm:ss
     --er.speedTime(2*24) -- 24 hours
 
-    rule("48:bat")
     rule([[#alarm{id='$id', property='breached'} =>  -- Log when a partition is breached
         fibaro.warning(__TAG,efmt('BREACHED partition:%s',env.event.id))
     ]])

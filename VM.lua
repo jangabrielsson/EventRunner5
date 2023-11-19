@@ -291,7 +291,7 @@ end
 function instr.betwo(i,st) end
 function instr.daily(i,st,p) 
   local env = p.args[1]
-  st.push(env.event.type == 'daily' and env.event.id == env.rule.id)
+  st.push(env.evid=='%%START%%' or (env.event.type == 'daily' and env.event.id == env.rule.id))
 end
 function instr.interv(i,st,p)
   local t = math.abs(st.pop())

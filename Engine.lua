@@ -1,6 +1,6 @@
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 0.100
+local version = 0.150
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -443,7 +443,7 @@ function QuickApp:EventRunnerEngine(callback)
   local uiHandler = self.UIHandler -- Handles button presses from ER QA UI
   function self:UIHandler(event)
     if event.deviceId == quickApp.id then
-      self:post({type='UI',cmd=event.elementName,value=event.values[1]}) -- cmd is buttonID
+      fibaro.post({type='UI',cmd=event.elementName,value=event.values[1]}) -- cmd is buttonID
     elseif uiHandler then uiHandler(self,event) end
   end
 

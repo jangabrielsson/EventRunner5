@@ -1,6 +1,6 @@
----@diagnostic disable: need-check-nil
+---@diagnostic disable: need-check-nil, undefined-global
 local lib = {}
-local fibemu = fibaro.fibemu 
+local fibemu = fibaro.fibemu
 fibaro.debugFlags = fibaro.debugFlags or {}
 fibaro.settings = fibaro.settings or {}
 local debugFlags = fibaro.debugFlags
@@ -25,7 +25,7 @@ local function member(k,tab) for i,v in ipairs(tab) do if equal(v,k) then return
 local function map(f,l,s) s = s or 1; local r,m={},maxn(l) for i=s,m do r[#r+1] = f(l[i]) end return r end
 local function mapf(f,l,s) s = s or 1; local e=true for i=s,maxn(l) do e = f(l[i]) end return e end
 local function delete(k,tab) local i = member(tab,k); if i then table.remove(tab,i) return i end end
-local function mapAnd(f,l,s) s = s or 1; local e=true for i=s,table.maxn(l) do e = f(l[i]) if not e then return false end end return e end 
+local function mapAnd(f,l,s) s = s or 1; local e=true for i=s,table.maxn(l) do e = f(l[i]) if not e then return false end end return e end
 local function mapOr(f,l,s) s = s or 1; for i=s,table.maxn(l) do local e = f(l[i]) if e then return e end end return false end
 local function reduce(f,l) local r = {}; for _,e in ipairs(l) do if f(e) then r[#r+1]=e end end; return r end
 local function mapk(f,l) local r={}; for k,v in pairs(l) do r[k]=f(v) end; return r end
@@ -36,7 +36,7 @@ if not table.maxn then table.maxn = maxn end
 table.copy,table.copyShallow,table.equal,table.max,table.member,table.map,table.mapf,table.delete = copy,copyShallow,equal,maxn,member,map,mapf,delete
 table.mapAnd,table.mapOr,table.reduce,table.mapk,table.mapkv,table.mapkl = mapAnd,mapOr,reduce,mapk,mapkv,mapkl
 
-local fmt = string.format 
+local fmt = string.format
 local function gensym(s) return (s or "G")..fibaro._orgToString({}):match("%s(.*)") end
 
 local encode
@@ -76,7 +76,7 @@ do -- fastEncode
       out[#out+1]=']'
     end
   end
-  
+
   function encode(o,sort)
     local out = {}
     sortF = (not sort) and encEsort or encTsort
@@ -87,14 +87,14 @@ do -- fastEncode
   json.encodeFast = encode
 end
 
-local eventMT = { __tostring = function(ev) 
-  local s = encode(ev) 
-  return fmt("#%s{%s}",ev.type,s:match(",(.*)}") or "") end 
+local eventMT = { __tostring = function(ev)
+  local s = encode(ev)
+  return fmt("#%s{%s}",ev.type,s:match(",(.*)}") or "") end
 }
 
 local function shallowCopy(t) local r = {}; for k,v in pairs(t) do r[k]=v end; return r end
 local EventMT = {
-  __tostring = function(ev) 
+  __tostring = function(ev)
       local s = encode(ev)
       return fmt("#%s{%s}",ev.type or "unknown",s:match(",(.*)}") or "")
   end,
@@ -106,11 +106,11 @@ do
     if t > 3600*100 then return os.date("%H:%M",t)
     else return fmt("%2d:%2d",t//3600,t % 3600 // 60) end
   end
-  local function hms(t) 
+  local function hms(t)
     if t > 3600*100 then return os.date("%X",t)
     else return fmt("%2d:%2d:%2d",t//3600,t % 3600 // 60,t % 60) end
   end
-  
+
   local function mkTruncer(n,fun,a) return function(s) return fun(s):sub(1,n),a end end
   local function mkSpacer(n,fun,a)
     local e = n < 0 and 1 or 0
@@ -122,9 +122,9 @@ do
       else return e==1 and (s..string.rep(' ',n-l)) or (string.rep(' ',n-l)..s),a end
     end
   end
-  
+
   local specs = {}
-  function specs.s(f) 
+  function specs.s(f)
     local fun = function(s) return tostring(s),1 end
     local space,trunc = f:match("(-?%d*),?(%d*)")
     if trunc and trunc~="" then fun = mkTruncer(tonumber(trunc),fun,1) end
@@ -142,7 +142,7 @@ do
   function specs.l(f)
     local fun = function(s)
       local r = {} for _,e in ipairs(s) do r[#r+1]=tostring(e) end
-      return table.concat(r,","),1 
+      return table.concat(r,","),1
     end
     local space,trunc = f:match("(-?%d*),?(%d*)")
     if trunc and trunc~="" then fun = mkTruncer(tonumber(trunc),fun,1) end
@@ -155,7 +155,7 @@ do
     c = c~= "" and c or "-"
     return function() return c:rep(n),0 end
   end
-  
+
   local fmtcache = {}
   function string.eformat(fmt,...)
     local frms = fmtcache[fmt]
@@ -183,18 +183,18 @@ do
       fmtcache[fmt]=frms
     end
     local i,n,args,forms,strs,globs = 1,0,{...},frms.forms,frms.strs,frms.globs
-    local stat,res = pcall(function() 
+    local stat,res = pcall(function()
       for _,f in ipairs(forms) do strs[f.i],n = f.f(args[i],i,args) i=i+n end
       local str = table.concat(strs)
       if globs[1] then
         for _,g in ipairs(globs) do str = g(str) end
       end
-      return str 
+      return str
     end)
     if stat then return res
     else error(string.format("Bad argument to string.eformat specifier #%s - '%s'",i,tostring(args[i]))) end
   end
-  
+
   getmetatable("").__idiv = function(str,len) return (#str < len or #str < 4) and str or str:sub(1,len-2)..".." end -- truncate strings
 end
 
@@ -202,7 +202,7 @@ end
 local function base64encode(data)
   __assert_type(data,"string")
   local bC='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-  return ((data:gsub('.', function(x) 
+  return ((data:gsub('.', function(x)
     local r,b='',x:byte() for i=8,1,-1 do r=r..(b%2^i-b%2^(i-1)>0 and '1' or '0') end
     return r;
   end)..'0000'):gsub('%d%d%d?%d?%d?%d?', function(x)
@@ -223,7 +223,7 @@ function urlencode(str) -- very useful
     end)
     str = str:gsub(" ", "%%20")
   end
-  return str	
+  return str
 end
 local function getIPaddress(name)
   if IPaddress then return IPaddress end
@@ -250,8 +250,8 @@ local timerMT = {
 
 local N,NC = 0,0
 local function isTimer(timer) return type(timer)=='table' and timer['%TIMER%'] end
-local function makeTimer(ref,log,exp) 
-  N=N+1 
+local function makeTimer(ref,log,exp)
+  N=N+1
   return setmetatable({['%TIMER%']=(ref or 0),n=N,log=type(log)=='string' and " ("..log..")" or nil,expires=exp or 0},timerMT)
 end
 local function updateTimer(timer,ref) timer['%TIMER%']=ref end
@@ -274,7 +274,7 @@ setTimeout,oldSetTimout=function(f,ms,log)
     if ref._prehook then ref._prehook() end -- pre and posthooks
     local stat,res = pcall(f)
     if ref._posthook then ref._posthook() end
-    if not stat then 
+    if not stat then
       fibaro.error(__TAG,res)
     end
   end
@@ -289,7 +289,7 @@ local oldClearInterval,oldSetInterval = clearInterval,setInterval
 function setInterval(fun,ms) -- can't manage looong intervals
   return oldSetInterval(function()
     local stat,res = pcall(fun)
-    if not stat then 
+    if not stat then
       fibaro.error(__TAG,res)
     end
   end,math.floor(ms+0.5))
@@ -311,22 +311,22 @@ end
 do
   local function toSeconds(str)
     __assert_type(str,"string" )
-    local sun = str:match("(sun%a+)") 
+    local sun = str:match("(sun%a+)")
     if sun then return toSeconds(str:gsub(sun,fibaro.getValue(1,sun.."Hour"))) end
-    local var = str:match("(%$[A-Za-z]+)") 
+    local var = str:match("(%$[A-Za-z]+)")
     if var then return toSeconds(str:gsub(var,fibaro.getGlobalVariable(var:sub(2)))) end
     local h,m,s,op,off=str:match("(%d%d):(%d%d):?(%d*)([+%-]*)([%d:]*)")
     off = off~="" and (off:find(":") and toSeconds(off) or toSeconds("00:00:"..off)) or 0
     return 3600*h+60*m+(s~="" and s or 0)+((op=='-' or op =='+-') and -1 or 1)*off
   end
   lib.toSeconds = toSeconds
-  
+
   ---@diagnostic disable-next-line: param-type-mismatch
   local function midnight() local t = os.date("*t"); t.hour,t.min,t.sec = 0,0,0; return os.time(t) end
   lib.midnight = midnight
   function lib.getWeekNumber(tm) return tonumber(os.date("%V",tm)) end
-  function lib.now() return os.time()-midnight() end  
-  
+  function lib.now() return os.time()-midnight() end
+
   function lib.between(start,stop,optTime)
     __assert_type(start,"string" )
     __assert_type(stop,"string" )
@@ -336,7 +336,7 @@ do
     return start <= optTime and optTime <= stop
   end
   function lib.time2str(t) return fmt("%02d:%02d:%02d",math.floor(t/3600),math.floor((t%3600)/60),t%60) end
-  
+
   local function hm2sec(hmstr,ns)
     local offs,sun
     sun,offs = hmstr:match("^(%a+)([+-]?%d*)")
@@ -352,7 +352,7 @@ do
     if not (h and m) then error(fmt("Bad hm2sec string %s",hmstr)) end
     return (sg == '-' and -1 or 1)*(tonumber(h)*3600+tonumber(m)*60+(tonumber(s) or 0)+(tonumber(offs or 0))*60)
   end
-  
+
   -- toTime("10:00")     -> 10*3600+0*60 secs
   -- toTime("10:00:05")  -> 10*3600+0*60+5*1 secs
   -- toTime("t/10:00")    -> (t)oday at 10:00. midnight+10*3600+0*60 secs
@@ -364,7 +364,7 @@ do
   -- toTime("sunset+10")  -> todays sunset + 10min. E.g. sunset="05:10", =>toTime("05:10")+10*60
   -- toTime("sunrise-5")  -> todays sunrise - 5min
   -- toTime("t/sunset+10")-> (t)oday at sunset in 'absolute' time. E.g. midnight+toTime("sunset+10")
-  
+
   local function toTime(time)
     if type(time) == 'number' then return time end
     local p = time:sub(1,2)
@@ -376,7 +376,7 @@ do
     else return hm2sec(time) end
   end
   lib.toTime,lib.hm2sec = toTime,hm2sec
-  
+
   local function sunturnTime(date, rising, latitude, longitude, zenith, local_offset)
     local rad,deg,floor = math.rad,math.deg,math.floor
     local frac = function(n) return n - floor(n) end
@@ -386,21 +386,21 @@ do
     local asin = function(d) return deg(math.asin(d)) end
     local tan = function(d) return math.tan(rad(d)) end
     local atan = function(d) return deg(math.atan(d)) end
-    
+
     local function day_of_year(date2)
       local n1 = floor(275 * date2.month / 9)
       local n2 = floor((date2.month + 9) / 12)
       local n3 = (1 + floor((date2.year - 4 * floor(date2.year / 4) + 2) / 3))
       return n1 - (n2 * n3) + date2.day - 30
     end
-    
+
     local function fit_into_range(val, min, max)
       local range,count = max - min,nil
       if val < min then count = floor((min - val) / range) + 1; return val + count * range
       elseif val >= max then count = floor((val - max) / range) + 1; return val - count * range
       else return val end
     end
-    
+
     -- Convert the longitude to hour value and calculate an approximate time
     local n,lng_hour,t =  day_of_year(date), longitude / 15,nil
     if rising then t = n + ((6 - lng_hour) / 24) -- Rising time is desired
@@ -419,7 +419,7 @@ do
     local cosH = (cos(zenith) - (sinDec * sin(latitude))) / (cosDec * cos(latitude)) -- Calculate the Sun^s local hour angle
     if rising and cosH > 1 then return -1 --"N/R" -- The sun never rises on this location on the specified date
     elseif cosH < -1 then return -1 end --"N/S" end -- The sun never sets on this location on the specified date
-    
+
     local H -- Finish calculating H and convert into hours
     if rising then H = 360 - acos(cosH)
     else H = acos(cosH) end
@@ -430,17 +430,17 @@ do
     ---@diagnostic disable-next-line: missing-fields
     return os.time({day = date.day,month = date.month,year = date.year,hour = floor(LT),min = math.modf(frac(LT) * 60)})
   end
-  
+
   ---@diagnostic disable-next-line: param-type-mismatch
   local function getTimezone() local now = os.time() return os.difftime(now, os.time(os.date("!*t", now))) end
-  
+
   function lib.sunCalc(time)
     local hc3Location = api.get("/settings/location")
     local lat = hc3Location.latitude or 0
     local lon = hc3Location.longitude or 0
     local utc = getTimezone() / 3600
     local zenith,zenith_twilight = 90.83, 96.0 -- sunset/sunrise 90°50′, civil twilight 96°0′
-    
+
     local date = os.date("*t",time or os.time())
     if date.isdst then utc = utc + 1 end
     local rise_time = os.date("*t", sunturnTime(date, true, lat, lon, zenith, utc))
@@ -472,12 +472,12 @@ do
     local function expandDate(w1,md)
       local function resolve(id)
         local res
-        if id == 'last' then month = md res=last[md] 
-        elseif id == 'lastw' then month = md res=last[md]-6 
+        if id == 'last' then month = md res=last[md]
+        elseif id == 'lastw' then month = md res=last[md]-6
         else res= type(id) == 'number' and id or days[id] or months[id] or tonumber(id) end
         _assert(res,"Bad date specifier '%s'",id) return res
       end
-      local step = 1
+      local step = tonumber(1)
       local w,m = w1[1],w1[2]
       local start,stop = w:match("(%w+)%p(%w+)")
       if (start == nil) then return resolve(w) end
@@ -492,7 +492,7 @@ do
       _assert(start>=m.min and start<=m.max and stop>=m.min and stop<=m.max,"illegal date intervall")
       while (start ~= stop) do -- 10-2
         res[#res+1] = start
-        start = start+1; if start>m.max then start=m.min end  
+        start = start+1; if start>m.max then start=m.min end
       end
       res[#res+1] = stop
       if step > 1 then for i=1,#res,step do res2[#res2+1]=res[i] end; res=res2 end
@@ -536,7 +536,7 @@ do
   end
 
   fibaro.dateTest = dateTest
-end 
+end
 
 --------------- Event engine -------------------
 local function createEventEngine()
@@ -557,7 +557,7 @@ local function createEventEngine()
   constraints['<'] = function(val) return function(x) x,val=coerce(x,val) return x < val end end
   constraints['~='] = function(val) return function(x) x,val=coerce(x,val) return x ~= val end end
   constraints[''] = function(_) return function(x) return x ~= nil end end
-  
+
   local function compilePattern2(pattern)
     if type(pattern) == 'table' then
       if pattern._var_ then return end
@@ -572,7 +572,7 @@ local function createEventEngine()
     end
     return pattern
   end
-  
+
   local function compilePattern(pattern)
     pattern = compilePattern2(copy(pattern))
     if pattern.type and type(pattern.id)=='table' and not pattern.id._constr then
@@ -614,15 +614,15 @@ local function createEventEngine()
       --em.stats.errors=(em.stats.errors or 0)+1
     else return res end
   end
-  
-  local toTime = self.toTime 
+
+  local toTime = self.toTime
   function self.post(ev,t,log,hook,customLog)
     local now,isEv = os.time(),isEvent(ev)
     t = type(t)=='string' and toTime(t) or t or 0
     if t < 0 then return elseif t < now then t = t+now end
     if debugFlags.post and (type(ev)=='function' or not ev._sh) then
       if isEv and not getmetatable(ev) then setmetatable(ev,EventMT) end
-      (customLog or fibaro.trace)(__TAG,fmt("Posting %s at %s %s",tostring(ev),os.date("%c",t),type(log)=='string' and ("("..log..")") or "")) 
+      (customLog or fibaro.trace)(__TAG,fmt("Posting %s at %s %s",tostring(ev),os.date("%c",t),type(log)=='string' and ("("..log..")") or ""))
     end
     if type(ev) == 'function' then
       return setTimeout(function() ev(ev) end,1000*(t-now),log),t
@@ -633,9 +633,9 @@ local function createEventEngine()
       error("post(...) not event or fun;"..tostring(ev))
     end
   end
-  
+
   function self.cancel(id) clearTimeout(id) end
-  
+
   local toHash,fromHash={},{}
   fromHash['device'] = function(e) return {"device"..e.id..e.property,"device"..e.id,"device"..e.property,"device"} end
   fromHash['global-variable'] = function(e) return {'global-variable'..e.name,'global-variable'} end
@@ -645,8 +645,8 @@ local function createEventEngine()
   fromHash['custom-event'] = function(e) return {'custom-event'..e.name,'custom-event'} end
   fromHash['deviceEvent'] = function(e) return {"deviceEvent"..e.id..e.value,"deviceEvent"..e.id,"deviceEvent"..e.value,"deviceEvent"} end
   fromHash['sceneEvent'] = function(e) return {"sceneEvent"..e.id..e.value,"sceneEvent"..e.id,"sceneEvent"..e.value,"sceneEvent"} end
-  toHash['device'] = function(e) return "device"..(e.id or "")..(e.property or "") end   
-  
+  toHash['device'] = function(e) return "device"..(e.id or "")..(e.property or "") end
+
   toHash['global-variable'] = function(e) return 'global-variable'..(e.name or "") end
   toHash['quickvar'] = function(e) return 'quickvar'..(e.id or "")..(e.name or "") end
   toHash['profile'] = function(e) return 'profile'..(e.property or "") end
@@ -654,29 +654,38 @@ local function createEventEngine()
   toHash['custom-event'] = function(e) return 'custom-event'..(e.name or "") end
   toHash['deviceEvent'] = function(e) return 'deviceEvent'..(e.id or "")..(e.value or "") end
   toHash['sceneEvent'] = function(e) return 'sceneEvent'..(e.id or "")..(e.value or "") end
-  
-  
+
+
   local MTrule = { __tostring = function(self) return fmt("SourceTriggerSub:%s",self.event.type) end }
   function self.addEventHandler(pattern,fun,doc)
     if not isEvent(pattern) then error("Bad event pattern, needs .type field") end
     assert(type(fun)=='func'..'tion', "Second argument must be Lua func")
     local cpattern = compilePattern(pattern)
-    local hashKey = toHash[pattern.type] and toHash[pattern.type](pattern) or pattern.type
-    handlers[hashKey] = handlers[hashKey] or {}
-    local rules = handlers[hashKey]
-    local rule,fn = {[HANDLER]=cpattern, event=pattern, action=fun, doc=doc}, true
-    for _,rs in ipairs(rules) do -- Collect handlers with identical patterns. {{e1,e2,e3},{e1,e2,e3}}
-      if equal(cpattern,rs[1].event) then 
-        rs[#rs+1] = rule
-        fn = false break 
+    local rule,hashKeys = {[HANDLER]=cpattern, event=pattern, action=fun, doc=doc},{}
+    if toHash[pattern.type] and pattern.id and type(pattern.id) == 'table' then
+      local oldid=pattern.id
+      for _,id in ipairs(pattern.id) do
+        pattern.id = id
+        hashKeys[#hashKeys+1] = toHash[pattern.type](pattern)
+        pattern.id = oldid
       end
+    else hashKeys = {toHash[pattern.type] and toHash[pattern.type](pattern) or pattern.type} end
+    for _,hashKey in ipairs(hashKeys) do
+      handlers[hashKey] = handlers[hashKey] or {}
+      local rules,fn = handlers[hashKey],true
+      for _,rs in ipairs(rules) do -- Collect handlers with identical patterns. {{e1,e2,e3},{e1,e2,e3}}
+        if equal(cpattern,rs[1].event) then
+          rs[#rs+1] = rule
+          fn = false break
+        end
+      end
+      if fn then rules[#rules+1] = {rule} end
     end
-    if fn then rules[#rules+1] = {rule} end
     rule.enable = function() rule._disabled = nil return rule end
     rule.disable = function() rule._disabled = true return rule end
     return rule
   end
-  
+
   function self.removeEventHandler(rule)
     local pattern,fun = rule.event,rule.action
     local hashKey = toHash[pattern.type] and toHash[pattern.type](pattern) or pattern.type
@@ -691,13 +700,13 @@ local function createEventEngine()
       if #rs==0 then table.remove(rules,j) else j=j+1 end
     end
   end
-  
+
   local callbacks = {}
   function self.registerCallback(fun) callbacks[#callbacks+1] = fun end
-  
+
   function self.handleEvent(ev,firingTime)
     for _,cb in ipairs(callbacks) do cb(ev) end
-    
+
     local hasKeys = fromHash[ev.type] and fromHash[ev.type](ev) or {ev.type}
     for _,hashKey in ipairs(hasKeys) do
       for _,rules in ipairs(handlers[hashKey] or {}) do -- Check all rules of 'type'
@@ -711,7 +720,7 @@ local function createEventEngine()
         if m then                           -- we have a match
           for j=i,#rules do                 -- executes all rules with same head
             local rule=rules[j]
-            if not rule._disabled then 
+            if not rule._disabled then
               if invokeHandler({event = ev, time = firingTime, p=m, rule=rule}) == BREAK then return end
             end
           end
@@ -745,7 +754,7 @@ local function createEventEngine()
 end -- createEventEngine
 
 local function quickVarEvent(d,_,post)
-  local old={}; for _,v in ipairs(d.oldValue) do old[v.name] = v.value end 
+  local old={}; for _,v in ipairs(d.oldValue) do old[v.name] = v.value end
   for _,v in ipairs(d.newValue) do
     if not equal(v.value,old[v.name]) then
       post({type='quickvar', id=d.id, name=v.name, value=v.value, old=old[v.name]})
@@ -755,7 +764,7 @@ end
 
 -- There are more, but these are what I seen so far...
 
-local EventTypes = { 
+local EventTypes = {
   AlarmPartitionArmedEvent = function(d,_,post) post({type='alarm', property='armed', id = d.partitionId, value=d.armed}) end,
   AlarmPartitionBreachedEvent = function(d,_,post) post({type='alarm', property='breached', id = d.partitionId, value=d.breached}) end,
   AlarmPartitionModifiedEvent = function(d,_,post) print(json.encode(d)) end,
@@ -771,20 +780,20 @@ local EventTypes = {
       post({type='device', id=d.id, property=d.property, value=d.newValue, old=d.oldValue})
     end
   end,
-  CentralSceneEvent = function(d,_,post) 
+  CentralSceneEvent = function(d,_,post)
     d.id,d.icon = d.id or d.deviceId,nil
-    post({type='device', property='centralSceneEvent', id=d.id, value={keyId=d.keyId, keyAttribute=d.keyAttribute}}) 
+    post({type='device', property='centralSceneEvent', id=d.id, value={keyId=d.keyId, keyAttribute=d.keyAttribute}})
   end,
-  SceneActivationEvent = function(d,_,post) 
+  SceneActivationEvent = function(d,_,post)
     d.id = d.id or d.deviceId
-    post({type='device', property='sceneActivationEvent', id=d.id, value={sceneId=d.sceneId}})     
+    post({type='device', property='sceneActivationEvent', id=d.id, value={sceneId=d.sceneId}})
   end,
-  AccessControlEvent = function(d,_,post) 
-    post({type='device', property='accessControlEvent', id=d.id, value=d}) 
+  AccessControlEvent = function(d,_,post)
+    post({type='device', property='accessControlEvent', id=d.id, value=d})
   end,
-  CustomEvent = function(d,_,post) 
-    local value = api.get("/customEvents/"..d.name) 
-    post({type='custom-event', name=d.name, value=value and value.userDescription}) 
+  CustomEvent = function(d,_,post)
+    local value = api.get("/customEvents/"..d.name)
+    post({type='custom-event', name=d.name, value=value and value.userDescription})
   end,
   PluginChangedViewEvent = function(d,_,post) post({type='PluginChangedViewEvent', value=d}) end,
   WizardStepStateChangedEvent = function(d,_,post) post({type='WizardStepStateChangedEvent', value=d})  end,
@@ -801,8 +810,8 @@ local EventTypes = {
   SceneModifiedEvent = function(d,_,post)  post({type='sceneEvent', id=d.id, value='modified'}) end,
   SceneCreatedEvent = function(d,_,post)  post({type='sceneEvent', id=d.id, value='created'}) end,
   OnlineStatusUpdatedEvent = function(d,_,post) post({type='onlineEvent', value=d.online}) end,
-  ActiveProfileChangedEvent = function(d,_,post) 
-    post({type='profile',property='activeProfile',value=d.newActiveProfile, old=d.oldActiveProfile}) 
+  ActiveProfileChangedEvent = function(d,_,post)
+    post({type='profile',property='activeProfile',value=d.newActiveProfile, old=d.oldActiveProfile})
   end,
   ClimateZoneChangedEvent = function(d,_,post) --ClimateZoneChangedEvent
     if d.changes and type(d.changes)=='table' then
@@ -829,9 +838,9 @@ local EventTypes = {
   DeviceFirmwareUpdateEvent = function(_) end,
   GeofenceEvent = function(d,_,post) post({type='location',id=d.userId,property=d.locationId,value=d.geofenceAction,timestamp=d.timestamp}) end,
   DeviceActionRanEvent = function(d,e,post)
-    if e.sourceType=='user' then  
+    if e.sourceType=='user' then
       post({type='user',id=e.sourceId,value='action',data=d})
-    elseif e.sourceType=='system' then 
+    elseif e.sourceType=='system' then
       post({type='system',value='action',data=d})
     end
   end,
@@ -846,18 +855,18 @@ function SourceTrigger:__init()
   local function post(event,firingTime)
     setmetatable(event,eventMT)
     if debugFlags.sourceTrigger then fibaro.trace(__TAG,fmt("SourceTrigger: %s",tostring(event) // fibaro.settings.truncLog)) end
-    self.eventEngine.handleEvent(event,firingTime) 
+    self.eventEngine.handleEvent(event,firingTime)
   end
-  local function filter(ev) 
-    if debugFlags.refreshEvents then 
-      fibaro.trace(__TAG,fmt("RefreshEvent: %s:%s",ev.type,encode(ev.data)) // fibaro.settings.truncLog) 
+  local function filter(ev)
+    if debugFlags.refreshEvents then
+      fibaro.trace(__TAG,fmt("RefreshEvent: %s:%s",ev.type,encode(ev.data)) // fibaro.settings.truncLog)
     end
-    return true 
+    return true
   end
-  local function handler(ev) 
-    if EventTypes[ev.type] then 
-      EventTypes[ev.type](ev.data,ev,post) 
-    end 
+  local function handler(ev)
+    if EventTypes[ev.type] then
+      EventTypes[ev.type](ev.data,ev,post)
+    end
   end
   self.refresh:subscribe(filter,handler)
 end
@@ -895,21 +904,21 @@ do
   local function DEBUG(...) if debugFlags.pubsub then fibaro.debug(__TAG,fmt(...)) end end
   local inited,initPubSub,match,compile
   local member,equal,copy = table.member,table.equal,table.copy
-  
+
   function fibaro.publish(event)
     if not inited then initPubSub(quickApp) end
     assert(type(event)=='table' and event.type,"Not an event")
     local subs = idSubs[event.type] or {}
     for _,e in ipairs(subs) do
       if match(e.pattern,event) then
-        for id,_ in pairs(e.ids) do 
+        for id,_ in pairs(e.ids) do
           DEBUG("Sending sub QA:%s",id)
           fibaro.call(id,"SUBSCRIPTION",event)
         end
       end
     end
   end
-  
+
   function fibaro.subscribe(events,handler)
     if not inited then initPubSub(quickApp) end
     if not events[1] then events = {events} end
@@ -925,18 +934,18 @@ do
       fibaro.event(events,handler)
     end
   end
-  
+
   --  idSubs = {
   --    <type> = { { ids = {... }, event=..., pattern = ... }, ... }
   --  }
-  
+
   function match(...) return aEventEngine.match(...) end
   function compile(...) return aEventEngine.compile(...) end
-  
+
   function QuickApp.SUBSCRIPTION(_,e)
     fibaro.post(e)
   end
-  
+
   local function updateSubscriber(id,events)
     if not idSubs[id] then DEBUG("New subscriber, QA:%s",id) end
     for _,ev in ipairs(events) do
@@ -959,35 +968,35 @@ do
       ::nxt::
     end
   end
-  
+
   local function checkVars(id,vars)
-    for _,var in ipairs(vars or {}) do 
+    for _,var in ipairs(vars or {}) do
       if var.name==SUB_VAR then return updateSubscriber(id,var.value) end
     end
   end
-  
+
   function initPubSub(quickApp)
     -- At startup, check all QAs for subscriptions
     for _,d in ipairs(api.get("/devices?interface=quickApp") or {}) do
       checkVars(d.id,d.properties.quickAppVariables)
     end
-    
+
     fibaro.event({type='quickvar',name=SUB_VAR},            -- If some QA changes subscription
-    function(env) 
+    function(env)
       local id = env.event.id
       DEBUG("QA:%s updated quickvar sub",id)
       updateSubscriber(id,env.event.value)                  -- update
-    end) 
-    
+    end)
+
     fibaro.event({type='deviceEvent',value='removed'},      -- If some QA is removed
-    function(env) 
+    function(env)
       local id = env.event.id
       if id ~= quickApp.id then
         DEBUG("QA:%s removed",id)
         updateSubscriber(env.event.id,{})                   -- update
       end
     end)
-    
+
     fibaro.event({
       {type='deviceEvent',value='created'},                 -- If some QA is added or modified
       {type='deviceEvent',value='modified'}
@@ -1008,7 +1017,7 @@ local _init,_onInit = QuickApp.__init,nil
 function QuickApp:setVersion(model,serial,version)
   local m = model..":"..serial.."/"..version
   if __fibaro_get_device_property(self.id,'model') ~= m then
-    quickApp:updateProperty('model',m) 
+    quickApp:updateProperty('model',m)
   end
 end
 local function initQA(selfv)
