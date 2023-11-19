@@ -24,7 +24,6 @@ function QuickApp:main(er) -- Main function, place to define rules
     er.defvars(HT) -- Make HomeTable variables available as variables in rules. 
     er.reverseMapDef(HT)
 
-    rule("elog('YYY:%l',[_:isOn in devices])")
     --er.setTime("12/01/2023 12:00:00") --mm/dd/yyyy-hh:mm:ss
     --er.speedTime(2*24) -- 24 hours
 
