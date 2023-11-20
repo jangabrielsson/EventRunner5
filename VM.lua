@@ -15,9 +15,10 @@ function fibaro.__ER.modules.vm(ER)
   local settings = ER.settings
 
   local function errorf(p,fm,...)
-    local dbg = p.fun.dbg[p.fun.code[p.pc]]
+    local fun = p.fun or p.co.fun
+    local dbg = fun.dbg[fun.code[p.pc]]
     dbg = dbg and dbg.d or {}
-    local err = errorMsg{type="Runtime",msg=fmt(fm,...),from=dbg.from,to=dbg.to,src=p.fun.src,rule=p.rule}
+    local err = errorMsg{type="Runtime",msg=fmt(fm,...),from=dbg.from,to=dbg.to,src=fun.src,rule=p.rule}
     e_error(err) 
   end
   
@@ -237,7 +238,7 @@ function instr.prop(i,st,p)
   local ids,prop,env = st.pop(),i[3],p.args[1] or {}
   local isTable,n,mapf,v = type(ids) == 'table',1,nil,nil
   if isTable then n = maxn(ids) end
-  if ids==nil or n == 0 then errorf(p.args[1] or p,"No devices found for :%s",prop) end
+  if ids==nil or n == 0 then errorf(p or p.args[1],"No devices found for :%s",prop) end
   local function itemFun(e) 
     local dev = ER.getDeviceObject(e)
     if not dev then errorf(p,"%s is not a valid device",tostring(dev)) end

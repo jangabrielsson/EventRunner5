@@ -112,7 +112,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         getProps.lux={'device',getnum,'value',nil,true}
         getProps.volume={'device',get,'volume',nil,true}
         getProps.position={'device',get,'position',nil,true}
-        getProps.temp={'device',getnum,'value',nil,true}
+        getProps.temp={'device',get,'value',nil,true}
         getProps.coolingThermostatSetpoint={'device',get,'coolingThermostatSetpoint',nil,true}
         getProps.coolingThermostatSetpointCapabilitiesMax={'device',get,'coolingThermostatSetpointCapabilitiesMax',nil,true}
         getProps.coolingThermostatSetpointCapabilitiesMin={'device',get,'coolingThermostatSetpointCapabilitiesMin',nil,true}
@@ -292,9 +292,9 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     args.efmt = {1,99}
     function builtin.efmt(i,st,p) st.push(eformat(table.unpack(st.lift(i[3])))) end
     args.HM = {1,1}
-    function builtin.HM(i,st,p) local t = st.pop(); st.push(os.date("%H:%M",t < os.time() and t+midnight() or t)) end  
+    function builtin.HM(i,st,p) local t = st.pop(); st.push(os.date("%H:%M",t < os.time()-8760*3600 and t+midnight() or t)) end  
     args.HMS = {1,1}
-    function builtin.HMS(i,st,p) local t = st.pop(); st.push(os.date("%H:%M:%S",t < os.time() and t+midnight() or t)) end  
+    function builtin.HMS(i,st,p) local t = st.pop(); st.push(os.date("%H:%M:%S",t < os.time()-8760*3600 and t+midnight() or t)) end  
     args.sign = {1,1}
     function builtin.sign(i,st,p) st.push(tonumber(st.pop()) < 0 and -1 or 1) end
     args.rnd = {1,2}

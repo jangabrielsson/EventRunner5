@@ -147,6 +147,7 @@ function fibaro.__ER.modules.utilities(ER)
   else
     function Utils.printBanner(str,args,col,ch,w)
       col=col or ER.settings.bannerColor or "orange"
+      str = fmt("<font color='black'>%s</font>",str)
       LOG(Utils.htmlTable({fmt(str,table.unpack(args or {}))},{table="width='100%' border=1 bgcolor='"..col.."'",td="align='center'"}))
     end
   end

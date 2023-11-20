@@ -1,6 +1,6 @@
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 0.155
+local version = 0.200
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -211,6 +211,7 @@ end
 function QuickApp:EventRunnerEngine(callback)
   quickApp = self
   self:setVersion("EventRunner5",self.E_SERIAL,self.E_VERSION)
+  self:updateView('title','text',fmt("EventRunner5 v%0.3f",self.E_VERSION))
   local vp = api.get("/settings/info").currentVersion.version
   local a,b,c = vp:match("(%d+)%.(%d+)%.(%d+)")
   vp = tonumber(string.format("%03d%03d%03d",a,b,c))
@@ -340,7 +341,8 @@ function QuickApp:EventRunnerEngine(callback)
     for k,v in pairs(er.ruleOpts) do if options[k]==nil then options[k]=v end end
 
     options.error = options.error or function(err)
-      fibaro.error(__TAG,fmt("%s",err))
+      LOGERR("%s",err)
+      e_error(err)
     end
     options.suspended = options.suspended or function(...) end       -- default, do nothing
     options.success = options.success or function(...)               -- expression succeeded - log results
@@ -354,7 +356,8 @@ function QuickApp:EventRunnerEngine(callback)
 
     local stat = {e_pcall(er.eval0,str,options)} -- This is a coroutine result; bool,bool,...
     if stat[1] then return table.unpack(stat,3) end
-    options.error(stat[2])
+    e_error(stat[2])
+    --options.error(stat[2])
   end
 
   er.runCoroutine = ER.runCoroutine
@@ -453,8 +456,8 @@ function QuickApp:EventRunnerEngine(callback)
     local t0 = os.clock()
     local stat,err = pcall(function() main(self,er) end)
     if not stat then
-      fibaro.error(__TAG,err)
       fibaro.error(__TAG,"Rule setup error(s) - fix & restart...")
+      fibaro.error(__TAG,"Last err:", err)
       for i,r in pairs(ER.rules) do r.disable() end
       return
     end
