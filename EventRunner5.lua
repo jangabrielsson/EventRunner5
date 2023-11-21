@@ -2,10 +2,11 @@
 --%%name=EventRunner5
 --%%remote=alarms/v1/partitions:1
 --%%remote=devices:*
+--%%debug=refresh:false
 --%%u1={label='title',text='EventRunner5'}
 --%%u2={{button='listRules',text='List rules', onReleased='listRules'},{button='listRulesExt',text='List rules ext.', onReleased='listRulesExt'}}
 --%%u3={{button='listTimers',text='List timers', onReleased='listTimers'},{button='listVars',text='List variables', onReleased='listVariables'}}
---%%u4={{button='test1',text='Test1', onReleased='test1'},{button='test2',text='Test2', onReleased='test2'}}
+--%%u4={label='stats',text=''}
 
 function QuickApp:main(er) -- Main function, place to define rules
     local rule,eval,var,triggerVar,Util = er.eval,er.eval,er.variables,er.triggerVariables,er
@@ -34,34 +35,35 @@ function QuickApp:main(er) -- Main function, place to define rules
         fibaro.warning(__TAG,efmt('BREACHED home'))
     ]])
 
-    rule("keyfob:central.keyId == 1 => log('Keyfob button 1 pressed')")
-    rule("wait(2); keyfob:sim_pressed=1") -- Fake key press
-
     local msgOpts = { evalResult=false, userLogColor='yellow' }
-    rule("elog('Sunrise at %t, Sunset at %t',sunrise,sunset)",msgOpts)
-    rule("log('Weather condition is %s',weather:condition)",msgOpts)
-    rule("log('Temperature is %s°',weather:temperature)",msgOpts)
-    rule("log('Wind is %sms',weather:wind)",msgOpts)
+    local function expr(str) return rule(str,msgOpts) end -- Helper function to create non-logging expr with msgOpts
+
+    rule("keyfob:central.keyId == 1 => log('Keyfob button 1 pressed')")
+    expr("wait(2); keyfob:sim_pressed=1") -- Fake key press
+
+    expr("log('HC3 uptime %s',uptimeStr)")
+    expr("elog('Sunrise at %t, Sunset at %t',sunrise,sunset)")
+    expr("log('Weather condition is %s',weather:condition)")
+    expr("log('Temperature is %s°',weather:temperature)")
+    expr("log('Wind is %sms',weather:wind)")
+    
+    -- At start, log all devices with battery < 50%
+    expr("elog('Devices with <50 battery are %l',[_:bat&_:bat<50,fmt('%s:%s',_,_:name) in devices])")
 
     var.i = 0 -- initialize ER variable
     rule("@@00:00:05 => i=i+1; log('ping: %s seconds',i*5)",{ruleTrue=false}) -- test rule, ping every 5 seconds
-
-    -- At start, log all devices with battery < 50%
-    rule("elog('Devices with <50 battery are %l',[_:bat&_:bat<50,fmt('%s:%s',_,_:name) in devices])",{silent=true})
 
     rule("@sunset+00:10 => log('Ok, sunset+00:10')")
     rule("@sunrise-00:10 => log('Ok, sunrise-00:10')")
 
     -- rule("log('Time:%s',http.get('http://worldtimeapi.org/api/timezone/Europe/Stockholm').datetime)")
-
+    expr("wait(3); listRules()")
+    expr("wait(3); listStats()")
     local ruleOpts = { silent=true }
     rule("#UI{cmd='listRules'} => listRules(false)",ruleOpts)
     rule("#UI{cmd='listRulesExt'} => listRules(true)",ruleOpts)
     rule("#UI{cmd='listVars'} => listVariables()",ruleOpts)
     rule("#UI{cmd='listTimers'} => listTimers()",ruleOpts)
-    
-    -- rule("#UI{cmd='test1'} => buttonCallback('test1')",ruleOpts)
-    -- rule("#UI{cmd='test2'} => a.enable()",ruleOpts)
 end
 
 function QuickApp:onInit()

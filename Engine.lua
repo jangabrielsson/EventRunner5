@@ -1,6 +1,6 @@
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 0.200
+local version = 0.300
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -389,6 +389,7 @@ function QuickApp:EventRunnerEngine(callback)
 
   for k,v in pairs({
     listRules= ER.listRules,listVariables=ER.listVariables,listTimers=ER.listTimers,
+    listStats = ER.logRuleStats,
     enable=ER.enable,disable=ER.disable,
     defvars = function(t) for k,v in pairs(t) do er.defvar(k,v) end end,
     async = ER.asyncFun,
@@ -449,6 +450,11 @@ function QuickApp:EventRunnerEngine(callback)
       fibaro.post({type='UI',cmd=event.elementName,value=event.values[1]}) -- cmd is buttonID
     elseif uiHandler then uiHandler(self,event) end
   end
+
+    local uptime = os.time() - api.get("/settings/info").serverStatus
+    local uptimeStr = fmt("%d days, %d hours, %d minutes",uptime // (24*3600),(uptime % 24*3600) // 3600, (uptime % 3600) // 60)
+    ER.vars.uptimeStr = uptimeStr
+    ER.vars.uptimeMinutes = uptime // 60
 
   local main = callback and function(_,er) callback(er) end or self.main
   if main then

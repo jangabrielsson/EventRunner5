@@ -44,27 +44,27 @@ function fibaro.__ER.modules.utilities(ER)
   
   local floor = math.floor
   
-  local function htmlify(str)
+  local function htmlify(str,sp)
     local cols,i = {},0
     str = str:gsub("(<font .->)",function(c) cols[#cols+1]=c return "#CCC#" end)
-    --str = str:gsub(" ","&nbsp;")
+    if sp then str = str:gsub(" ","&nbsp;") end
     str = str:gsub("\n","</br>")
     return str:gsub("(#CCC#)",function(c) i=i+1 return cols[i] end)
   end
   
-  local function LOGGER(df,f,...)
+  local function LOGGER(df,sp,f,...)
     if #{...} > 0 then
       local msg = f:format(...)
-      msg = htmlify(msg)
+      msg = htmlify(msg,sp)
       df(ER.settings.systemLogTag or __TAG,msg)
     else 
-      f = htmlify(f)
+      f = htmlify(f,sp)
       df(ER.settings.systemLogTag or __TAG,f) 
     end
   end
   
-  function Utils.LOG(f,...) LOGGER(fibaro.trace,f,...) end
-  function Utils.LOGERR(f,...) LOGGER(fibaro.error,f,...) end
+  function Utils.LOG(f,...) LOGGER(fibaro.trace,false,f,...) end
+  function Utils.LOGERR(f,...) LOGGER(fibaro.error,true,f,...) end
   
   local LOG = Utils.LOG
   local LOGERR = Utils.LOGERR
@@ -83,7 +83,23 @@ function fibaro.__ER.modules.utilities(ER)
   end
   
   local function maxLen(list) local m = 0 for _,e in ipairs(list) do m=math.max(m,e:len()) end return m end
-  if hc3_emulator then 
+  function Utils.htmlTableAlt(list,opts)
+    opts = opts or {}
+    local pr = Utils.PrintBuffer()
+    pr:printf("<table %s>",opts.table or "")
+    for _,l in ipairs(list) do
+      pr:printf("<tr %s>",opts.tr or "")
+      l = type(l)=='table' and l or {l}
+      for _,e in ipairs(l) do
+        pr:printf("<td %s>",opts.td or "") pr:add(tostring(e)) pr:add("</td>") 
+      end
+      pr:add("</tr>")
+    end
+    pr:add("</table>")
+    return pr:tostring("")
+  end
+
+  if fibaro.fibemu then 
     function Utils.htmlTable(list,opts)
       opts = opts or {}
       local pr,cols,rows=Utils.PrintBuffer(),{},{}
@@ -115,21 +131,7 @@ function fibaro.__ER.modules.utilities(ER)
       return "\n"..pr:tostring("\n")
     end
   else
-    function Utils.htmlTable(list,opts)
-      opts = opts or {}
-      local pr = Utils.PrintBuffer()
-      pr:printf("<table %s>",opts.table or "")
-      for _,l in ipairs(list) do
-        pr:printf("<tr %s>",opts.tr or "")
-        l = type(l)=='table' and l or {l}
-        for _,e in ipairs(l) do
-          pr:printf("<td %s>",opts.td or "") pr:add(tostring(e)) pr:add("</td>") 
-        end
-        pr:add("</tr>")
-      end
-      pr:add("</table>")
-      return pr:tostring("")
-    end
+    Utils.htmlTable = Utils.htmlTableAlt
   end
   
   function Utils.strPad(str,args,ch,w)

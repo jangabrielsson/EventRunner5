@@ -20,7 +20,33 @@ function fibaro.__ER.modules.rule(ER)
   local vars,triggerVars = ER._vars,ER._triggerVars
   local function now() local t = os.date("*t") return t.hour*3600+t.min*60+t.sec end
 
+  ER.ruleStats = {runs=0,errors=0,successes=0,fails=0,last={}}
+  local ruleStats = ER.ruleStats
+
   local tableOpts = {table="width='100%' border=1 bgcolor='"..settings.listColor.."'",td="align='left'"}
+  local tableOptUI = {table="width='100%' border=1 bgcolor='white'",td="align='left'"}
+
+
+  function ER.createRuleStats(htmlTable)
+    local pr = PrintBuffer()
+    pr:printf("Invocations: %s",ER.ruleStats.runs)
+    pr:printf("Sucesses: %s",ER.ruleStats.successes)
+    pr:printf("Fails: %s",ER.ruleStats.fails)
+    pr:printf("Errors: %s",ER.ruleStats.errors)
+    pr:add(("-"):rep(75))
+    pr:add("Recent rules:")
+    for i,c in ipairs(ER.ruleStats.last) do
+      pr:printf("%s %s (%s,%s)",os.date("%H:%M:%S",c._last),c.name,c._rstat,os.date("%H:%M:%S",c._tstat))
+    end
+    return htmlTable({pr:tostring()},tableOpts)
+  end
+
+  function ER.logRuleStats() LOG(ER.createRuleStats(htmlTable)) end
+  local function updateRuleStats()
+    local htmlTable = ER.utilities.htmlTableAlt
+    quickApp:updateView("stats","text",ER.createRuleStats(htmlTable))
+  end
+
   function ER.listRules(extended)
     local pr,n = PrintBuffer(),0
     pr:printf("Rules:")
@@ -254,7 +280,7 @@ function fibaro.__ER.modules.rule(ER)
 
   local function nameRule(rule)
     rule.rname = fmt("[Rule:%s]",rule._name)
-    rule.longName = fmt("[Rule:%s:%s]",rule._name,rule.src // settings.truncStr)
+    rule.longName = fmt("[Rule:%s:%s]",rule._name,rule.src:gsub("[%s%c]+"," ") // settings.truncStr)
   end
 
   local function runRuleLogFun(co,rule,ok,event)
@@ -395,6 +421,8 @@ function fibaro.__ER.modules.rule(ER)
 
     function rule.start0(ev,id,vars)
       ev = ev or {type='start'}
+      ruleStats.runs = ruleStats.runs + 1
+      rule.last = os.time()
       if rule._mode == 'killOthers' then rule.stop()
       elseif rule._mode == 'killSelf' and  next(rule.runners) then return rule end
 
@@ -406,6 +434,11 @@ function fibaro.__ER.modules.rule(ER)
       co.name = setmetatable({},{__tostring = function() return instname end})
       co.rtd.rule = rule
       rule.runners[co] = 'running'
+      co._rstat,co._tstat = 'started',os.time(); updateRuleStats()
+      co._last = os.time()
+      table.insert(ruleStats.last,1,co)
+      if #ruleStats.last > 10 then table.remove(ruleStats.last,11) end -- keep last 10
+
       local env = {event=ev,evid=id or '%%START%%',vars=vars,rule=rule,name=co.name,co=co,instance=rule.instance}
       local locals = co.rtd.env -- local variables
       locals.push('env',env)
@@ -414,6 +447,10 @@ function fibaro.__ER.modules.rule(ER)
       local conditionSucceeded = false
       function co._action(ok,msg)
         conditionSucceeded = ok
+        co._rstat,co._tstat = "true" or "fail",os.time(); updateRuleStats()
+        if ok then ruleStats.successes = ruleStats.successes + 1
+        else ruleStats.fails = ruleStats.fails + 1 end
+
         local log = false
         if ok then log = evOpts(options.ruleTrue,debug.ruleTrue)
         else log = evOpts(options.ruleFalse,debug.ruleFalse) end
@@ -423,7 +460,16 @@ function fibaro.__ER.modules.rule(ER)
         end
       end
       function co.LOG(...) LOG("%s>> %s",co.name,fmt(...)) end
-      function co.ERROR(...) LOGERR("%s>> %s",co.name,fmt(...)) end
+      function co.ERROR(...) 
+        co._rstat,co._tstat = 'error',os.time(); updateRuleStats()
+        rule.errors=(rule.errors or 0)+1
+        ruleStats.errors = ruleStats.errors + 1
+        LOGERR("%s>> %s",co.name,fmt(...))
+        if rule.errors > 2 then
+          rule.disable()
+          LOGERR("%s>> Too many errors (3), rule disabled",co.name)
+        end
+      end
 
       options.trace=rule._trace
       options.debug=rule._debug
@@ -434,6 +480,7 @@ function fibaro.__ER.modules.rule(ER)
       }
       
       function options.suspended(typ,...)
+        co._rstat,co._tstat = 'suspended',os.time(); updateRuleStats()
         rule.runners[co] = 'suspended'
         local sm = suspendMsg[typ]
         if sm then co.LOG("suspended %s - %s",conditionSucceeded and "action" or "triggered",sm(...))
