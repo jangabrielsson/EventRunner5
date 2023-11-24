@@ -1,6 +1,6 @@
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 0.310
+local version = 0.320
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -38,6 +38,12 @@ function fibaro.__ER.modules.engine(ER)
     end
     local stdPropObject = StdPropObject()
     ER.stdPropObject = stdPropObject
+
+    local keyAttrMT = { __tostring = function(t) return string.format("%s:%s",t.id,t.attr) end }
+    function stdPropObject.getProp.key(id,prop,event) 
+        return setmetatable({id=event.value.keyId,attr=event.value.keyAttribute},keyAttrMT) 
+    end
+    function stdPropObject.trigger.key(self,id) return {type='device', id=id, property='centralSceneEvent'} end
   end
 
   ------- Rule variables -----------------------------------

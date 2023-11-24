@@ -651,9 +651,9 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         end
         __TAG = t
     end
-    --defVars.print = function(...) quickApp:printTagAndColor(...) end
+    defVars.printc = function(...) quickApp:printTagAndColor(...) end
     defVars.QA = quickApp
-    
+
   definePropClass('Weather')
   function Weather:__init() PropObject.__init(self) end
   function Weather.getProp.temperature(id,prop,event) return fibaro.weather.temperature() end
