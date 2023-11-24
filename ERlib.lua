@@ -59,9 +59,9 @@ do -- fastEncode
   encT['function'] = function(f,out) out[#out+1]=tostring(f) end
   function encT.string(str,out) out[#out+1]='"' out[#out+1]=str out[#out+1]='"' end
   function encT.boolean(b,out) out[#out+1]=b and "true" or "false" end
-  function encT.table(t,out)
-    local mt = getmetatable(t) if t and t.__tostring then return tostring(t) end
-    if next(t)==nil then return "{}" -- Empty table
+  function encT.table(t,out,f)
+    local mt = getmetatable(t) if mt and (not f) and mt.__tostring then return mt.__tostring(t) end
+    if next(t)==nil then out[#out+1]= "{}" return -- Empty table
     elseif t[1]==nil then -- key value table
       local r = {}; for k,v in pairs(t) do r[#r+1]={k,v} end table.sort(r,sortF)
       out[#out+1]='{'
@@ -77,25 +77,26 @@ do -- fastEncode
     end
   end
 
-  function encode(o,sort)
+  function encode(o,sort,f)
     local out = {}
     sortF = (not sort) and encEsort or encTsort
-    encT[type(o)](o,out)
+    encT[type(o)](o,out,f)
     return table.concat(out)
   end
   lib.encode = encode
   json.encodeFast = encode
 end
 
-local eventMT = { __tostring = function(ev)
-  local s = encode(ev)
+local eventMT = { 
+  __tostring = function(ev)
+  local s = encode(ev,nil,true)
   return fmt("#%s{%s}",ev.type,s:match(",(.*)}") or "") end
 }
 
 local function shallowCopy(t) local r = {}; for k,v in pairs(t) do r[k]=v end; return r end
 local EventMT = {
   __tostring = function(ev)
-      local s = encode(ev)
+      local s = encode(ev,nil,true)
       return fmt("#%s{%s}",ev.type or "unknown",s:match(",(.*)}") or "")
   end,
 }

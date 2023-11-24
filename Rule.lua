@@ -131,20 +131,20 @@ function fibaro.__ER.modules.rule(ER)
   local getTriggers
 
   function triggerHandlers.prop(p,t)
-    local ids = compute(p.args[1],t.opts)
+    local ids,ids2 = compute(p.args[1],t.opts),{}
     local prop,isTable,tn = p.args[2],false,0
     if type(ids) == 'table' then isTable = true else ids = {ids} end
     local n = table.maxn(ids)
     if n == 0 then errorf(t.opts.rule,p.args[1],"No devices found for :%s, must be defined when rule is defined",prop) end
     for i = 1,n do
       local dev = getDeviceObject(ids[i]) 
-      ids[i] = {dev,ids[i]}
+      ids2[i] = {dev,ids[i]}
       if not dev then errorf(t.opts.rule,p,"%s is not a valid device",tostring(dev)) end
       if not dev:isProp(prop) then errorf(t.opts.rule,p,":%s is not a valid device property",prop) end
       tn = tn + (dev:isTrigger(prop) and 1 or 0)
     end
     if tn == 0 then return end -- no triggers, ignore
-    for _,id in ipairs(ids) do
+    for _,id in ipairs(ids2) do
       t.srct[prop..tostring(id)] = id[1]:getTrigger(id[2],prop)
     end
   end

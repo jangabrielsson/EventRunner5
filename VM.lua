@@ -299,7 +299,10 @@ function instr.interv(i,st,p)
   Script.post(p,{type='%interval%',id=p.rule.id,_sh=true},t,'@@')
   st.push(true)
 end
-function instr.match(i,st) end -- ToDo
+function instr.match(i,st) 
+  local b,a = tostring(st.pop()),tostring(st.pop()) PA={a,b} 
+  st.push(a:match(b)) 
+end
 function instr.addto(i,st) local v = st.pop(); PA={v}; st.push(v+i[3]) end
 function instr.subto(i,st) local v = st.pop(); PA={v}; st.push(i[4] and v-i[3] or i[3]-v) end
 function instr.multo(i,st) local v = st.pop(); PA={v}; st.push(v*i[3]) end

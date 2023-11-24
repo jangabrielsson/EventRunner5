@@ -53,12 +53,15 @@ function QuickApp:main(er) -- Main function, place to define rules
     var.i = 0 -- initialize ER variable
     rule("@@00:00:05 => i=i+1; log('ping: %s seconds',i*5)",{ruleTrue=false}) -- test rule, ping every 5 seconds
 
-    rule("@sunset+00:10 => log('Ok, sunset+00:10')")
-    rule("@sunrise-00:10 => log('Ok, sunrise-00:10')")
+    local ruleSet = {
+        rule("@sunset+00:10 => log('Ok, sunset+00:10')"),
+        rule("@sunrise-00:10 => log('Ok, sunrise-00:10')")
+    }
+
+    er.disable(ruleSet) -- Disable rules in ruleSet
 
     -- rule("log('Time:%s',http.get('http://worldtimeapi.org/api/timezone/Europe/Stockholm').datetime)")
-    expr("wait(3); listRules()")
-    expr("wait(3); listStats()")
+
     local ruleOpts = { silent=true }
     rule("#UI{cmd='listRules'} => listRules(false)",ruleOpts)
     rule("#UI{cmd='listRulesExt'} => listRules(true)",ruleOpts)

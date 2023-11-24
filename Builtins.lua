@@ -313,8 +313,8 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     function builtin.max(i,st,p) st.push(math.max(table.unpack(type(st.peek())=='table' and st.pop() or st.lift(i[3])))) end
     args.sort = {1,99}
     function builtin.sort(i,st,p) local a = type(st.peek())=='table' and st.pop() or st.lift(i[3]); table.sort(a) st.push(a) end
-    args.match = {2,2}
-    function builtin.match(i,st,p) local a,b=st.pop(),st.pop(); st.push(string.match(b,a)) end
+    --args.match = {2,2}
+    --function builtin.match(i,st,p) local a,b=st.pop(),st.pop(); st.push(string.match(b,a)) end
     args.osdate = {0,1}
     function builtin.osdate(i,st,p) local x,y = st.peek(i[3]-1),(i[3]>1 and st.pop() or nil) st.pop(); st.push(os.date(x,y)) end
     args.ostime = {0,0}
@@ -651,7 +651,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         end
         __TAG = t
     end
-    defVars.print = function(...) quickApp:printTagAndColor(...) end
+    --defVars.print = function(...) quickApp:printTagAndColor(...) end
     defVars.QA = quickApp
     
   definePropClass('Weather')
