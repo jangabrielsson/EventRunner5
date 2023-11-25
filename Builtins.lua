@@ -229,6 +229,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         function filters.bin(list) local s={}; for _,v in ipairs(list) do s[#s+1]=NB(v) and 1 or 0 end return s end
         function filters.GV(list) local s={}; for _,v in ipairs(list) do s[#s+1]=GlobalV(v) end return s end
         function filters.QV(list) local s={}; for _,v in ipairs(list) do s[#s+1]=QuickAppV(v) end return s end
+        function filters.id(list,ev) return next(ev) and ev.id or list end -- If we called from rule trigger collector we return whole list
 
         return getProps,setProps,helpers
     end
@@ -692,4 +693,22 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   function QuickAppV.trigger.value(id,prop) return {type='quickVar', name=id.name} end
   defVars.QV = function(n) return QuickAppV(n) end
 
+  ----------- Child support ----------------
+  local ERchildren = {}
+  local function initChildren()
+    quickApp:initChildren(ERchildren)
+    for uid,c in pairs(quickApp.children) do 
+    defVars[uid]=c.id
+      defVars[uid.."_D"]=c
+      local d = api.get("/devices/"..c.id)
+      for name,_ in pairs(d.actions) do
+        c[name] = function(self,...) quickApp:post({type='UI',action=name,id=c.id,args={}}) end
+      end
+    end
+  end
+  local function child(uid,name,typ)
+    ERchildren[uid] = {name=name,type=typ,className='QwikAppChild'}
+  end
+  defVars.child=child
+  defVars.initChildren=initChildren
 end

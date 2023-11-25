@@ -248,7 +248,7 @@ function instr.prop(i,st,p)
   if ER.propFilters[prop] then
     local filter = ER.propFilters[prop]
     ids = isTable and ids or {ids}
-    st.push(filter(ids))
+    st.push(filter(ids,env.event or {}))
     return
   end
   if isTable then
