@@ -145,7 +145,7 @@ function fibaro.__ER.modules.rule(ER)
     end
     if tn == 0 then return end -- no triggers, ignore
     for _,id in ipairs(ids2) do
-      t.srct[prop..tostring(id)] = id[1]:getTrigger(id[2],prop)
+      t.srct[prop..tostring(id[1])] = id[1]:getTrigger(id[2],prop)
     end
   end
   function triggerHandlers.var(p,t) 

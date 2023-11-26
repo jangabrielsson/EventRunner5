@@ -51,6 +51,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         local function on(id,prop) return BN(fibaro.get(id,prop)) > 0 end
         local function off(id,prop) return BN(fibaro.get(id,prop)) == 0 end
         local function call(id,cmd) fibaro.call(id,cmd); return true end
+        local function toggle(id,prop) if on(id,prop) then fibaro.call(id,'turnOff') else fibaro.call(id,'turnOn') end return true end
         local function profile(id,_) return api.get("/profiles/"..id.."?showHidden=true") end
         local function child(id,_) return quickApp.childDevices[id] end
         local function last(id,prop) local _,t=fibaro.get(id,prop); local r = t and os.time()-t or 0; return r end
@@ -59,6 +60,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         local function sae(id,_,e) return e.type=='device' and e.property=='sceneActivationEvent' and e.id==id and e.value.sceneId end
         local mapOr,mapAnd,mapF=table.mapOr,table.mapAnd,function(f,l,s) table.mapf(f,l,s); return true end
         local function partition(id) return api.get("/alarms/v1/partitions/" .. id) or {} end
+        local function armState(id) return id==0 and fibaro.getHomeArmState() or fibaro.getPartitionArmState(id) end
         local function arm(id,action)
             if action=='arm' then 
                 local _,res = fibaro.armPartition(id); return res == 200
@@ -88,8 +90,8 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         getProps.isAllOn={'device',on,'value',mapAnd,true}
         getProps.isAnyOff={'device',off,'value',mapOr,true}
         getProps.last={'device',last,'value',nil,true}
-        
-        getProps.armed={'alarm',function(id) return partition(id).armed end,'armed',mapOr,true}
+    
+        getProps.armed={'alarm',function(id) return  armState(id)=='armed' end,'armed',mapOr,true}
         getProps.tryArm={'alarm',tryArm,nil,'alarm',false}
         getProps.isArmed={'alarm',function(id) return partition(id).armed end,'armed',mapOr,true}
         getProps.isAllArmed={'alarm',function(id) return partition(id).armed end,'armed',mapAnd,true,true}
@@ -146,7 +148,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         getProps.manual={'device',function(id) return quickApp:lastManual(id) end,'value',nil,true}
         getProps.start={'device',function(id) return fibaro.scene("execute",{id}) end,"",mapF,false}
         getProps.kill={'device',function(id) return fibaro.scene("kill",{id}) end,"",mapF,false}
-        getProps.toggle={'device',call,'toggle',mapF,true}
+        getProps.toggle={'device',toggle,'value',mapF,true}
         getProps.wake={'device',call,'wakeUpDeadDevice',mapF,true}
         getProps.removeSchedule={'device',call,'removeSchedule',mapF,true}
         getProps.retryScheduleSynchronization={'device',call,'retryScheduleSynchronization',mapF,true}
@@ -230,6 +232,51 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         function filters.GV(list) local s={}; for _,v in ipairs(list) do s[#s+1]=GlobalV(v) end return s end
         function filters.QV(list) local s={}; for _,v in ipairs(list) do s[#s+1]=QuickAppV(v) end return s end
         function filters.id(list,ev) return next(ev) and ev.id or list end -- If we called from rule trigger collector we return whole list
+        local function collect(t,m)
+            if type(t)=='table' then
+                for _,v in pairs(t) do collect(v,m) end
+            else m[t]=true end
+        end
+        function filters.leaf(tree)
+            local map,res = {},{}
+            collect(tree,map)
+            for e,_ in pairs(map) do res[#res+1]=e end
+            return res 
+        end
+
+        local deviceInfo = {}
+        local function revMap(l) local r={} for _,v in ipairs(l) do r[v]=true end return r end
+        local function mapDevice(d)
+            local ifs = revMap(d.interfaces or {})
+            local cats = revMap(d.properties.categories or {})
+            deviceInfo[d.id] = { interfaces=ifs, categories = cats}
+        end
+        local ds = __fibaro_get_devices()
+        for _,d in ipairs(__fibaro_get_devices()) do mapDevice(d) end
+
+        fibaro.event({type='deviceEvent',value='created'},function(env)
+            mapDevice(env.event.id)
+        end)
+ 
+        fibaro.event({type='deviceEvent',value='modified'},function(env)
+            mapDevice(env.event.id)
+        end)
+
+        fibaro.event({type='deviceEvent',value='removed'},function(env)
+            deviceInfo[env.event.id] = nil
+        end)
+
+        local categories = {'lights','blinds','gates','ambience','safety','security','climate','multimedia','remotes'}
+        for _,c in ipairs(categories) do 
+            filters["c"..c] = function(t)
+                local list,cat = filters.leaf(t),c
+                local res = {}
+                for _,id in ipairs(list) do
+                    if deviceInfo[id] and deviceInfo[id].categories[cat] then res[#res+1]=id end
+                end
+                return res 
+            end 
+        end
 
         return getProps,setProps,helpers
     end
@@ -702,7 +749,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
       defVars[uid.."_D"]=c
       local d = api.get("/devices/"..c.id)
       for name,_ in pairs(d.actions) do
-        c[name] = function(self,...) quickApp:post({type='UI',action=name,id=c.id,args={}}) end
+        c[name] = function(self,...) fibaro.post({type='UI',action=name,id=c.id,args={}}) end
       end
     end
   end

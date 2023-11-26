@@ -63,6 +63,7 @@ function fibaro.__ER.modules.vm(ER)
 
   local instr,ilog,errh = {},{},{}
   local PA = {}
+  local function cmpVal(x) local m = getmetatable(x) return m and m.__cmpVal and m.__cmpVal(x) or x end
   function instr.push(i,st)     st.push(i[3]) end
   function instr.pop(i,st)      st.pop() end
   function instr.dup(i,st)      st.push(st.peek()) end
@@ -78,12 +79,13 @@ function fibaro.__ER.modules.vm(ER)
   function instr.mul(i,st)     local b,a = st.pop(),st.pop() PA={a,b} st.push(a*b) end
   function instr.div(i,st)     local b,a = st.pop(),st.pop() PA={a,b} st.push(a/b) end 
   function instr.mod(i,st)     local b,a = st.pop(),st.pop() PA={a,b} st.push(a%b) end 
-  function instr.eq(i,st)      local b,a = st.pop(),st.pop() PA={a,b} st.push(a==b) end 
-  function instr.neq(i,st)     local b,a = st.pop(),st.pop() PA={a,b} st.push(a~=b) end 
+  function instr.eq(i,st)      local b,a = st.pop(),st.pop() PA={a,b} st.push(cmpVal(a)==cmpVal(b)) end 
+  function instr.neq(i,st)     local b,a = st.pop(),st.pop() PA={a,b} st.push(cmpVal(a)~=cmpVal(b)) end 
   function instr.lt(i,st)      local b,a = coerce(st.pop(),st.pop()) PA={a,b} st.push(a<b) end 
   function instr.lte(i,st)     local b,a = coerce(st.pop(),st.pop()) PA={a,b} st.push(a<=b) end 
   function instr.gt(i,st)      local b,a = coerce(st.pop(),st.pop()) PA={a,b} st.push(a>b) end 
-  function instr.gte(i,st)     local b,a = coerce(st.pop(),st.pop()) PA={a,b} st.push(a>=b) end 
+  function instr.gte(i,st)     local b,a = coerce(st.pop(),st.pop()) PA={a,b} st.push(a>=b) end
+  function instr.match(i,st)   local b,a = tostring(st.pop()),tostring(st.pop()) PA={a,b} st.push(a:match(b)) end
   function instr.f_not(i,st)   local a = st.pop() st.push(not a) end
   function instr.conc(i,st)    local b,a = st.pop(),st.pop() st.push(tostring(a) .. tostring(b)) end
   function instr.neg(i,st)     local a = st.pop() PA={a} st.push(-a) end
@@ -298,10 +300,6 @@ function instr.interv(i,st,p)
   local t = math.abs(st.pop())
   Script.post(p,{type='%interval%',id=p.rule.id,_sh=true},t,'@@')
   st.push(true)
-end
-function instr.match(i,st) 
-  local b,a = tostring(st.pop()),tostring(st.pop()) PA={a,b} 
-  st.push(a:match(b)) 
 end
 function instr.addto(i,st) local v = st.pop(); PA={v}; st.push(v+i[3]) end
 function instr.subto(i,st) local v = st.pop(); PA={v}; st.push(i[4] and v-i[3] or i[3]-v) end

@@ -316,7 +316,7 @@ function fibaro.__ER.modules.utilities(ER)
     local f = curve and equations[curve] or equations['linear']
     dir,step = dir == 'down' and -1 or 1, step or 1
     start,stop = start or 0,stop or 99
-    quickApp:post({type='%dimLight',id=id,sec=sec,dir=dir,fun=f,t=dir == 1 and 0 or sec,start=start,stop=stop,step=step,_sh=true})
+    fibaro.post({type='%dimLight',id=id,sec=sec,dir=dir,fun=f,t=dir == 1 and 0 or sec,start=start,stop=stop,step=step,_sh=true})
   end
   
   extraSetups[#extraSetups+1] = function()
@@ -324,13 +324,13 @@ function fibaro.__ER.modules.utilities(ER)
       local e = env.event
       local ev,currV = e.v or -1,tonumber(fibaro.getValue(e.id,"value"))
       if not currV then
-        quickApp:warningf("Device %d can't be dimmed. Type of value is %s",e.id,type(fibaro.getValue(e.id,"value")))
+        fibaro.warningf(__TAG,"Device %d can't be dimmed. Type of value is %s",e.id,type(fibaro.getValue(e.id,"value")))
       end
       if e.v and math.abs(currV - e.v) > 2 then return end -- Someone changed the lightning, stop dimming
       e.v = math.floor(e.fun(e.t,e.start,(e.stop-e.start),e.sec)+0.5)
       if ev ~= e.v then fibaro.call(e.id,"setValue",e.v) end
       e.t=e.t+e.dir*e.step
-      if 0 <= e.t and  e.t <= e.sec then quickApp:post(e,os.time()+e.step) end
+      if 0 <= e.t and  e.t <= e.sec then fibaro.post(e,os.time()+e.step) end
     end)
   end
   ----------------------------

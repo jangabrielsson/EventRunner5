@@ -90,7 +90,7 @@ function QuickApp:onInit()
         er.settings.ignoreInvisibleChars = false   -- Check code for invisible characters (xC2xA0) before evaluating
         er.settings.truncLog       = 100           -- truncation of log output
         er.settings.truncStr       = 80            -- truncation of log strings
-        -- er.settings.logFibaro      = true          -- log to fibaro.call, fibero.setVariable, etc.
+        -- er.settings.logFibaro      = true          -- log to fibaro.call, fibaro.setVariable, etc.
         -- er.settings.logApi         = true          -- log all api.* calls
         -- er.settings.bannerColor = "orange"         -- color of banner in log, defaults to "orange"      
         -- er.settings.listColor = "purple"           -- color of list log (list rules etc), defaults to "purple"
@@ -124,8 +124,36 @@ function QuickApp:onInit()
           fibaro.debug(tag,str);
           return str
         end
-        
-        self:main(er) -- Call main function to setup rules
+
+        MODULES = MODULES or {}
+        if self.main then
+            table.sort(MODULES,function(a,b) return a.prio < b.prio end) -- Sort modules in priority order
+            MODULES = MODULES or {}
+            MODULES[#MODULES+1]={name='main',prio=0,loader=self.main}
+        end
+        for _,m in ipairs(MODULES) do -- load modules
+            print("Loading rules from ",m.name)
+            m.loader(self,er)
+        end
+
+        --[[
+            Setup your own modules like this (or just add rules to main.lua):
+            In QA file 'u_myrules'  (u_ prefix is required)
+            
+            local prio = 2 -- lower prio loaded first..., prio < 0 loaded before 'main' and prio > 0 loaded after 'main', 
+            local modulename = "House rules"
+
+            local function rules(self,er) -- self is the QA self
+                local rule,eval,var,triggerVar,Util = er.eval,er.eval,er.variables,er.triggerVariables,er
+
+                rule(...)
+                rule(...)
+                :
+            end
+
+            MODULES = MODULES or {}
+            MODULES[#MODULES+1]={name=modulename,prio=prio,loader=rules}
+        --]]
     end
 )
 end
