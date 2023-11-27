@@ -20,6 +20,7 @@ end
 
 local function copy(t) if type(t) ~= 'table' then return t end local r = {} for k,v in pairs(t) do r[k] = copy(v) end return r end
 local function copyShallow(t) local r={} for k,v in pairs(t) do r[k]=v end return r end
+local function append(t1,t2) local r=copyShallow(t1); for _,e in ipairs(t2) do r[#r+1]=e end return r end
 local function maxn(t) local c=0 for _ in pairs(t) do c=c+1 end return c end
 local function member(k,tab) for i,v in ipairs(tab) do if equal(v,k) then return i end end return false end
 local function map(f,l,s) s = s or 1; local r,m={},maxn(l) for i=s,m do r[#r+1] = f(l[i]) end return r end
@@ -33,7 +34,8 @@ local function mapkv(f,l) local r={}; for k,v in pairs(l) do k,v=f(k,v) if k the
 local function mapkl(f,l) local r={} for i,j in pairs(l) do r[#r+1]=f(i,j) end return r end
 
 if not table.maxn then table.maxn = maxn end
-table.copy,table.copyShallow,table.equal,table.max,table.member,table.map,table.mapf,table.delete = copy,copyShallow,equal,maxn,member,map,mapf,delete
+table.copy,table.copyShallow,table.equal,table.max,table.member,table.map,table.mapf,table.delete,table.append = 
+      copy,      copyShallow,      equal,      maxn,     member,      map,      mapf,      delete,      append
 table.mapAnd,table.mapOr,table.reduce,table.mapk,table.mapkv,table.mapkl = mapAnd,mapOr,reduce,mapk,mapkv,mapkl
 
 local fmt = string.format

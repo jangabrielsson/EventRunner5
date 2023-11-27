@@ -112,7 +112,6 @@ function fibaro.__ER.modules.rule(ER)
   local function compute(p,opts) local c = ER:compile(p,opts) return c() end
   local function compile(p,opts) return ER:compile(p,opts) end
   
-  local currRule
   local function errorf(rule,tk,fm,...)
     if tk.d then tk = tk.d end
     local err = errorMsg{type="Rule",msg=fmt(fm,...),from=tk.from,to=tk.to,rule=rule,src=rule.src}
@@ -131,13 +130,21 @@ function fibaro.__ER.modules.rule(ER)
   local getTriggers
 
   function triggerHandlers.prop(p,t)
+    getTriggers(p.args[1],t)
     local ids,ids2 = compute(p.args[1],t.opts),{}
     local prop,isTable,tn = p.args[2],false,0
+    if ER.propFilters[prop] then
+      if not ER.propFilterTriggers[prop] then return  -- filters don't generate triggers themselfs...
+      else                                            -- unless they are marked as triggerGenerators, like GV and QV
+        local v = compute(p,t.opts)
+        getTriggers(v,t)
+      end
+    end
     if type(ids) == 'table' then isTable = true else ids = {ids} end
     local n = table.maxn(ids)
     if n == 0 then errorf(t.opts.rule,p.args[1],"No devices found for :%s, must be defined when rule is defined",prop) end
     for i = 1,n do
-      local dev = getDeviceObject(ids[i]) 
+      local dev = getDeviceObject(ids[i])
       ids2[i] = {dev,ids[i]}
       if not dev then errorf(t.opts.rule,p,"%s is not a valid device",tostring(dev)) end
       if not dev:isProp(prop) then errorf(t.opts.rule,p,":%s is not a valid device property",prop) end
@@ -145,7 +152,8 @@ function fibaro.__ER.modules.rule(ER)
     end
     if tn == 0 then return end -- no triggers, ignore
     for _,id in ipairs(ids2) do
-      t.srct[prop..tostring(id[1])] = id[1]:getTrigger(id[2],prop)
+      local s = tostring(id[2])
+      t.srct[prop..tostring(id[2])] = id[1]:getTrigger(id[2],prop)
     end
   end
   function triggerHandlers.var(p,t) 
@@ -306,7 +314,6 @@ function fibaro.__ER.modules.rule(ER)
     if rule==nil then errorf(rule,p,"No rule object") end
     assert(rule)
     options.rule = nil
-    currRule = rule
     rule.instance = 0
     rule._enabled = true
   

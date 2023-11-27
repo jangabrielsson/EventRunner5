@@ -42,7 +42,13 @@ function fibaro.__ER.modules.compiler(ER)
       out.instr(p,'var',p.name)
     end
   end
-  function comp.const(p,out) out.instr(p,'push',p.value) end
+  function comp.const(p,out) 
+    if type(p.value) == 'table' then 
+      out.instr(p,'pushc',p.value) 
+    else
+      out.instr(p,'push',p.value) 
+    end
+  end
   function comp.gv(p,out) out.instr(p,'gv',p.name) end
   function comp.qv(p,out) out.instr(p,'qv',p.name) end
   function comp.addto(p,out) compile(p.arg,out); out.instr(p,p.type,p.const,p.rev) end

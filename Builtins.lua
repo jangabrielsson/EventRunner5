@@ -1,3 +1,4 @@
+---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
 
 function fibaro.__ER.modules.builtins(ER)
@@ -156,6 +157,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         getProps.levelIncrease={'device',call,'startLevelIncrease',mapF,nil}
         getProps.levelDecrease={'device',call,'startLevelDecrease',mapF,nil}
         getProps.levelStop={'device',call,'stopLevelChange',mapF,nil}
+        getProps.type={'device',function(id) return ER.getDeviceInfo(id).type end,'type',mapF,nil}
         
         -- setProps helpers
         local function set(id,cmd,val) fibaro.call(id,cmd,val); return val end
@@ -216,7 +218,11 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         setProps.sim_helddown={function(id,_,val) fibaro.post({type='device',id=id,property='centralSceneEvent',value={keyId=val,keyAttribute='HeldDown'}}) end,"push"}
         setProps.sim_released={function(id,_,val) fibaro.post({type='device',id=id,property='centralSceneEvent',value={keyId=val,keyAttribute='Released'}}) end,"push"}
 
+        setProps.isCat={function(id,_,val) return ER.getDeviceInfo(id).categories[val]==true end,"..."}
+        setProps.isInterf={function(id,_,val) return ER.getDeviceInfo(id).interfaces[val]==true end,"..."}
+
         local filters = ER.propFilters
+        ER.propFilterTriggers = {}
         local function NB(x) if type(x)=='number' then return x~=0 and 1 or 0 else return x end end
         local function mapAnd(l) for _,v in ipairs(l) do if not NB(v) then return false end end return true end
         local function mapOr(l) for _,v in ipairs(l) do if NB(v) then return true end end return false end
@@ -230,7 +236,9 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         function filters.mostlyFalse(list) local s = 0; for _,v in ipairs(list) do s=s+(NB(v) and 0 or 1) end return s>#list/2 end
         function filters.bin(list) local s={}; for _,v in ipairs(list) do s[#s+1]=NB(v) and 1 or 0 end return s end
         function filters.GV(list) local s={}; for _,v in ipairs(list) do s[#s+1]=GlobalV(v) end return s end
+        ER.propFilterTriggers.GV = true
         function filters.QV(list) local s={}; for _,v in ipairs(list) do s[#s+1]=QuickAppV(v) end return s end
+        ER.propFilterTriggers.QV = true
         function filters.id(list,ev) return next(ev) and ev.id or list end -- If we called from rule trigger collector we return whole list
         local function collect(t,m)
             if type(t)=='table' then
@@ -244,14 +252,21 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
             return res 
         end
 
+        ------------- Device info cache --------------------------------
         local deviceInfo = {}
         local function revMap(l) local r={} for _,v in ipairs(l) do r[v]=true end return r end
         local function mapDevice(d)
             local ifs = revMap(d.interfaces or {})
             local cats = revMap(d.properties.categories or {})
-            deviceInfo[d.id] = { interfaces=ifs, categories = cats}
+            deviceInfo[d.id] = { interfaces=ifs, categories = cats, type=d.type, name=d.name, roomID=d.roomID, parentId=d.parentId, visible=d.visible, enabled=d.enabled}
         end
-        local ds = __fibaro_get_devices()
+
+        local function getDeviceInfo(id)
+            if not deviceInfo[id] then mapDevice(__fibaro_get_device(id)) end
+            return deviceInfo[id] or { interfaces={}, categories = {}}
+        end
+        ER.getDeviceInfo = getDeviceInfo
+
         for _,d in ipairs(__fibaro_get_devices()) do mapDevice(d) end
 
         fibaro.event({type='deviceEvent',value='created'},function(env)
@@ -266,17 +281,10 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
             deviceInfo[env.event.id] = nil
         end)
 
-        local categories = {'lights','blinds','gates','ambience','safety','security','climate','multimedia','remotes'}
-        for _,c in ipairs(categories) do 
-            filters["c"..c] = function(t)
-                local list,cat = filters.leaf(t),c
-                local res = {}
-                for _,id in ipairs(list) do
-                    if deviceInfo[id] and deviceInfo[id].categories[cat] then res[#res+1]=id end
-                end
-                return res 
-            end 
-        end
+        defVars.deviceInfo = function(id) return getDeviceInfo(id) end
+        --local function mapAnd2(f,l) for _,v in ipairs(l) do if not f(v) then return false end end return true end
+        function defVars.isCat(id,c) return getDeviceInfo(id).categories[c]==true end
+        ------------------------------------------------------
 
         return getProps,setProps,helpers
     end
@@ -408,7 +416,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         local args = st.popm(i[3])
         p.yielded = true; 
         st.push(args); 
-        return 'multiple_values' 
+        return 'multiple_values'
     end
     args.filter = {3,3}
     function builtin.filter(i,st,p) 

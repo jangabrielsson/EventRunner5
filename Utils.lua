@@ -99,6 +99,7 @@ function fibaro.__ER.modules.utilities(ER)
     return pr:tostring("")
   end
 
+---@diagnostic disable-next-line: undefined-field
   if fibaro.fibemu then 
     function Utils.htmlTable(list,opts)
       opts = opts or {}
@@ -144,6 +145,7 @@ function fibaro.__ER.modules.utilities(ER)
   end
   
   function Utils.makeBanner(str,args,ch,w) return Utils.strPad(str,args,ch,w) end
+---@diagnostic disable-next-line: undefined-field
   if fibaro.fibemu then
     function Utils.printBanner(str,args,col,ch,w) LOG('\n<font color="%s">%s</font>',col or "orange",Utils.makeBanner(str,args,ch,w)) end
   else
@@ -476,7 +478,7 @@ function fibaro.__ER.modules.utilities(ER)
   end
   Utils.runTimers = function() 
     fibaro.warningf(__TAG," SpeedTime started (%shours)",speedHours)
-    runTimers() 
+    if runTimers then runTimers() end
   end
   ------------------------------------------------------
   

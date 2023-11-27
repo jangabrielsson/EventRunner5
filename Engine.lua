@@ -320,8 +320,6 @@ function QuickApp:EventRunnerEngine(callback)
   PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts =
   table.unpack(ER.utilities.export)
 
-  ER.utilities.printBanner("%s, deviceId:%s, version:%s",{self.name,self.id,self.E_VERSION})
-
   setup(ER)
 
   ER.modules.tokenizer(ER)
@@ -332,6 +330,7 @@ function QuickApp:EventRunnerEngine(callback)
   ER.modules.rule(ER)
   ER.modules.compiler(ER)
 
+  ER.utilities.printBanner("%s, deviceId:%s, version:%s",{self.name,self.id,self.E_VERSION})
   local eval = ER.eval
 
   -- Define user functions available in main from the er.* table

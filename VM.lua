@@ -61,10 +61,13 @@ function fibaro.__ER.modules.vm(ER)
   function Script.print(...) print(...) end
   ER.Script = Script
 
+  local copy = table.copy
+
   local instr,ilog,errh = {},{},{}
   local PA = {}
   local function cmpVal(x) local m = getmetatable(x) return m and m.__cmpVal and m.__cmpVal(x) or x end
   function instr.push(i,st)     st.push(i[3]) end
+  function instr.pushc(i,st)    st.push(copy(i[3])) end
   function instr.pop(i,st)      st.pop() end
   function instr.dup(i,st)      st.push(st.peek()) end
   function instr.swap(i,st)     local b,a = st.pop(),st.pop(); st.push(b); st.push(a) end
@@ -188,7 +191,7 @@ function fibaro.__ER.modules.vm(ER)
   
   function instr.setvar(i,st,p) 
     local name,const,pop,v = i[3],i[4],i[5],nil
-    if const then v = const[1] if not pop then st.push(v) end
+    if const then v = copy(const[1]) if not pop then st.push(v) end
   elseif pop then v=st.pop()
   else v = st.peek() end
   if p.env.set(name,v) then return end -- set in (rule) local environment
@@ -201,7 +204,7 @@ end
 function instr.setgv(i,st,p) 
   local name,const,pop,v = i[3],i[4],i[5],nil
   if const then 
-    v = const[1] 
+    v = copy(const[1])
     if not pop then st.push(v) end
   elseif pop then v=st.pop()
   else v = st.peek() end
@@ -210,7 +213,7 @@ end
 function instr.setqv(i,st,p) 
   local name,const,pop,v = i[3],i[4],i[5],nil
   if const then 
-    v = const[1] 
+    v = copy(const[1])
     if not pop then st.push(v) end
   elseif pop then v=st.pop()
   else v = st.peek() end
@@ -227,7 +230,7 @@ function instr.aref(i,st,p)
 end
 function instr.aset(i,st)
   local key,const,pop,var,v = i[3],i[4],i[5],i[6],nil
-  if const then v = const[1] else v = st.pop() end
+  if const then v = copy(const[1]) else v = st.pop() end
   if key==nil then key = st.pop() end
   local tab = st.pop() tab[key] = v
   if not pop then st.push(v) end
@@ -269,11 +272,12 @@ function instr.putprop(i,st,p)
   local function itemFun(e) 
     local dev = ER.getDeviceObject(e)
     if not dev then errorf(p,"%s is not a valid device",tostring(dev)) end
-    if not dev:isProp(prop) then errorf(p,":%s is not a valid device property for %s",prop,dev) end
+    if not dev.setProp[prop] then errorf(p,":%s is not a valid device set property for %s",prop,dev) end
     return dev.setProp[prop](dev,prop,value)
   end
   if isTable then
-    for i=1,n do v = itemFun(ids[i]) end
+    v = {}
+    for i=1,n do v[#v+1] = itemFun(ids[i]) end
   else v = itemFun(ids) end
   st.push(v)
 end
