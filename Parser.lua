@@ -49,7 +49,7 @@ function fibaro.__ER.modules.parser(ER)
     ['-=']  ={op=true, prio=0,    arity=2, trans='subto'},
     ['*=']  ={op=true, prio=0,    arity=2, trans='multo'},
     [';']   ={op=true, prio=-1,   arity=2, trans='progn'},
-    [';;']  ={op=true, prio=-1,   arity=2, trans='progn'},
+    [';;']  ={op=true, prio=-1.1, arity=2, trans='dprogn'},
     ['=>']  ={op=true, prio=-10,  arity=2, trans='rule'},
   }
   local opers = {}
@@ -232,6 +232,10 @@ function fibaro.__ER.modules.parser(ER)
     while not ops.isEmpty() and higherPrio(ops.peek(),nt) do apply(ops.pop(),st) end
     ops.push(nt)
   end
+  function ptable.t_dprogn(nt,ops,st,tkns,stop)
+    nt = {type='op', opval='dprogn'}
+    ptable.op(nt,ops,st,tkns,stop)
+  end
   function ptable.t_if(nt,ops,st,tkns,stop)
     local cond = pExpr(tkns,{['t_then']=true,eof=true})
     assertf(nt,tkns.next().type== 't_then',"missing 'THEN' for 'IF'")
@@ -265,12 +269,19 @@ function fibaro.__ER.modules.parser(ER)
     assertf(nt,tkns.next().type== 't_gg',"missing '>>' for '||'")
     local body = pExpr(tkns,{['t_vv']=true,['t_dprogn']=true,eof=true})
     local t2,res = tkns.peek()
-    if t2.type=='eof' then
+    if t2.type=='eof' or t2.type=='t_dprogn' then
       res = {type='f_if', cond=cond, th=body, d=DB(nt)}
-    elseif t2.op=='dprogn' then
-      tkns.next()
-      res = {type='f_if', cond=cond, th=body, d=DB(nt)}
+    -- elseif t2.type=='t_dprogn' then
+    --   tkns.next()
+    --   res = {type='f_if', cond=cond, th=body, d=DB(nt)}
+    --   st.push(res)
+    --   nt = {type='op',opval='progn'}
+    --   while not ops.isEmpty() and higherPrio(ops.peek(),nt) do apply(ops.pop(),st) end
+    --   ops.push(nt)
+    --   return
     elseif t2.type=='t_vv' then
+      stop = table.copyShallow(stop)
+      stop['t_dprogn'] = true
       local els = pExpr(tkns,stop)
       res = {type='f_if', cond=cond, th=body, els = els, d=DB(nt)}
     else errorf(nt,"bad ||>> expression") end
@@ -402,6 +413,7 @@ function fibaro.__ER.modules.parser(ER)
   function trans_op.gv(p) assertType('var',p.args[1],"Expected name");    return {type='gv', name=p.args[1].name} end
   function trans_op.qv(p) assertType('var',p.args[1],"Expected name");    return {type='qv', name=p.args[1].name} end
   function trans_op.progn(p) return trans_flatten(p,'op','progn') end
+  function trans_op.dprogn(p) return trans_flatten(p,'op','progn') end
   function trans_op.elist(p) return trans_flatten(p,'op','elist') end
   function trans_op.f_and(p) return trans_flatten(p,'op','f_and') end
   function trans_op.f_or(p) return trans_flatten(p,'op','f_or') end
@@ -619,7 +631,7 @@ function fibaro.__ER.modules.parser(ER)
   function simpTab.num(v) return v.value end
   function simpTab.str(v) return v.value end
   function simpTab.name(v) return v.value end
-  function simpTab.const(v) return v.value end
+  function simpTab.const(v) return tostring(v.value) end
   function simpTab.event(v) return {'ev',v.value} end
   function simpTab.setvar(v) return {'setvar',v.name,simp(v.value)} end
   function simpTab.f_if(v) return {'if',simp(v.cond),simp(v.th),v.els and simp(v.els) or nil} end
@@ -641,6 +653,7 @@ function fibaro.__ER.modules.parser(ER)
   
   function simp(v) v.d=nil return simpTab[v.type] and simpTab[v.type](v) or v[1] and simpList(v) or v end
   function simpList(l) local r = {}; for _,v in ipairs(l) do r[#r+1]=simp(v) end; return r end
+  ER.simplifyParseTree = function (p) return simp(p) end
 
   function ER:parse(input,options) -- codeStr/tokens -> parseTree
     local tkns,pexpr,sf 

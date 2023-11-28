@@ -39,7 +39,7 @@ table.copy,table.copyShallow,table.equal,table.max,table.member,table.map,table.
 table.mapAnd,table.mapOr,table.reduce,table.mapk,table.mapkv,table.mapkl = mapAnd,mapOr,reduce,mapk,mapkv,mapkl
 
 local fmt = string.format
-local function gensym(s) return (s or "G")..fibaro._orgToString({}):match("%s(.*)") end
+local function gensym(s) return (s or "G")..tostring({}):match("%s(.*)") end
 
 local encode
 do -- fastEncode
