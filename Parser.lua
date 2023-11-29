@@ -194,6 +194,7 @@ function fibaro.__ER.modules.parser(ER)
     if sub.op == 'f_in' then
       st.push(filter(sub.args[1],sub.args[2],nt))
     else
+      while not ops.isEmpty() and higherPrio(ops.peek(),{type='op', opval='aref'}) do apply(ops.pop(),st) end
       st.push(sub)
       ops.push({type='op', opval='aref',abra=true, d=DB(nt)})
     end
@@ -532,8 +533,14 @@ function fibaro.__ER.modules.parser(ER)
   function trans_op.aref(p)
     local key = transform(p.args[2])
     if not p.abra then
-      if key.type ~= 'var' then errorf(key,"Table .key must be a name") end
-      key = {type='const', value=key.name, d=DB(p)}
+      local k = isConst(key)
+      if (not k) and key.type == 'var' then k = {key.name} end
+      if k then 
+        key = {type='const', value=k[1], d=DB(p)}
+        local tab = transform(p.args[1])
+        return {type='aref', tab=tab, key=key, d=DB(p)}
+      end
+      --errorf(key,"Table .key must be a name")
     end
     local tab = transform(p.args[1])
     return {type='aref', tab=tab, key=key, d=DB(p)}
@@ -645,6 +652,7 @@ function fibaro.__ER.modules.parser(ER)
   function simpTab.aset(v) return {'aset',simp(v.tab),simp(v.key),simp(v.value)} end
   function simpTab.putprop(v) return {'puprop',simp(v.device),simp(v.key),simp(v.value)} end
   function simpTab.collect(v) return {'collect',simpList(v.args)} end
+  function simpTab.aref(v) return {'aref',simp(v.tab),simp(v.key)} end
   function simpTab.op(v)
     local p = simpList(v.args)
     table.insert(p,1,v.op)

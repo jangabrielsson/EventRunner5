@@ -147,12 +147,12 @@ function fibaro.__ER.modules.utilities(ER)
   function Utils.makeBanner(str,args,ch,w) return Utils.strPad(str,args,ch,w) end
 ---@diagnostic disable-next-line: undefined-field
   if fibaro.fibemu then
-    function Utils.printBanner(str,args,col,ch,w) LOG('\n<font color="%s">%s</font>',col or "orange",Utils.makeBanner(str,args,ch,w)) end
+    function Utils.printBanner(str,args,col,ch,w) fibaro.debug(__TAG,fmt('\n<font color="%s">%s</font>',col or "orange",Utils.makeBanner(str,args,ch,w))) end
   else
     function Utils.printBanner(str,args,col,ch,w)
       col=col or ER.settings.bannerColor or "orange"
       str = fmt("<font color='black'>%s</font>",str)
-      LOG(Utils.htmlTable({fmt(str,table.unpack(args or {}))},{table="width='100%' border=1 bgcolor='"..col.."'",td="align='center'"}))
+      fibaro.debug(__TAG,Utils.htmlTable({fmt(str,table.unpack(args or {}))},{table="width='100%' border=1 bgcolor='"..col.."'",td="align='center'"}))
     end
   end
   

@@ -28,6 +28,7 @@ function QuickApp:main(er) -- Main function, place to define rules
     --er.setTime("12/01/2023 12:00:00") --mm/dd/yyyy-hh:mm:ss
     --er.speedTime(2*24) -- 24 hours
 
+    rule("log('77\n66')")
     rule([[#alarm{id='$id', property='breached'} =>  -- Log when a partition is breached
         fibaro.warning(__TAG,efmt('BREACHED partition:%s',env.event.id))
     ]])

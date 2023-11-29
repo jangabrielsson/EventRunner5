@@ -35,8 +35,10 @@ function fibaro.__ER.modules.rule(ER)
     pr:printf("Errors: %s",ER.ruleStats.errors)
     pr:add(("-"):rep(75))
     pr:add("Recent rules:")
-    for i,c in ipairs(ER.ruleStats.last) do
-      pr:printf("%s %s (%s,%s)",os.date("%H:%M:%S",c._last),c.name,c._rstat,os.date("%H:%M:%S",c._tstat))
+    for i=1,10 do
+      local c = ER.ruleStats.last[i]
+      if not c then break end
+      pr:printf("%s %s (%s,%s)",os.date("%H:%M:%S",c.last),c.name,c.status,os.date("%H:%M:%S",c.time))
     end
     return htmlTable({pr:tostring()},tableOpts)
   end
@@ -441,10 +443,11 @@ function fibaro.__ER.modules.rule(ER)
       co.name = setmetatable({},{__tostring = function() return instname end})
       co.rtd.rule = rule
       rule.runners[co] = 'running'
-      co._rstat,co._tstat = 'started',os.time(); updateRuleStats()
-      co._last = os.time()
-      table.insert(ruleStats.last,1,co)
-      if #ruleStats.last > 10 then table.remove(ruleStats.last,11) end -- keep last 10
+      co._stats = { name = co.name }
+      co._stats.status,co._stats.time = 'started',os.time(); updateRuleStats()
+      co._stats.start = os.time()
+      table.insert(ruleStats.last,1,co._stats)
+      if #ruleStats.last > 80 then table.remove(ruleStats.last,81) end -- keep last 10
 
       local env = {event=ev,evid=id or '%%START%%',vars=vars,rule=rule,name=co.name,co=co,instance=rule.instance}
       local locals = co.rtd.env -- local variables
@@ -454,7 +457,7 @@ function fibaro.__ER.modules.rule(ER)
       local conditionSucceeded = false
       function co._action(ok,msg)
         conditionSucceeded = ok
-        co._rstat,co._tstat = "true" or "fail",os.time(); updateRuleStats()
+        co._stats.status,co._stats.time = "true" or "fail",os.time(); updateRuleStats()
         if ok then ruleStats.successes = ruleStats.successes + 1
         else ruleStats.fails = ruleStats.fails + 1 end
 
@@ -468,7 +471,7 @@ function fibaro.__ER.modules.rule(ER)
       end
       function co.LOG(...) LOG("%s>> %s",co.name,fmt(...)) end
       function co.ERROR(...) 
-        co._rstat,co._tstat = 'error',os.time(); updateRuleStats()
+        co._stats.status,co._stats.time = 'error',os.time(); updateRuleStats()
         rule.errors=(rule.errors or 0)+1
         ruleStats.errors = ruleStats.errors + 1
         LOGERR("%s>> %s",co.name,fmt(...))
@@ -487,7 +490,7 @@ function fibaro.__ER.modules.rule(ER)
       }
       
       function options.suspended(typ,...)
-        co._rstat,co._tstat = 'suspended',os.time(); updateRuleStats()
+        co._stats.status,co._stats.time = 'suspended',os.time(); updateRuleStats()
         rule.runners[co] = 'suspended'
         local sm = suspendMsg[typ]
         if sm then co.LOG("suspended %s - %s",conditionSucceeded and "action" or "triggered",sm(...))

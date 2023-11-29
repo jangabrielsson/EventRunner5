@@ -29,13 +29,18 @@ local function delete(k,tab) local i = member(tab,k); if i then table.remove(tab
 local function mapAnd(f,l,s) s = s or 1; local e=true for i=s,table.maxn(l) do e = f(l[i]) if not e then return false end end return e end
 local function mapOr(f,l,s) s = s or 1; for i=s,table.maxn(l) do local e = f(l[i]) if e then return e end end return false end
 local function reduce(f,l) local r = {}; for _,e in ipairs(l) do if f(e) then r[#r+1]=e end end; return r end
+local function membermap(list) local r = {}; for _,e in ipairs(list) do r[e]=true end; return r end
+local function keys(list) local r = {}; for k,_ in pairs(list) do r[#r+1]=k end; return r end
+local function values(list) local r = {}; for _,v in pairs(list) do r[#r+1]=v end; return r end
+local function union(l1,l2) local r = membermap(l1); for _,e in ipairs(l2) do if not r[e] then r[e]=true end end; return keys(r) end
+local function intersection(l1,l2) local l,r = membermap(l1),{}; for _,e in ipairs(l2) do if r[e] then r[#r+1]=e end end; return r end
 local function mapk(f,l) local r={}; for k,v in pairs(l) do r[k]=f(v) end; return r end
 local function mapkv(f,l) local r={}; for k,v in pairs(l) do k,v=f(k,v) if k then r[k]=v end end; return r end
 local function mapkl(f,l) local r={} for i,j in pairs(l) do r[#r+1]=f(i,j) end return r end
 
 if not table.maxn then table.maxn = maxn end
-table.copy,table.copyShallow,table.equal,table.max,table.member,table.map,table.mapf,table.delete,table.append = 
-      copy,      copyShallow,      equal,      maxn,     member,      map,      mapf,      delete,      append
+table.copy,table.copyShallow,table.equal,table.max,table.member,table.map,table.mapf,table.delete,table.append,table.union,table.intersection = 
+      copy,      copyShallow,      equal,      maxn,     member,      map,      mapf,      delete,      append,      union,      intersection
 table.mapAnd,table.mapOr,table.reduce,table.mapk,table.mapkv,table.mapkl = mapAnd,mapOr,reduce,mapk,mapkv,mapkl
 
 local fmt = string.format
