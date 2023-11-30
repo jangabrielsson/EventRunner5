@@ -559,6 +559,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
             opts.user,opts.pwd=nil,nil
         end
         opts.data = data and json.encode(data)
+        opts.checkCertificate = false
         local basket = {}
         net.HTTPClient():request(url,{
             options=opts,

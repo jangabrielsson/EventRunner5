@@ -1,5 +1,7 @@
 --%%include=Include.lua
 --%%name=EventRunner5
+--%%debug=refresh:false
+--%%u1={label='title',text='EventRunner5'}
 
 function QuickApp:main(er)
   local ER = fibaro.__ER
@@ -12,7 +14,7 @@ function QuickApp:main(er)
   er.debug.ruleTrue       = false -- log rules with condition succeeding
   er.debug.ruleFalse      = false -- log rules with condition failing
   er.debug.refreshEvents  = false -- log refresh of states
-  er.debug.sourceTrigger  = true -- log refresh of devices
+  er.debug.sourceTrigger  = false -- log refresh of devices
 
   local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   marshallFrom,marshallTo,toTime,midnight,encodeFast,argsStr,eventStr,
@@ -174,12 +176,16 @@ function QuickApp:main(er)
     {"a = 8",{8}},
     {"a = 8; b = 9;c=10",{10}},
     {"a = {1,2}",{{1,2}}},
-    {"a={b=8,cd=9}",{{b=8,cd=9}}},
+    {"a={b=8,cd=9,e={3,4}}",{{b=8,cd=9,e={3,4}}}},
     {"a.b",{8}},
     {"a['b']",{8}},
     {"a['c'++'d']",{9}},
+    {"a.e[1]",{3}},
+    {"a.e[a.e[1]-1]",{4}},
     {"a.b=88;a.b",{88}},
     {"a['b']=99;a.b",{99}},
+    {"a.e[2]=5;a.e[2]",{5}},  
+    {"a[true]=42;a[true]",{42}},  
     {"a['b']=99;a['b']-4",{95}},
     {"Fun1(3,4)",{7,9,10}},
     {"return Fun1(3,4)",{7,9,10}},
@@ -291,7 +297,7 @@ function QuickApp:main(er)
     -- {"@now+1 => a = asyncfun(2,3);a",{true,5}},
     -- {"555:central.keyAttribute == 'Pressed' => 109",{true,109},{{type='device',id=555,property='centralSceneEvent',value={keyId=2,keyAttribute='Pressed'}}}},
     -- {"556:scene == S2.double => 110",{true,110},{{type='device',id=556,property='sceneActivationEvent',value={sceneId="24"}}}},
-    {"#myRemote => 543",{true,543},{"remote(QA.id,#myRemote)"}},
+    --{"#myRemote => 543",{true,543},{"remote(QA.id,#myRemote)"}},
   }
   
 

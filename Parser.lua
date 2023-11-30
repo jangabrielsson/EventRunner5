@@ -268,18 +268,12 @@ function fibaro.__ER.modules.parser(ER)
   function ptable.t_vv(nt,ops,st,tkns,stop)
     local cond = pExpr(tkns,{['t_gg']=true,eof=true})
     assertf(nt,tkns.next().type== 't_gg',"missing '>>' for '||'")
-    local body = pExpr(tkns,{['t_vv']=true,['t_dprogn']=true,eof=true})
+    local stop2 = table.copyShallow(stop)
+    stop2['t_dprogn'] = true; stop2['t_vv'] = true; stop2['eof'] = true
+    local body = pExpr(tkns,stop2)
     local t2,res = tkns.peek()
-    if t2.type=='eof' or t2.type=='t_dprogn' then
+    if stop[t2.type] then
       res = {type='f_if', cond=cond, th=body, d=DB(nt)}
-    -- elseif t2.type=='t_dprogn' then
-    --   tkns.next()
-    --   res = {type='f_if', cond=cond, th=body, d=DB(nt)}
-    --   st.push(res)
-    --   nt = {type='op',opval='progn'}
-    --   while not ops.isEmpty() and higherPrio(ops.peek(),nt) do apply(ops.pop(),st) end
-    --   ops.push(nt)
-    --   return
     elseif t2.type=='t_vv' then
       stop = table.copyShallow(stop)
       stop['t_dprogn'] = true
