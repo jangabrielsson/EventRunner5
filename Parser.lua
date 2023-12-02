@@ -517,7 +517,7 @@ function fibaro.__ER.modules.parser(ER)
   function trans_op.daily(p)
     p.args[1] = transform(p.args[1])
     local arg = p.args[1]
-    if arg.type ~= 'table' then
+    if arg.type ~= 'table' and not (arg.type=='const' and type(arg.value)=='table') then
       local narg = transform({type='table', args={arg}, d=arg.d})
       p.args[1] = narg
     end
