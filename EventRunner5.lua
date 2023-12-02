@@ -37,8 +37,8 @@ function QuickApp:main(er) -- Main function, place to define rules
     local msgOpts = { evalResult=false, userLogColor='yellow' }
     local function expr(str) return rule(str,msgOpts) end -- Helper function to create non-logging expr with msgOpts
 
-    rule("keyfob:central.keyId == 1 => log('Keyfob button 1 pressed')")
-    expr("wait(2); keyfob:sim_pressed=1") -- Fake key press
+    -- rule("keyfob:central.keyId == 1 => log('Keyfob button 1 pressed')")
+    -- expr("wait(2); keyfob:sim_pressed=1") -- Fake key press
 
     expr("log('HC3 uptime %s',uptimeStr)")
     expr("elog('Sunrise at %t, Sunset at %t',sunrise,sunset)")

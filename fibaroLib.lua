@@ -188,7 +188,8 @@ function fibaro.tryArmPartition(id)
     end
   else
     local res,_ = api.post("/alarms/v1/partitions/"..id.."/actions/tryArm")
-    if res.result=="armDelayed" and #res.breachedDevices > 0 then return {[id]=res.breachedDevices},200 else return nil end
+    local bd = res and res.breachedDevices or {}
+    if res.result=="armDelayed" and #bd > 0 then return {[id]=bd},200 else return nil end
   end
 end
 
