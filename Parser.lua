@@ -125,7 +125,6 @@ function fibaro.__ER.modules.parser(ER)
         else
           args[#args+1] = expr
         end
-        
       end
       if tkns.peek().type == 'comma' then tkns.next() end
     end
@@ -150,9 +149,9 @@ function fibaro.__ER.modules.parser(ER)
   function ptable.str(nt,ops,st,tkns,stop) st.push({type='str', value=nt.value,d=DB(nt)}) end
   function ptable.event(nt,ops,st,tkns,stop)
     local keyvalues = {
-      type='op', op='assign',
+      type='op', op='keyval',
       args={
-        {type='var', name='type',d=DB(nt)},
+        'type',
         {type='str', value=nt.value,d=DB(nt)},
       },
       d=DB(nt)
