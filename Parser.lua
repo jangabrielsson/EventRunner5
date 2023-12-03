@@ -117,7 +117,15 @@ function fibaro.__ER.modules.parser(ER)
         local v = pExpr(tkns,{['comma']=true,[stop]=true,eof=true})
         args[#args+1] = {type='op', op='assign', args={k,v},d=DB(nt)}
       else
-        args[#args+1] = pExpr(tkns,{['comma']=true,[stop]=true,eof=true})
+        local nt = tkns.peek()
+        local expr = pExpr(tkns,{['comma']=true,[stop]=true,eof=true})
+        if expr.op == 'assign' then
+          if nt.type ~= 'name' then errorf(nt,"Missing name for key") end
+          args[#args+1] = {type='op', op='keyval', args={nt.value,expr.args[2]},d=DB(nt)}
+        else
+          args[#args+1] = expr
+        end
+        
       end
       if tkns.peek().type == 'comma' then tkns.next() end
     end
@@ -591,15 +599,15 @@ function fibaro.__ER.modules.parser(ER)
       if v.op == 'assign' then
         local v1 = transform(v.args[1])
         local v2 = transform(v.args[2])
-        if v1.type == 'var' then
-          const = const and isConst(v2)~=nil 
-          nargs[#nargs+1]={'const',v1.name,v2}
-        else
-          local c1 = isConst(v1)
-          const = const and c1~=nil and isConst(v2)~=nil
-          if c1 and c1[1]~=nil then nargs[#nargs+1]={'const',c1[1],v2}
-          else nargs[#nargs+1]={'comp',v1,v2} end
-        end
+        local c1 = isConst(v1)
+        const = const and c1~=nil and isConst(v2)~=nil
+        if c1 and c1[1]~=nil then nargs[#nargs+1]={'const',c1[1],v2}
+        else nargs[#nargs+1]={'comp',v1,v2} end
+      elseif v.op == 'keyval' then
+        local key = v.args[1]
+        local v2 = transform(v.args[2])
+        const = const and isConst(v2)~=nil
+        nargs[#nargs+1]={'const',key,v2}
       else
         index = index+1
         v = transform(v)

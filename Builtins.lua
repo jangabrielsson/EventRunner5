@@ -142,6 +142,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         getProps.isSecure={'device',on,'secured',mapAnd,true}
         getProps.isUnsecure={'device',off,'secured',mapOr,true}
         getProps.name={'device',function(id) return fibaro.getName(id) end,nil,nil,false}
+        getProps.partition={'alarm',function(id) return partition(id) end,nil,nil,false}
         getProps.HTname={'device',function(id) return ER.reverseVar(id) end,nil,nil,false}
         getProps.roomName={'device',function(id) return fibaro.getRoomNameByDeviceID(id) end,nil,nil,false}
         getProps.trigger={'device',function() return true end,'value',nil,true}

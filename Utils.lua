@@ -18,7 +18,15 @@ function fibaro.__ER.modules.utilities(ER)
     function self.pop2() local b,a = self.pop(),self.pop() return a,b end
     function self.popn(n,v) v = v or {}; if n > 0 then local p0 = self.pop(); self.popn(n-1,v); v[#v+1]=p0 end return v end 
     function self.peek(n) return st[p-(n or 0)] end
-    function self.lift(n) local s = {42} for i=1,n do table.insert(s,i,st[p-n+i]) end s[#s]=nil self.pop(n) return s end -- Need to do this to get correct size of result table
+    function self.lift(n) 
+      local s = {42} 
+      for i=1,n do 
+        table.insert(s,i,st[p-n+i]) 
+      end 
+      s[#s]=nil 
+      self.pop(n) 
+      return s 
+    end -- Need to do this to get correct size of result table
     function self.liftc(n) local s = {} for i=1,n do s[i] = st[p-n+i] end return s end
     function self.isEmpty() return p<=0 end
     function self.size() return p end    
