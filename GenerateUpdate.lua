@@ -32,190 +32,212 @@ local entry = [[
   "viewLayout": {
     "$jason": {
       "body": {
+        "header": {
+          "style": {
+            "height": "0"
+          },
+          "title": "quickApp_device_1425"
+        },
         "sections": {
           "items": [
             {
-              "type": "vertical",
               "components": [
                 {
-                  "type": "label",
-                  "text": "EventRunner5",
+                  "name": "title",
                   "style": {
                     "weight": "1.2"
                   },
-                  "name": "title"
+                  "text": "EventRunner5",
+                  "type": "label"
                 },
                 {
-                  "type": "space",
                   "style": {
                     "weight": "0.5"
-                  }
+                  },
+                  "type": "space"
                 }
               ],
               "style": {
                 "weight": "1.2"
-              }
+              },
+              "type": "vertical"
             },
             {
-              "type": "vertical",
               "components": [
                 {
-                  "type": "horizontal",
                   "components": [
                     {
-                      "type": "button",
+                      "name": "listRules",
+                      "style": {
+                        "weight": "0.50"
+                      },
                       "text": "List rules",
+                      "type": "button"
+                    },
+                    {
+                      "name": "listRulesExt",
                       "style": {
                         "weight": "0.50"
                       },
-                      "name": "listRules"
-                    },
-                    {
-                      "type": "button",
                       "text": "List rules ext.",
-                      "style": {
-                        "weight": "0.50"
-                      },
-                      "name": "listRulesExt"
+                      "type": "button"
                     }
                   ],
                   "style": {
                     "weight": "1.2"
-                  }
+                  },
+                  "type": "horizontal"
                 },
                 {
-                  "type": "space",
                   "style": {
                     "weight": "0.5"
-                  }
+                  },
+                  "type": "space"
                 }
               ],
               "style": {
                 "weight": "1.2"
-              }
+              },
+              "type": "vertical"
             },
             {
-              "type": "vertical",
               "components": [
                 {
-                  "type": "horizontal",
                   "components": [
                     {
-                      "type": "button",
+                      "name": "listTimers",
+                      "style": {
+                        "weight": "0.50"
+                      },
                       "text": "List timers",
-                      "style": {
-                        "weight": "0.50"
-                      },
-                      "name": "listTimers"
+                      "type": "button"
                     },
                     {
-                      "type": "button",
-                      "text": "List variables",
+                      "name": "listVars",
                       "style": {
                         "weight": "0.50"
                       },
-                      "name": "listVars"
+                      "text": "List variables",
+                      "type": "button"
                     }
                   ],
                   "style": {
                     "weight": "1.2"
-                  }
+                  },
+                  "type": "horizontal"
                 },
                 {
-                  "type": "space",
                   "style": {
                     "weight": "0.5"
-                  }
+                  },
+                  "type": "space"
                 }
               ],
               "style": {
                 "weight": "1.2"
-              }
+              },
+              "type": "vertical"
             },
             {
-              "type": "vertical",
               "components": [
                 {
-                  "type": "horizontal",
                   "components": [
                     {
-                      "type": "button",
-                      "text": "Test1",
+                      "name": "listRuleStats",
                       "style": {
                         "weight": "0.50"
                       },
-                      "name": "test1"
+                      "text": "List stats",
+                      "type": "button"
                     },
                     {
-                      "type": "button",
-                      "text": "Test2",
+                      "name": "Restart",
                       "style": {
                         "weight": "0.50"
                       },
-                      "name": "test2"
+                      "text": "Restart",
+                      "type": "button"
                     }
                   ],
                   "style": {
                     "weight": "1.2"
-                  }
+                  },
+                  "type": "horizontal"
                 },
                 {
-                  "type": "space",
                   "style": {
                     "weight": "0.5"
-                  }
+                  },
+                  "type": "space"
                 }
               ],
               "style": {
                 "weight": "1.2"
-              }
+              },
+              "type": "vertical"
+            },
+            {
+              "components": [
+                {
+                  "name": "stats",
+                  "style": {
+                    "weight": "1.2"
+                  },
+                  "text": "",
+                  "type": "label"
+                },
+                {
+                  "style": {
+                    "weight": "0.5"
+                  },
+                  "type": "space"
+                }
+              ],
+              "style": {
+                "weight": "1.2"
+              },
+              "type": "vertical"
             }
           ]
-        },
-        "header": {
-          "title": "quickApp_device_5000",
-          "style": {
-            "height": "200"
-          }
         }
       },
       "head": {
-        "title": "quickApp_device_5000"
+        "title": "quickApp_device_1425"
       }
     }
   },
   "uiCallbacks": [
-      {
-        "callback": "listRules",
-        "name": "listRules",
-        "eventType": "onReleased"
-      },
-      {
-        "callback": "listRulesExt",
-        "name": "listRulesExt",
-        "eventType": "onReleased"
-      },
-      {
-        "callback": "listTimers",
-        "name": "listTimers",
-        "eventType": "onReleased"
-      },
-      {
-        "callback": "listVariables",
-        "name": "listVars",
-        "eventType": "onReleased"
-      },
-      {
-        "callback": "test1",
-        "name": "test1",
-        "eventType": "onReleased"
-      },
-      {
-        "callback": "test2",
-        "name": "test2",
-        "eventType": "onReleased"
-      }
-    ],
+    {
+      "callback": "listRules",
+      "eventType": "onReleased",
+      "name": "listRules"
+    },
+    {
+      "callback": "listRulesExt",
+      "eventType": "onReleased",
+      "name": "listRulesExt"
+    },
+    {
+      "callback": "listTimers",
+      "eventType": "onReleased",
+      "name": "listTimers"
+    },
+    {
+      "callback": "listVariables",
+      "eventType": "onReleased",
+      "name": "listVars"
+    },
+    {
+      "callback": "listRuleStats",
+      "eventType": "onReleased",
+      "name": "listRuleStats"
+    },
+    {
+      "callback": "restart",
+      "eventType": "onReleased",
+      "name": "Restart"
+    }
+  ],
     "interfaces":[
    "quickApp"      
   ],     
