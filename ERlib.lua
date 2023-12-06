@@ -147,10 +147,11 @@ do
     local s = f:match(".")
     if s then return function(s) return hms(s),1 end else return function(s) return hm(s),1 end end
   end
+  string._edelimter = ", "
   function specs.l(f)
     local fun = function(s)
       local r = {} for _,e in ipairs(s) do r[#r+1]=tostring(e) end
-      return table.concat(r,","),1
+      return table.concat(r,string._edelimter),1
     end
     local space,trunc = f:match("(-?%d*),?(%d*)")
     if trunc and trunc~="" then fun = mkTruncer(tonumber(trunc),fun,1) end

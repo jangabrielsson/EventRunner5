@@ -26,412 +26,219 @@
     ],    
     "mainfile":"$base1/EventRunner5.lua",    
     "quickAppVariables":[],    
-    "uiCallbacks":[
-     {
-      "name":"listRules",      
-      "callback":"listRules",      
-      "eventType":"onReleased"      
-     },     
-     {
-      "name":"listRulesExt",      
-      "callback":"listRulesExt",      
-      "eventType":"onReleased"      
-     },     
-     {
-      "name":"listTimers",      
-      "callback":"listTimers",      
-      "eventType":"onReleased"      
-     },     
-     {
-      "name":"listVars",      
-      "callback":"listVariables",      
-      "eventType":"onReleased"      
-     },     
-     {
-      "name":"test1",      
-      "callback":"test1",      
-      "eventType":"onReleased"      
-     },     
-     {
-      "name":"test2",      
-      "callback":"test2",      
-      "eventType":"onReleased"      
-     }     
-    ],    
-    "vars":{
-     "base1":"https://raw.githubusercontent.com/jangabrielsson/EventRunner5/ER5_0.54"     
-    },    
-    "version":0.54,    
-    "viewLayout":{
-     "$jason":{
-      "body":{
-       "header":{
-        "style":{
-         "height":"200"         
-        },        
-        "title":"quickApp_device_5000"        
-       },       
-       "sections":{
-        "items":[
-         {
-          "type":"vertical",          
-          "components":[
-           {
-            "name":"title",            
-            "type":"label",            
-            "style":{
-             "weight":"1.2"             
-            },            
-            "text":"EventRunner5"            
-           },           
-           {
-            "type":"space",            
-            "style":{
-             "weight":"0.5"             
-            }            
-           }           
-          ],          
-          "style":{
-           "weight":"1.2"           
-          }          
-         },         
-         {
-          "type":"vertical",          
-          "components":[
-           {
-            "type":"horizontal",            
-            "components":[
-             {
-              "name":"listRules",              
-              "type":"button",              
-              "style":{
-               "weight":"0.50"               
-              },              
-              "text":"List rules"              
-             },             
-             {
-              "name":"listRulesExt",              
-              "type":"button",              
-              "style":{
-               "weight":"0.50"               
-              },              
-              "text":"List rules ext."              
-             }             
-            ],            
-            "style":{
-             "weight":"1.2"             
-            }            
-           },           
-           {
-            "type":"space",            
-            "style":{
-             "weight":"0.5"             
-            }            
-           }           
-          ],          
-          "style":{
-           "weight":"1.2"           
-          }          
-         },         
-         {
-          "type":"vertical",          
-          "components":[
-           {
-            "type":"horizontal",            
-            "components":[
-             {
-              "name":"listTimers",              
-              "type":"button",              
-              "style":{
-               "weight":"0.50"               
-              },              
-              "text":"List timers"              
-             },             
-             {
-              "name":"listVars",              
-              "type":"button",              
-              "style":{
-               "weight":"0.50"               
-              },              
-              "text":"List variables"              
-             }             
-            ],            
-            "style":{
-             "weight":"1.2"             
-            }            
-           },           
-           {
-            "type":"space",            
-            "style":{
-             "weight":"0.5"             
-            }            
-           }           
-          ],          
-          "style":{
-           "weight":"1.2"           
-          }          
-         },         
-         {
-          "type":"vertical",          
-          "components":[
-           {
-            "type":"horizontal",            
-            "components":[
-             {
-              "name":"test1",              
-              "type":"button",              
-              "style":{
-               "weight":"0.50"               
-              },              
-              "text":"Test1"              
-             },             
-             {
-              "name":"test2",              
-              "type":"button",              
-              "style":{
-               "weight":"0.50"               
-              },              
-              "text":"Test2"              
-             }             
-            ],            
-            "style":{
-             "weight":"1.2"             
-            }            
-           },           
-           {
-            "type":"space",            
-            "style":{
-             "weight":"0.5"             
-            }            
-           }           
-          ],          
-          "style":{
-           "weight":"1.2"           
-          }          
-         }         
-        ]        
-       }       
-      },      
-      "head":{
-       "title":"quickApp_device_5000"       
-      }      
-     }     
-    }    
-   },   
-   {
-    "interfaces":[
-     "quickApp"     
-    ],    
-    "descr":"First version (alpha, not for production)",    
-    "files":{
-     "ERlib":"$base1/ERlib.lua",     
-     "builtins":"$base1/Builtins.lua",     
-     "compiler":"$base1/Compiler.lua",     
-     "engine":"$base1/Engine.lua",     
-     "fibLib":"$base1/fibaroLib.lua",     
-     "main":"$base1/EventRunner5.lua",     
-     "parser":"$base1/Parser.lua",     
-     "rule":"$base1/Rule.lua",     
-     "tokenizer":"$base1/Tokenizer.lua",     
-     "utils":"$base1/Utils.lua",     
-     "vm":"$base1/VM.lua"     
-    },    
-    "keep":[
-     "main"     
-    ],    
-    "mainfile":"$base1/EventRunner5.lua",    
-    "quickAppVariables":[],    
-    "uiCallbacks":[
-     {
-      "name":"listRules",      
-      "callback":"listRules",      
-      "eventType":"onReleased"      
-     },     
-     {
-      "name":"listRulesExt",      
-      "callback":"listRulesExt",      
-      "eventType":"onReleased"      
-     },     
-     {
-      "name":"listTimers",      
-      "callback":"listTimers",      
-      "eventType":"onReleased"      
-     },     
-     {
-      "name":"listVars",      
-      "callback":"listVariables",      
-      "eventType":"onReleased"      
-     },     
-     {
-      "name":"test1",      
-      "callback":"test1",      
-      "eventType":"onReleased"      
-     },     
-     {
-      "name":"test2",      
-      "callback":"test2",      
-      "eventType":"onReleased"      
-     }     
-    ],    
+    "uiCallbacks": [
+      {
+        "callback": "listRules",
+        "eventType": "onReleased",
+        "name": "listRules"
+      },
+      {
+        "callback": "listRulesExt",
+        "eventType": "onReleased",
+        "name": "listRulesExt"
+      },
+      {
+        "callback": "listTimers",
+        "eventType": "onReleased",
+        "name": "listTimers"
+      },
+      {
+        "callback": "listVariables",
+        "eventType": "onReleased",
+        "name": "listVars"
+      },
+      {
+        "callback": "listRuleStats",
+        "eventType": "onReleased",
+        "name": "listRuleStats"
+      },
+      {
+        "callback": "restart",
+        "eventType": "onReleased",
+        "name": "Restart"
+      }
+    ], 
     "vars":{
      "base1":"https://raw.githubusercontent.com/jangabrielsson/EventRunner5/ER5_0.56"     
     },    
     "version":0.56,    
-    "viewLayout":{
-     "$jason":{
-      "body":{
-       "header":{
-        "style":{
-         "height":"200"         
-        },        
-        "title":"quickApp_device_5000"        
-       },       
-       "sections":{
-        "items":[
-         {
-          "type":"vertical",          
-          "components":[
-           {
-            "name":"title",            
-            "type":"label",            
-            "style":{
-             "weight":"1.2"             
-            },            
-            "text":"EventRunner5"            
-           },           
-           {
-            "type":"space",            
-            "style":{
-             "weight":"0.5"             
-            }            
-           }           
-          ],          
-          "style":{
-           "weight":"1.2"           
-          }          
-         },         
-         {
-          "type":"vertical",          
-          "components":[
-           {
-            "type":"horizontal",            
-            "components":[
-             {
-              "name":"listRules",              
-              "type":"button",              
-              "style":{
-               "weight":"0.50"               
-              },              
-              "text":"List rules"              
-             },             
-             {
-              "name":"listRulesExt",              
-              "type":"button",              
-              "style":{
-               "weight":"0.50"               
-              },              
-              "text":"List rules ext."              
-             }             
-            ],            
-            "style":{
-             "weight":"1.2"             
-            }            
-           },           
-           {
-            "type":"space",            
-            "style":{
-             "weight":"0.5"             
-            }            
-           }           
-          ],          
-          "style":{
-           "weight":"1.2"           
-          }          
-         },         
-         {
-          "type":"vertical",          
-          "components":[
-           {
-            "type":"horizontal",            
-            "components":[
-             {
-              "name":"listTimers",              
-              "type":"button",              
-              "style":{
-               "weight":"0.50"               
-              },              
-              "text":"List timers"              
-             },             
-             {
-              "name":"listVars",              
-              "type":"button",              
-              "style":{
-               "weight":"0.50"               
-              },              
-              "text":"List variables"              
-             }             
-            ],            
-            "style":{
-             "weight":"1.2"             
-            }            
-           },           
-           {
-            "type":"space",            
-            "style":{
-             "weight":"0.5"             
-            }            
-           }           
-          ],          
-          "style":{
-           "weight":"1.2"           
-          }          
-         },         
-         {
-          "type":"vertical",          
-          "components":[
-           {
-            "type":"horizontal",            
-            "components":[
-             {
-              "name":"test1",              
-              "type":"button",              
-              "style":{
-               "weight":"0.50"               
-              },              
-              "text":"Test1"              
-             },             
-             {
-              "name":"test2",              
-              "type":"button",              
-              "style":{
-               "weight":"0.50"               
-              },              
-              "text":"Test2"              
-             }             
-            ],            
-            "style":{
-             "weight":"1.2"             
-            }            
-           },           
-           {
-            "type":"space",            
-            "style":{
-             "weight":"0.5"             
-            }            
-           }           
-          ],          
-          "style":{
-           "weight":"1.2"           
-          }          
-         }         
-        ]        
-       }       
-      },      
-      "head":{
-       "title":"quickApp_device_5000"       
-      }      
-     }     
-    }    
+    "viewLayout":"viewLayout": {
+      "$jason": {
+        "body": {
+          "header": {
+            "style": {
+              "height": "0"
+            },
+            "title": "quickApp_device_1425"
+          },
+          "sections": {
+            "items": [
+              {
+                "components": [
+                  {
+                    "name": "title",
+                    "style": {
+                      "weight": "1.2"
+                    },
+                    "text": "EventRunner5",
+                    "type": "label"
+                  },
+                  {
+                    "style": {
+                      "weight": "0.5"
+                    },
+                    "type": "space"
+                  }
+                ],
+                "style": {
+                  "weight": "1.2"
+                },
+                "type": "vertical"
+              },
+              {
+                "components": [
+                  {
+                    "components": [
+                      {
+                        "name": "listRules",
+                        "style": {
+                          "weight": "0.50"
+                        },
+                        "text": "List rules",
+                        "type": "button"
+                      },
+                      {
+                        "name": "listRulesExt",
+                        "style": {
+                          "weight": "0.50"
+                        },
+                        "text": "List rules ext.",
+                        "type": "button"
+                      }
+                    ],
+                    "style": {
+                      "weight": "1.2"
+                    },
+                    "type": "horizontal"
+                  },
+                  {
+                    "style": {
+                      "weight": "0.5"
+                    },
+                    "type": "space"
+                  }
+                ],
+                "style": {
+                  "weight": "1.2"
+                },
+                "type": "vertical"
+              },
+              {
+                "components": [
+                  {
+                    "components": [
+                      {
+                        "name": "listTimers",
+                        "style": {
+                          "weight": "0.50"
+                        },
+                        "text": "List timers",
+                        "type": "button"
+                      },
+                      {
+                        "name": "listVars",
+                        "style": {
+                          "weight": "0.50"
+                        },
+                        "text": "List variables",
+                        "type": "button"
+                      }
+                    ],
+                    "style": {
+                      "weight": "1.2"
+                    },
+                    "type": "horizontal"
+                  },
+                  {
+                    "style": {
+                      "weight": "0.5"
+                    },
+                    "type": "space"
+                  }
+                ],
+                "style": {
+                  "weight": "1.2"
+                },
+                "type": "vertical"
+              },
+              {
+                "components": [
+                  {
+                    "components": [
+                      {
+                        "name": "listRuleStats",
+                        "style": {
+                          "weight": "0.50"
+                        },
+                        "text": "List stats",
+                        "type": "button"
+                      },
+                      {
+                        "name": "Restart",
+                        "style": {
+                          "weight": "0.50"
+                        },
+                        "text": "Restart",
+                        "type": "button"
+                      }
+                    ],
+                    "style": {
+                      "weight": "1.2"
+                    },
+                    "type": "horizontal"
+                  },
+                  {
+                    "style": {
+                      "weight": "0.5"
+                    },
+                    "type": "space"
+                  }
+                ],
+                "style": {
+                  "weight": "1.2"
+                },
+                "type": "vertical"
+              },
+              {
+                "components": [
+                  {
+                    "name": "stats",
+                    "style": {
+                      "weight": "1.2"
+                    },
+                    "text": "",
+                    "type": "label"
+                  },
+                  {
+                    "style": {
+                      "weight": "0.5"
+                    },
+                    "type": "space"
+                  }
+                ],
+                "style": {
+                  "weight": "1.2"
+                },
+                "type": "vertical"
+              }
+            ]
+          }
+        },
+        "head": {
+          "title": "quickApp_device_1425"
+        }
+      }
+    }
    },   
    {
     "interfaces":[
@@ -492,6 +299,221 @@
      "base1":"https://raw.githubusercontent.com/jangabrielsson/EventRunner5/ER5_0.58"     
     },    
     "version":0.58,    
+    "viewLayout":{
+     "$jason":{
+      "body":{
+       "header":{
+        "style":{
+         "height":"200"         
+        },        
+        "title":"quickApp_device_5000"        
+       },       
+       "sections":{
+        "items":[
+         {
+          "type":"vertical",          
+          "components":[
+           {
+            "name":"title",            
+            "type":"label",            
+            "style":{
+             "weight":"1.2"             
+            },            
+            "text":"EventRunner5"            
+           },           
+           {
+            "type":"space",            
+            "style":{
+             "weight":"0.5"             
+            }            
+           }           
+          ],          
+          "style":{
+           "weight":"1.2"           
+          }          
+         },         
+         {
+          "type":"vertical",          
+          "components":[
+           {
+            "type":"horizontal",            
+            "components":[
+             {
+              "name":"listRules",              
+              "type":"button",              
+              "style":{
+               "weight":"0.50"               
+              },              
+              "text":"List rules"              
+             },             
+             {
+              "name":"listRulesExt",              
+              "type":"button",              
+              "style":{
+               "weight":"0.50"               
+              },              
+              "text":"List rules ext."              
+             }             
+            ],            
+            "style":{
+             "weight":"1.2"             
+            }            
+           },           
+           {
+            "type":"space",            
+            "style":{
+             "weight":"0.5"             
+            }            
+           }           
+          ],          
+          "style":{
+           "weight":"1.2"           
+          }          
+         },         
+         {
+          "type":"vertical",          
+          "components":[
+           {
+            "type":"horizontal",            
+            "components":[
+             {
+              "name":"listTimers",              
+              "type":"button",              
+              "style":{
+               "weight":"0.50"               
+              },              
+              "text":"List timers"              
+             },             
+             {
+              "name":"listVars",              
+              "type":"button",              
+              "style":{
+               "weight":"0.50"               
+              },              
+              "text":"List variables"              
+             }             
+            ],            
+            "style":{
+             "weight":"1.2"             
+            }            
+           },           
+           {
+            "type":"space",            
+            "style":{
+             "weight":"0.5"             
+            }            
+           }           
+          ],          
+          "style":{
+           "weight":"1.2"           
+          }          
+         },         
+         {
+          "type":"vertical",          
+          "components":[
+           {
+            "type":"horizontal",            
+            "components":[
+             {
+              "name":"test1",              
+              "type":"button",              
+              "style":{
+               "weight":"0.50"               
+              },              
+              "text":"Test1"              
+             },             
+             {
+              "name":"test2",              
+              "type":"button",              
+              "style":{
+               "weight":"0.50"               
+              },              
+              "text":"Test2"              
+             }             
+            ],            
+            "style":{
+             "weight":"1.2"             
+            }            
+           },           
+           {
+            "type":"space",            
+            "style":{
+             "weight":"0.5"             
+            }            
+           }           
+          ],          
+          "style":{
+           "weight":"1.2"           
+          }          
+         }         
+        ]        
+       }       
+      },      
+      "head":{
+       "title":"quickApp_device_5000"       
+      }      
+     }     
+    }    
+   },   
+   {
+    "interfaces":[
+     "quickApp"     
+    ],    
+    "descr":"First version (alpha, not for production)",    
+    "files":{
+     "ERlib":"$base1/ERlib.lua",     
+     "builtins":"$base1/Builtins.lua",     
+     "compiler":"$base1/Compiler.lua",     
+     "engine":"$base1/Engine.lua",     
+     "fibLib":"$base1/fibaroLib.lua",     
+     "main":"$base1/EventRunner5.lua",     
+     "parser":"$base1/Parser.lua",     
+     "rule":"$base1/Rule.lua",     
+     "tokenizer":"$base1/Tokenizer.lua",     
+     "utils":"$base1/Utils.lua",     
+     "vm":"$base1/VM.lua"     
+    },    
+    "keep":[
+     "main"     
+    ],    
+    "mainfile":"$base1/EventRunner5.lua",    
+    "quickAppVariables":[],    
+    "uiCallbacks":[
+     {
+      "name":"listRules",      
+      "callback":"listRules",      
+      "eventType":"onReleased"      
+     },     
+     {
+      "name":"listRulesExt",      
+      "callback":"listRulesExt",      
+      "eventType":"onReleased"      
+     },     
+     {
+      "name":"listTimers",      
+      "callback":"listTimers",      
+      "eventType":"onReleased"      
+     },     
+     {
+      "name":"listVars",      
+      "callback":"listVariables",      
+      "eventType":"onReleased"      
+     },     
+     {
+      "name":"test1",      
+      "callback":"test1",      
+      "eventType":"onReleased"      
+     },     
+     {
+      "name":"test2",      
+      "callback":"test2",      
+      "eventType":"onReleased"      
+     }     
+    ],    
+    "vars":{
+     "base1":"https://raw.githubusercontent.com/jangabrielsson/EventRunner5/ER5_0.61"     
+    },    
+    "version":0.61,    
     "viewLayout":{
      "$jason":{
       "body":{

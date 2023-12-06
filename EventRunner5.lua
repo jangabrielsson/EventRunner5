@@ -6,7 +6,8 @@
 --%%u1={label='title',text='EventRunner5'}
 --%%u2={{button='listRules',text='List rules', onReleased='listRules'},{button='listRulesExt',text='List rules ext.', onReleased='listRulesExt'}}
 --%%u3={{button='listTimers',text='List timers', onReleased='listTimers'},{button='listVars',text='List variables', onReleased='listVariables'}}
---%%u4={label='stats',text=''}
+--%%u4={{button='listRuleStats',text='List stats', onReleased='listRuleStats'},{button='Restart',text='Restart', onReleased='restart'}}
+--%%u5={label='stats',text=''}
 
 function QuickApp:main(er) -- Main function, place to define rules
     local rule,eval,var,triggerVar,Util = er.eval,er.eval,er.variables,er.triggerVariables,er
@@ -66,6 +67,8 @@ function QuickApp:main(er) -- Main function, place to define rules
     rule("#UI{cmd='listRulesExt'} => listRules(true)",ruleOpts)
     rule("#UI{cmd='listVars'} => listVariables()",ruleOpts)
     rule("#UI{cmd='listTimers'} => listTimers()",ruleOpts)
+    rule("#UI{cmd='listRuleStats'} => listStats()",ruleOpts)
+    rule("#UI{cmd='Restart'} => plugin.restart()",ruleOpts)
 end
 
 function QuickApp:onInit()

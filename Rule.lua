@@ -27,7 +27,9 @@ function fibaro.__ER.modules.rule(ER)
   local tableOptUI = {table="width='100%' border=1 bgcolor='white'",td="align='left'"}
 
 
-  function ER.createRuleStats(htmlTable)
+  function ER.createRuleStats(htmlTable,len,opts)
+    opts = opts or tableOpts
+    len = len or 100
     local pr = PrintBuffer()
     pr:printf("Invocations: %s",ER.ruleStats.runs)
     pr:printf("Sucesses: %s",ER.ruleStats.successes)
@@ -35,18 +37,31 @@ function fibaro.__ER.modules.rule(ER)
     pr:printf("Errors: %s",ER.ruleStats.errors)
     pr:add(("-"):rep(75))
     pr:add("Recent rules:")
+    for i=1,len do
+      local c = ER.ruleStats.last[i]
+      if not c then break end
+      pr:printf("%s %s (%s,%s)",os.date("%H:%M:%S",c.start),c.name,c.status,os.date("%H:%M:%S",c.time))
+    end
+    return htmlTable({pr:tostring()},opts)
+  end
+
+  local function addRuleStats(c) table.insert(ruleStats.last,1,c) end
+
+  function ER.listRuleStats() LOG(ER.createRuleStats(htmlTable)) end
+  local function updateRuleStats()
+    local pr = PrintBuffer('<p align="left">')
+    pr:printf("Invocations: %s",ER.ruleStats.runs)
+    pr:printf("Sucesses: %s",ER.ruleStats.successes)
+    pr:printf("Fails: %s",ER.ruleStats.fails)
+    pr:printf("Errors: %s",ER.ruleStats.errors)
+    pr:add(("-"):rep(75))
     for i=1,10 do
       local c = ER.ruleStats.last[i]
       if not c then break end
-      pr:printf("%s %s (%s,%s)",os.date("%H:%M:%S",c.last),c.name,c.status,os.date("%H:%M:%S",c.time))
+      pr:printf("%s %s (%s,%s)",os.date("%H:%M:%S",c.start),c.name,c.status,os.date("%H:%M:%S",c.time))
     end
-    return htmlTable({pr:tostring()},tableOpts)
-  end
-
-  function ER.logRuleStats() LOG(ER.createRuleStats(htmlTable)) end
-  local function updateRuleStats()
-    local htmlTable = ER.utilities.htmlTableAlt
-    quickApp:updateView("stats","text",ER.createRuleStats(htmlTable))
+    pr:add("</p>")
+    quickApp:updateView("stats","text",pr:tostring())
   end
 
   function ER.listRules(extended)
@@ -446,7 +461,7 @@ function fibaro.__ER.modules.rule(ER)
       co._stats = { name = co.name }
       co._stats.status,co._stats.time = 'started',os.time(); updateRuleStats()
       co._stats.start = os.time()
-      table.insert(ruleStats.last,1,co._stats)
+      addRuleStats(co._stats)
       if #ruleStats.last > 80 then table.remove(ruleStats.last,81) end -- keep last 10
 
       local env = {event=ev,evid=id or '%%START%%',vars=vars,rule=rule,name=co.name,co=co,instance=rule.instance}
@@ -501,8 +516,7 @@ function fibaro.__ER.modules.rule(ER)
       
       function options.success(...)
         rule.runners[co] = nil
-        local stat = coroutine.status(co)
-        local a = {}
+        co._stats.status,co._stats.time = 'done',os.time(); updateRuleStats()
         if evOpts(conditionSucceeded,options.ruleResult,debug.ruleResult) then co.LOG("result %s",co.name,argsStr(...)) end
         if rule.resultHook then rule.resultHook(conditionSucceeded,...) end
       end

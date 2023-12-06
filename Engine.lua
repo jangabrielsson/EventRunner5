@@ -8,7 +8,7 @@
 
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 0.610
+local version = 0.620
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -350,12 +350,16 @@ function QuickApp:EventRunnerEngine(callback)
     local p = ER:parse(str,options)
     return ER:compile(p,options)
   end
+  local macros = {}
 
   function er.eval(name,str,options)         -- top-level eval for expressions - used by rule(...)
     if type(name)=='string' and type(str)=='string' then
       options = options or {}
       options.name = name
     else str,options = name,str end
+
+    for _,macro in ipairs(macros) do str = macro(str) end -- macro expand
+
     options = options and table.copy(options) or {}
     for k,v in pairs(er.ruleOpts) do if options[k]==nil then options[k]=v end end
 
@@ -408,7 +412,7 @@ function QuickApp:EventRunnerEngine(callback)
 
   for k,v in pairs({
     listRules= ER.listRules,listVariables=ER.listVariables,listTimers=ER.listTimers,
-    listStats = ER.logRuleStats, stdProp = ER.stdPropObject,
+    listStats = ER.listRuleStats, stdProp = ER.stdPropObject,
     enable=ER.enable,disable=ER.disable,
     defvars = function(t) for k,v in pairs(t) do er.defvar(k,v) end end,
     async = ER.asyncFun,
@@ -434,7 +438,7 @@ function QuickApp:EventRunnerEngine(callback)
     if b then
       params = b:sub(2,-2):split(",")
     end
-    return function(code)
+    local macro =  function(code)
       if not b then return code:gsub(a,str) end
       code = code:gsub(a.."(%b())",function(args)
         args = args:sub(2,-2):split(",")
@@ -446,6 +450,7 @@ function QuickApp:EventRunnerEngine(callback)
       end)
       return code
     end
+    macros[#macros+1] = macro
   end
 
   local vID = 10000

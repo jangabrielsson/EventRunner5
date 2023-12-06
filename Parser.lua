@@ -372,6 +372,7 @@ function fibaro.__ER.modules.parser(ER)
     end
   end
   
+  local unknownTxt = { ['rpar']="extra ')' at end of expression", ['rcur']="extra '}' at end of expression", ['rbra']="extra ']' at end of expression"}
   local function pExpr2(ops,st,tkns,stop)
     while true do
       local nt = tkns.peek()
@@ -381,7 +382,8 @@ function fibaro.__ER.modules.parser(ER)
         tkns.next()
         ptable[nt.type](nt,ops,st,tkns,stop)
       else
-        errorf(nt,"Unknown token type: "..nt.type)
+        if unknownTxt[nt.type] then errorf(nt,unknownTxt[nt.type])
+        else errorf(nt,"Unknown symbol at end of expression: "..nt.type) end
       end
     end
   end
