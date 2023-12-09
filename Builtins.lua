@@ -311,11 +311,11 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         local args,n = st.popm(i[3]),i[3]
         local opts = p.co.options or {}
         local str = ""
-        for i=1,#args do if type(args[i])=='table' then args[i]=encodeObj(args[i]) end end
-        if #args < n then for i=1,n-#args do args[#args+1]='nil' end end
-        if #args == 1 then str=tostring(args[1])
+        for i=1,n do if type(args[i])=='table' then args[i]=encodeObj(args[i]) end end
+        --if #args < n then for i=1,n-#args do args[#args+1]='nil' end end
+        if n == 1 then str=tostring(args[1])
         elseif #args>1 then
-            local stat,res = pcall(fmt,table.unpack(args))
+            local stat,res = pcall(fmt,args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8])
             if stat then str = res
             else 
                 res = res:gsub("bad argument #(%d+)",function(n) return "bad argument #"..(n-1) end)
@@ -332,7 +332,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     function builtin.elog(i,st,p)
         local args,n = st.popm(i[3]),i[3]
         local opts = p.co.options or {}
-        local stat,str = pcall(eformat,table.unpack(args))
+        local stat,str = pcall(eformat,args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8])
         if not stat then
             str = str:gsub("#(%d+)",function(n) return "bad argument #"..(n-1) end)
             errorf(p,"elog format: %s",str) 
@@ -432,7 +432,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         local args,n = st.popm(i[3]),i[3]
         p.yielded = true;
         args[1] = args[1] * 1000
-        st.push({"%wait%",table.unpack(args)}); return 'multiple_values'
+        st.push({"%wait%",args[1],args[2],args[3]}); return 'multiple_values'
     end
     args.once = {0,2}
     function builtin.once(i,st,p) -- i[4] is last state
@@ -458,7 +458,8 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     end
     args.trueFor = {2,3}
     function builtin.trueFor(i,st,p)
-        local time,val,log = table.unpack(st.popm(i[3]))
+        local args = st.popm(i[3])
+        local time,val,log = args[1],args[2],args[3]
         log = log == true
         local env = p.args[1] or {}
         local id,rule,event = env.rule.id,env.rule,env.event
@@ -495,7 +496,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     function builtin.idxsetup(i,st,p) -- 'idxsetup',{idx,sgv,stopv,stepv},{sav,sov,se})
         local env = p.env
         local idx,sgv,stopv,stepv = table.unpack(i,4)
-        local sav,sov,se = table.unpack(st.popm(i[3]))
+        local sav,sov,se = table.unpack((st.popm(i[3])))
         env.push(idx,sav)
         env.push(stopv,sov)
         env.push(stepv,se)
@@ -523,7 +524,8 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     function builtin.flsetup(i,st,p) -- 'flsetup',{kvar,vvar,fvar,lvar,svar},{expr})
         local env = p.env
         local kvar,vvar,fvar,lvar,svar = table.unpack(i,4)
-        local f,l,s = table.unpack(st.popm(1))
+        local args = st.popm(1)
+        local f,l,s = table.unpack(args)
         env.push(fvar,f)
         env.push(lvar,l)
         --env.push(svar,s)

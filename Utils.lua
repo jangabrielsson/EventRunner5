@@ -19,7 +19,7 @@ function fibaro.__ER.modules.utilities(ER)
     function self.popn(n,v) v = v or {}; if n > 0 then local p0 = self.pop(); self.popn(n-1,v); v[#v+1]=p0 end return v end 
     function self.peek(n) return st[p-(n or 0)] end
     function self.lift(n) 
-      local s = {42} 
+      local s = {4} 
       for i=1,n do 
         table.insert(s,i,st[p-n+i]) 
       end 
@@ -33,9 +33,10 @@ function fibaro.__ER.modules.utilities(ER)
     function self.setSize(np) p=np; px=p end
     function self.push0(v) px=px+1 st[px]=v end
     function self.p2px(v) p=px end
-    function self.popm(n) n=n or 1; local r,i0 ={42},0 
-      for i=p-n+1,px do i0=i0+1; table.insert(r,i0,st[i]) end r[#r] = nil -- Need to do this to get correct size of result table
-      p=p-n; px=p return r end
+    function self.popm(n) n=n or 1; local r,i0 ={},0 
+      for i=p-n+1,px do i0=i0+1; r[i0]=st[i] end  -- Need to do this to get correct size of result table
+      p=p-n; px=p return r,i0
+    end
     function self.get(i) return st[i] end
     function self.dump() for i=1,p do print(string.format("S%02d: %s",i,json.encode(st[i]))) end end
     function self.clear() p,px,st=0,0,{} end

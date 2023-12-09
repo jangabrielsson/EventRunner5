@@ -246,6 +246,7 @@ local function getIPaddress(name)
   end
 end
 fibaro.getIPaddress = getIPaddress
+fibaro.basicAuthorization = basicAuthorization
 
 ---------------- Debug ---------------------------------------------
 function QuickApp:debugf(fmt,...) self:debug(fmt:format(...)) end

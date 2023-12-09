@@ -58,7 +58,7 @@ function fibaro.__ER.modules.rule(ER)
     for i=1,10 do
       local c = ER.ruleStats.last[i]
       if not c then break end
-      pr:printf("%s %s (%s,%s)",os.date("%H:%M:%S",c.start),c.name,c.status,os.date("%H:%M:%S",c.time))
+       pr:printf("%s %s (%s,%s)",os.date("%H:%M:%S",c.start),c.name,c.status,os.date("%H:%M:%S",c.time))
     end
     pr:add("</p>")
     quickApp:updateView("stats","text",pr:tostring())

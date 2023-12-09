@@ -111,7 +111,7 @@ function fibaro.__ER.modules.vm(ER)
   
   function instr.call(i,st,p)
     local args = st.popm(i[4])
-    if not next(args) then args={nil,0} end --hack to get around lua limits...
+    --if not next(args) then args={nil,0} end --hack to get around lua limits...
     local name,f = i[3],nil
     if name then 
       PA={name}
@@ -125,7 +125,7 @@ function fibaro.__ER.modules.vm(ER)
       if mt and mt.__call then local f0=f f = function(...) return mt.__call(f0,...) end end
       if type(f)~="function" then errorf(p,"'%s' is not a function",tostring(f)) end
     end
-    local res = {pcall(f,table.unpack(args))}
+    local res = {pcall(f,args[1],args[2],args[3],args[4],args[5],args[6],args[7])}
     if not res[1] then errorf(p,res[2]) end
     if res[2] == '%magic_suspend%' then  -- Ok, this is the way to signal that the fun is async...
       local cb,msg = res[3],res[5]
@@ -155,7 +155,7 @@ function fibaro.__ER.modules.vm(ER)
     local s = st.popm(1) -- get ev. multiple values
     if #s>1 then st.push(s) return 'multiple_values' else st.push(s[1]) return true end 
   end
-  function instr.returnm(i,st,p) st.push(st.popm(i[3])) return 'multiple_values' end
+  function instr.returnm(i,st,p) st.push((st.popm(i[3]))) return 'multiple_values' end
   function instr.table(i,st)  -- Create table and push on stack
     local keys = i[3]
     local i,n = 1,#keys     -- ['%comp%','%value%',...] for computed indexes, [<key1>,<key2>,...] for named or integer indexes
@@ -223,16 +223,21 @@ function instr.aref(i,st,p)
   local key; if i[4] then key = i[4][1] else key = st.pop() end
   local tab = st.pop()
   if key == nil then errorf(p,"key is nil for arrray index") end
-  if tab == nil then errorf(p,"table is nil for array reference") end
+  local tabtype = type(tab)
+  if tabtype ~= 'table' and tabtype ~= 'userdata' then errorf(p,"table is '%s' for array reference",tabtype) end
   ---@diagnostic disable-next-line: need-check-nil
   st.push(tab[key])
   if i[5] then st.push(tab) end -- for callobj
 end
-function instr.aset(i,st)
+function instr.aset(i,st,p)
   local key,const,pop,var,v = i[3],i[4],i[5],i[6],nil
   if const then v = copy(const[1]) else v = st.pop() end
   if key==nil then key = st.pop() end
-  local tab = st.pop() tab[key] = v
+  if key == nil then errorf(p,"key is nil for arrray index") end
+  local tab = st.pop()
+  local tabtype = type(tab)
+  if tabtype ~= 'table' and tabtype ~= 'userdata' then errorf(p,"table is '%s' for array reference",tabtype) end
+  tab[key] = v
   if not pop then st.push(v) end
 end
 function instr.eventm(i,st,p)
@@ -390,7 +395,7 @@ for _,i in ipairs({'call','callexpr','callobj',}) do
       p.pc = p.pc+1
     end
     stat = stat==nil and true or stat
-    return stat,table.unpack(st.popm(1))
+    return stat,table.unpack((st.popm(1)))
   end
   
   local function run(fun,rtd,...)
