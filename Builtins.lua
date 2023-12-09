@@ -585,6 +585,36 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     }
     defVars.http = http
     
+    local function hc3api(cb,method,api,data)
+        local creds = defVars._creds and defVars._creds[1]
+        if not creds then setTimeout(function() cb(nil,404) end,0) end
+        net.HTTPClient():request("http://localhost/api"..api,{
+            options = {
+                method = method or "GET",
+                headers = {
+                    ['Accept'] = 'application/json',
+                    ["Authorization"] = creds,
+                    ['X-Fibaro-Version'] = '2',
+                   -- ["Content-Type"] = "application/json",
+                },
+                data = data and json.encode(data) or nil
+            },
+            success = function(resp)
+                cb(json.decode(resp.data),200)
+            end,
+            error = function(err)
+                cb(nil,err)
+            end
+        })
+    end
+
+    local api = {
+        get = ER.asyncFun(function(cb,path) return hc3api(cb,"GET",path,nil) end),
+        put = ER.asyncFun(function(cb,path,data) return hc3api(cb,"PUT",path,data) end),
+        post = ER.asyncFun(function(cb,path,data) return hc3api(cb,"POST",path,data) end),
+        delete = ER.asyncFun(function(cb,path) return hc3api(cb,"DELETE",path,nil) end),
+    }
+    defVars.hc3api = api
     ------------------ NoreRed support ---------------------------
     local NR_trans = {}
     function quickApp:fromNodeRed(ev)
