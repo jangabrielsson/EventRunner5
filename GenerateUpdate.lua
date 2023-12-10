@@ -1,4 +1,4 @@
---%%file=../fibemu/examples/fibaroExtra.lua,extra;
+--%%file=fibaroExtra.lua,extra;
 
 local entry = [[
   {

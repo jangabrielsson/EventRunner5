@@ -170,7 +170,10 @@ function fibaro.__ER.modules.rule(ER)
     if tn == 0 then return end -- no triggers, ignore
     for _,id in ipairs(ids2) do
       local s = tostring(id[2])
-      t.srct[prop..tostring(id[2])] = id[1]:getTrigger(id[2],prop)
+      local tr = id[1]:getTrigger(id[2],prop)
+      local trk = encodeFast(tr) 
+      --t.srct[prop..tostring(id[2])] = tr
+      t.srct[trk] = tr
     end
   end
   function triggerHandlers.var(p,t) 

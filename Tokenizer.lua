@@ -86,7 +86,7 @@ function fibaro.__ER.modules.tokenizer(ER)
     local ctx = { source = src, tokens = {}, cursor = 0 }
     while #ctx.source>0 and dispatch(ctx.source:sub(1,1),ctx) do end
     if #ctx.source > 0 then 
-      print("tokenizer failed at " .. ctx.source) 
+      error(fmt("tokenizer failed at %s in %s",ctx.source,src))
     end
     return ctx.tokens
   end

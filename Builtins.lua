@@ -615,6 +615,8 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         delete = ER.asyncFun(function(cb,path) return hc3api(cb,"DELETE",path,nil) end),
     }
     defVars.hc3api = api
+    defVars._hc3api = hc3api
+    
     ------------------ NoreRed support ---------------------------
     local NR_trans = {}
     function quickApp:fromNodeRed(ev)
