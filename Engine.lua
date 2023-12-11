@@ -8,7 +8,7 @@
 
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 0.80
+local version = 0.84
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -119,7 +119,10 @@ function fibaro.__ER.modules.engine(ER)
     local coroutine = ER.coroutine
     options = options or {}
     options.src = str
-    local tkns = ER:tokenize(str)
+    local stat,tkns = pcall(ER.tokenize,ER,str)
+    if not stat then
+      error(fmt("Token error in string '%s'\n%s",str,tkns))
+    end
     local defRule =  tkns.containsOp('rule')
     if defRule then
       local rule = ER:createRuleObject(options)

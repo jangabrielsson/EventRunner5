@@ -608,15 +608,15 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         })
     end
 
-    local api = {
+    local api2 = {
         get = ER.asyncFun(function(cb,path) return hc3api(cb,"GET",path,nil) end),
         put = ER.asyncFun(function(cb,path,data) return hc3api(cb,"PUT",path,data) end),
         post = ER.asyncFun(function(cb,path,data) return hc3api(cb,"POST",path,data) end),
         delete = ER.asyncFun(function(cb,path) return hc3api(cb,"DELETE",path,nil) end),
     }
-    defVars.hc3api = api
+    defVars.hc3api = api2
     defVars._hc3api = hc3api
-    
+
     ------------------ NoreRed support ---------------------------
     local NR_trans = {}
     function quickApp:fromNodeRed(ev)

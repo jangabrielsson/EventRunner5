@@ -23,7 +23,11 @@ function fibaro.__ER.modules.tokenizer(ER)
       local _, len, res, group = string.find(ctx.source, pattern)
       if len then
         if createFn then
-          local tokenv = createFn(group or res)
+          local tokenv,t2,len2 = createFn(group or res, ctx.source)
+          if tokenv == '%extend%' then
+            tokenv = t2
+            len = len2
+          end
           tokenv.from, tokenv.to = ctx.cursor+1, ctx.cursor+len
           table.insert(ctx.tokens, tokenv)
           setmetatable(tokenv, tokenMetatable)
@@ -63,8 +67,32 @@ function fibaro.__ER.modules.tokenizer(ER)
   token("0123456789","%d+%.%d+", function (d) return {type="num", value=tonumber(d)} end)
   token("0123456789","%d+", function (d) return {type="num", value=tonumber(d)} end)
   local csubs = {['\\n']='\n',['\\r']='\r',['\\t']='\t'}
-  token('"','"([^"]*)"', function (s) return {type="str", value=s:gsub("(\\[nrt])",csubs)} end)
-  token("'","'([^']*)'", function (s) return {type="str", value=s:gsub("(\\[nrt])",csubs)} end)
+  local cmap = {['n']='\n',['r']='\r',['t']='\t'}
+  local function getString(s,e)
+    local i,n = 2,s:len()
+    local r = {}
+    while i <= n do
+      local c = s:sub(i,i)
+      if c == '\\' then
+        i = i + 1
+        c = s:sub(i,i)
+        r[#r+1]=cmap[c] or c
+      elseif c == e then
+        return table.concat(r),i
+      else r[#r+1]=c end
+      i=i+1
+    end
+  end
+  token('"','"', function (s,src)
+    local str,i = getString(src,'"')
+    if not str then error('unfinished string starting with "...') end
+    return '%extend%', {type="str", value=str}, i
+  end)
+  token("'","'", function (s,src)
+    local str,i = getString(src,"'")
+    if not str then error("unfinished string starting with '...") end
+    return '%extend%', {type="str", value=str}, i
+  end)
   token("-","%-%-.-\n")
   token("-","%-%-.*")
   token(">",">>",function() return {type="t_gg", value=">>"} end)
