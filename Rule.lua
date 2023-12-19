@@ -519,7 +519,7 @@ function fibaro.__ER.modules.rule(ER)
       
       function options.success(...)
         rule.runners[co] = nil
-        co._stats.status,co._stats.time = 'done',os.time(); updateRuleStats()
+        co._stats.status,co._stats.time = conditionSucceeded and 'done' or 'fail',os.time(); updateRuleStats()
         if evOpts(conditionSucceeded,options.ruleResult,debug.ruleResult) then co.LOG("result %s",co.name,argsStr(...)) end
         if rule.resultHook then rule.resultHook(conditionSucceeded,...) end
       end
@@ -527,6 +527,7 @@ function fibaro.__ER.modules.rule(ER)
       function options.error(err) rule.runners[co] = nil co.ERROR("%s",err) end
       
       if evOpts(options.ruleTrigger,debug.ruleTrigger) then co.LOG("triggered %s",tostring(ev) // settings.truncStr) end
+      co._env = env
       runCoroutine(co,options,env)
       return rule
     end -- start

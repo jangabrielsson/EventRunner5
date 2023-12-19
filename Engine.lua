@@ -233,6 +233,17 @@ end
 -- Setup engine and call main function
 function QuickApp:EventRunnerEngine(callback)
   quickApp = self
+  local dev = __fibaro_get_device(self.id)
+  if not dev.enabled then self:debug("QA disabled"); return end
+  local session = math.random(1000000)
+  self:internalStorageSet('Session',session)
+  setInterval(function()
+    if self:internalStorageGet('Session') ~= session then
+      self:warning("Duplicate QA instance - disabling QA")
+      self:setEnabled(false)
+      plugin.restart()
+    end
+  end,60*1000) -- check every minute for duplicate QA instances
   self:setVersion("EventRunner5",self.E_SERIAL,self.E_VERSION)
   self:updateView('title','text',fmt("EventRunner5 v%0.3f",self.E_VERSION))
   local vp = api.get("/settings/info").currentVersion.version

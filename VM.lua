@@ -126,7 +126,7 @@ function fibaro.__ER.modules.vm(ER)
       if type(f)~="function" then errorf(p,"'%s' is not a function",tostring(f)) end
     end
     local res = {pcall(f,args[1],args[2],args[3],args[4],args[5],args[6],args[7])}
-    if not res[1] then errorf(p,res[2]) end
+    if not res[1] then errorf(p,"calling '%s' - %s",name,res[2]) end
     if res[2] == '%magic_suspend%' then  -- Ok, this is the way to signal that the fun is async...
       local cb,msg = res[3],res[5]
       p.yielded = true;
@@ -233,7 +233,7 @@ function instr.aset(i,st,p)
   local key,const,pop,var,v = i[3],i[4],i[5],i[6],nil
   if const then v = copy(const[1]) else v = st.pop() end
   if key==nil then key = st.pop() end
-  if key == nil then errorf(p,"key is nil for arrray index") end
+  if key == nil then errorf(p,"key is nil for array index") end
   local tab = st.pop()
   local tabtype = type(tab)
   if tabtype ~= 'table' and tabtype ~= 'userdata' then errorf(p,"table is '%s' for array reference",tabtype) end
@@ -245,10 +245,10 @@ function instr.eventm(i,st,p)
   st.push(i[3]==env.evid or env.evid=='%%START%%')
 end
 function instr.prop(i,st,p)
-  local ids,prop,env = st.pop(),i[3],p.args[1] or {}
+  local ids,prop,env = st.pop(),i[3],p.co and p.co._env or p.args[1] or {}
   local isTable,n,mapf,v = type(ids) == 'table',1,nil,nil
   if isTable then n = maxn(ids) end
-  if ids==nil or n == 0 then errorf(p or p.args[1],"No devices found for :%s",prop) end
+  if ids==nil or n == 0 then errorf(p or env,"No devices found for :%s",prop) end
   local function itemFun(e) 
     local dev = ER.getDeviceObject(e)
     if not dev then errorf(p,"%s is not a valid device",tostring(dev)) end
@@ -271,9 +271,10 @@ end
 
 function instr.putprop(i,st,p)
   local value,ids,prop = st.pop(),st.pop(),i[3]
+  local env = p.co and p.co._env or p.args[1] or {}
   local isTable,n,v = type(ids) == 'table',1,nil
   if isTable then n = maxn(ids) end
-  if ids==nil or n == 0 then errorf(p.args[1] or p,"No devices found for :%s",prop) end
+  if ids==nil or n == 0 then errorf(env or p,"No devices found for :%s",prop) end
   local function itemFun(e) 
     local dev = ER.getDeviceObject(e)
     if not dev then errorf(p,"%s is not a valid device",tostring(dev)) end
@@ -302,7 +303,7 @@ function instr.betw(i,st,p)
 end
 function instr.betwo(i,st) end
 function instr.daily(i,st,p) 
-  local env = p.args[1]
+  local env = p.co and p.co._env or p.args[1]
   st.push(env.evid=='%%START%%' or (env.event.type == 'daily' and env.event.id == env.rule.id))
 end
 function instr.interv(i,st,p)

@@ -681,7 +681,58 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     end
     defVars.nr = { post = ER.asyncFun(nodered), post_as = ER.asyncFun(nodered_as) }
     --------------------- end NR -----------------------
+
+    -- Interactive push notifications
+    local interactivePushTable = {}
+    function quickApp:INTERACTIVE_OK_BUTTON(tag,...)
+       if type(tag) ~= 'string' then return end
+       local cb = interactivePushTable[tag]
+       interactivePushTable[tag] = nil
+       if cb then
+          clearTimeout(cb[2])
+          cb[1](true) 
+       end
+    end
+
+    local function pushYesNo(mobileId,title,message,tag)
+      api.post("/mobile/push",{
+      category = "YES_NO", 
+      title = title, 
+      message = message, 
+      service = "Device", 
+      data = {
+        actionName = "INTERACTIVE_OK_BUTTON", 
+        deviceId = quickApp.id,  
+        args = {tag}
+      }, 
+      action = "RunAction",  
+        mobileDevices = { mobileId }, 
+      })
+    end
+
+    defVars.ask = ER.asyncFun(function(cb,mobileId,title,message,timeout)
+      assert(tonumber(mobileId),"ask: mobileId must be a number")
+      assert(type(title)=='string',"ask: title must be a string")
+      assert(type(message)=='string',"ask: message must be a string")
+      timeout = timeout and timeout*1000 or 60*1000
+      local tag,ref = "x"..math.random(10000000)..os.time(),nil
+      pushYesNo(mobileId,title,message,tag)
+      ref = setTimeout(function()
+         local cb = interactivePushTable[tag]
+         interactivePushTable[tag]=nil
+         local stat,res = pcall(function()
+             if cb then cb[1](false) end 
+             return true
+         end)
+         if not stat then print(res) end
+       end
+      ,timeout)
+      interactivePushTable[tag]={cb,ref}
+      return timeout
+    end)
     
+    --------------------- end interactive push -----------------------
+
     local function getFibObj(path,p,k,v)
         local oo = api.get(path) or {}
         if p then oo = oo[p] end
