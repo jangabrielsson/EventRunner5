@@ -8,7 +8,7 @@
 
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 0.88
+local version = 0.90
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -239,6 +239,7 @@ function QuickApp:EventRunnerEngine(callback)
   setTimeout(function()
     if self:internalStorageGet('Session') ~= session then
       self:warning("Duplicate QA instance - disabling QA")
+      if fibaro.doppelganger then fibaro.doppelganger() end
       self:setEnabled(false)
       plugin.restart()
     else
