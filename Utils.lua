@@ -68,14 +68,16 @@ function fibaro.__ER.modules.utilities(ER)
       local msg = f:format(...)
       msg = htmlify(msg,sp)
       df(ER.settings.systemLogTag or __TAG,msg)
+      return msg
     else 
       f = htmlify(f,sp)
       df(ER.settings.systemLogTag or __TAG,f) 
+      return f
     end
   end
   
-  function Utils.LOG(f,...) LOGGER(fibaro.trace,false,f,...) end
-  function Utils.LOGERR(f,...) LOGGER(fibaro.error,true,f,...) end
+  function Utils.LOG(f,...) return LOGGER(fibaro.trace,false,f,...) end
+  function Utils.LOGERR(f,...) return LOGGER(fibaro.error,true,f,...) end
   
   local LOG = Utils.LOG
   local LOGERR = Utils.LOGERR

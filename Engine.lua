@@ -8,7 +8,7 @@
 
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 0.86
+local version = 0.88
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -231,19 +231,29 @@ end
 
 ----------------------------------------------------------------------------------
 -- Setup engine and call main function
+local EventRunnerEngineCont
 function QuickApp:EventRunnerEngine(callback)
-  quickApp = self
-  local dev = __fibaro_get_device(self.id)
-  if not dev.enabled then self:debug("QA disabled"); return end
+  self:debug("Initializing EventRunner5...")
   local session = math.random(1000000)
   self:internalStorageSet('Session',session)
-  setInterval(function()
+  setTimeout(function()
     if self:internalStorageGet('Session') ~= session then
       self:warning("Duplicate QA instance - disabling QA")
       self:setEnabled(false)
       plugin.restart()
+    else
+      self:debug("EventRunner5 initialized")
+      EventRunnerEngineCont(self,callback)
     end
-  end,60*1000) -- check every minute for duplicate QA instances
+  end,3*1000)
+  setInterval(function()
+    self:internalStorageSet('Session',session)
+  end, 2*10000)
+end
+function EventRunnerEngineCont(self,callback)
+  quickApp = self
+  local dev = __fibaro_get_device(self.id)
+  if not dev.enabled then self:debug("QA disabled"); return end
   self:setVersion("EventRunner5",self.E_SERIAL,self.E_VERSION)
   self:updateView('title','text',fmt("EventRunner5 v%0.3f",self.E_VERSION))
   local vp = api.get("/settings/info").currentVersion.version

@@ -1174,7 +1174,7 @@ do
   end
 end
 ----------- QuickApp Startup -----------
-local _init,_onInit = QuickApp.__init,nil
+-- local _init,_onInit = QuickApp.__init,nil
 
 function QuickApp:setVersion(model,serial,version)
   local m = model..":"..serial.."/"..version
@@ -1182,22 +1182,22 @@ function QuickApp:setVersion(model,serial,version)
     quickApp:updateProperty('model',m)
   end
 end
-local function initQA(selfv)
-  local dev = __fibaro_get_device(selfv.id)
-  if not dev.enabled then
-    if fibaro.__disabled then pcall(fibaro.__disabled,selfv) end -- Hook if you want to do something when your QA is disabled
-    selfv:debug("QA ",selfv.name," disabled")
-  else
-    quickApp = selfv
-    if _onInit then _onInit(selfv) end
-  end
-end
+-- local function initQA(selfv)
+--   local dev = __fibaro_get_device(selfv.id)
+--   if not dev.enabled then
+--     if fibaro.__disabled then pcall(fibaro.__disabled,selfv) end -- Hook if you want to do something when your QA is disabled
+--     selfv:debug("QA ",selfv.name," disabled")
+--   else
+--     quickApp = selfv
+--     if _onInit then _onInit(selfv) end
+--   end
+-- end
 
-function QuickApp.__init(self,...) -- We hijack the __init methods so we can control users :onInit() method
-  _onInit = self.onInit
-  self.onInit = initQA
-  _init(self,...)
-end
+-- function QuickApp.__init(self,...) -- We hijack the __init methods so we can control users :onInit() method
+--   _onInit = self.onInit
+--   self.onInit = initQA
+--   _init(self,...)
+-- end
 
 ------------- Exports --------------
 fibaro.toTime,fibaro.midnight,fibaro.getWeekNumber,fibaro.now = lib.toTime,lib.midnight,lib.getWeekNumber,lib.now

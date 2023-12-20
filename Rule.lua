@@ -398,7 +398,7 @@ function fibaro.__ER.modules.rule(ER)
     end
     function rule.disable()
       if not rule._enabled then return end
-      if not evOpts(options.silent,debug.silent,false) then LOG("%s %s",ER.color("lightred","Disabled"),rule.rname) end
+      if not evOpts(options.silent,debug.silent,false) then LOG("%s %s",ER.color("salmon","Disabled"),rule.rname) end
       rule._enabled = false
       rule.stop()
       for _,eh in pairs(rule.evhandlers) do eh[2].disable() end
@@ -492,7 +492,8 @@ function fibaro.__ER.modules.rule(ER)
         co._stats.status,co._stats.time = 'error',os.time(); updateRuleStats()
         rule.errors=(rule.errors or 0)+1
         ruleStats.errors = ruleStats.errors + 1
-        LOGERR("%s>> %s",co.name,fmt(...))
+        local errMsg = LOGERR("%s>> %s",co.name,fmt(...))
+        fibaro.post({type='ERerror',id=rule.id,msg=errMsg,_sh=true})
         if rule.errors > 2 then
           rule.disable()
           LOGERR("%s>> Too many errors (3), rule disabled",co.name)
