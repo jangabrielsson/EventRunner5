@@ -8,7 +8,7 @@
 
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 0.90
+local version = 0.92
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -234,22 +234,24 @@ end
 local EventRunnerEngineCont
 function QuickApp:EventRunnerEngine(callback)
   self:debug("Initializing EventRunner5...")
+  function self.initChildDevices() end
   local session = math.random(1000000)
   self:internalStorageSet('Session',session)
   setTimeout(function()
     if self:internalStorageGet('Session') ~= session then
       self:warning("Duplicate QA instance - disabling QA")
       if fibaro.doppelganger then fibaro.doppelganger() end
+      fibaro.sleep(500)
       self:setEnabled(false)
       plugin.restart()
     else
       self:debug("EventRunner5 initialized")
+      setInterval(function()
+        self:internalStorageSet('Session',session)
+      end, 2*10000)
       EventRunnerEngineCont(self,callback)
     end
   end,3*1000)
-  setInterval(function()
-    self:internalStorageSet('Session',session)
-  end, 2*10000)
 end
 function EventRunnerEngineCont(self,callback)
   quickApp = self
