@@ -179,6 +179,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         setProps.W={set,'setW'}
         setProps.value={set,'setValue'}
         setProps.state={setState,'setState'}
+        setProps.prop={function(id,_,val) fibaro.call(id,"updateProperty",table.unpack(val)) end,'upDateProp'}
 
         setProps.armed={setAlarm,'setAlarm'}
 
@@ -724,7 +725,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
              if cb then cb[1](false) end 
              return true
          end)
-         if not stat then print(res) end
+         if not stat then print("err",res) end
        end
       ,timeout)
       interactivePushTable[tag]={cb,ref}
@@ -842,6 +843,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     for uid,c in pairs(quickApp.children) do 
     defVars[uid]=c.id
       defVars[uid.."_D"]=c
+      defVars[uid.."_ID"]=c.id
       local d = api.get("/devices/"..c.id)
       for name,_ in pairs(d.actions) do
         c[name] = function(self,...) fibaro.post({type='UI',action=name,id=c.id,args={}}) end
