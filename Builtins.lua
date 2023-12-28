@@ -446,7 +446,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
             local f; i[4],f=os.date("%x"),i[4] or ""; st.push(f ~= i[4]) -- once daily...
         end
     end
-    args.again = {0,1}
+    args.again = {0,1} 
     function builtin.again(i,st,p)
         local env,n = p.args[1] or {},i[3]
         local rule = env.rule

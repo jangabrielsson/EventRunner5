@@ -224,7 +224,7 @@ function instr.aref(i,st,p)
   local tab = st.pop()
   if key == nil then errorf(p,"key is nil for arrray index") end
   local tabtype = type(tab)
-  if tabtype ~= 'table' and tabtype ~= 'userdata' then errorf(p,"table is '%s' for array reference",tabtype) end
+  if tabtype ~= 'table' and tabtype ~= 'userdata' and tabtype ~= 'string' then errorf(p,"table is '%s' for array reference",tabtype) end
   ---@diagnostic disable-next-line: need-check-nil
   st.push(tab[key])
   if i[5] then st.push(tab) end -- for callobj

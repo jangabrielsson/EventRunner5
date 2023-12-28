@@ -72,6 +72,7 @@ function QuickApp:main(er) -- Main function, place to define rules
 end
 
 function QuickApp:onInit()
+    --fibaro.setupVariableCheck(true,4)
     self:EventRunnerEngine( -- Create EventRunner engine and pass callback function 
     function(er)
         -- Settings
