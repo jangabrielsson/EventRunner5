@@ -41,6 +41,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         quickapps = function(_,st) st.push(fibaro.getDevicesID({interfaces={'quickApp'}})) end,
         quickvars = function(_,st) st.push(table.map(function(g) return g.name end,__fibaro_get_device_property(quickApp.id, "quickAppVariables").value or {})) end,
         globals = function(_,st) st.push(table.map(function(g) return g.name end,api.get('/globalVariables'))) end,
+        GW = function(_,st) st.push(api.get("/home")) end,
     }
 
     -------------- builtin props -------------------------
@@ -104,6 +105,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         getProps.isAnyAlarmSafe={'alarm',function(id) return partition(id).breached==false end,'breached',mapOr,true,false}
 
         getProps.child={'device',child,nil,nil,false}
+        getProps.parent={'device',function(id) return api.get("/devices/"..id).parentId end,nil,nil,false}
         getProps.profile={'device',profile,nil,nil,false}
         getProps.scene={'device',sae,'sceneActivationEvent',nil,true}
         getProps.access={'device',ace,'accessControlEvent',nil,true}
@@ -759,6 +761,9 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     
     function ER.enable(r) return enable(r,'enable') end
     function ER.disable(r) return enable(r,'disable') end
+
+    local tableInsert = table.insert
+    function table.insert(t,i,v) if v==nil then return tableInsert(t,i) else return tableInsert(t,i,v) end end
 
     defVars.LOC = function(name) return getFibObj("/panels/location",nil,"name",name) end
     defVars.USER = function(name) return getFibObj("/users",nil,"name",name) end

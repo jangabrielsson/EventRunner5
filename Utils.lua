@@ -272,7 +272,7 @@ function fibaro.__ER.modules.utilities(ER)
     local s,t = pcall(toTime,v,true); return s and t or v 
   end
   
-  local function safeEncode(s) local stat,res = pcall(encodeFast,s) return stat and res or nil end
+  local function safeEncode(s) local stat,res = pcall(json.encode,s) return stat and res or nil end
   function Utils.marshallTo(v) 
     if not ER.settings.marshall then return tostring(v) end
     if type(v)=='table' then return safeEncode(v) else return tostring(v) end
