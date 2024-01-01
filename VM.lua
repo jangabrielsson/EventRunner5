@@ -253,7 +253,7 @@ function instr.prop(i,st,p)
     local dev = ER.getDeviceObject(e)
     if not dev then errorf(p,"%s is not a valid device",tostring(dev)) end
     if not dev:isProp(prop) then errorf(p,":%s is not a valid device property for %s",prop,dev) end
-    return dev.getProp[prop](dev,prop,env.event or {})
+    return dev.getProp[prop](dev,prop,env.event or {},ER.propHelpers)
   end
   if ER.propFilters[prop] then
     local filter = ER.propFilters[prop]
@@ -279,7 +279,7 @@ function instr.putprop(i,st,p)
     local dev = ER.getDeviceObject(e)
     if not dev then errorf(p,"%s is not a valid device",tostring(dev)) end
     if not dev.setProp[prop] then errorf(p,":%s is not a valid device set property for %s",prop,dev) end
-    return dev.setProp[prop](dev,prop,value)
+    return dev.setProp[prop](dev,prop,value,ER.propHelpers)
   end
   if isTable then
     v = {}

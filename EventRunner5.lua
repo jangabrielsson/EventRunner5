@@ -89,7 +89,7 @@ function QuickApp:onInit()
         
         -- Global settings
         er.settings.marshall       = true          -- autoconvert globalVariables values to numbers, booleans, tables when accessed
-        er.settings.systemLogTag   = "ER"..self.id -- log tag for ER system messages, defaults to __TAG
+        --er.settings.systemLogTag   = "ER"..self.id -- log tag for ER system messages, defaults to __TAG
         er.settings.ignoreInvisibleChars = false   -- Check code for invisible characters (xC2xA0) before evaluating
         er.settings.truncLog       = 100           -- truncation of log output
         er.settings.truncStr       = 80            -- truncation of log strings

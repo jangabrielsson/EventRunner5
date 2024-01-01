@@ -8,7 +8,7 @@
 
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 0.96
+local version = 1.00
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -26,6 +26,7 @@ function fibaro.__ER.modules.engine(ER)
 
   local function createProps(getProps,setProps,helpers)
     ER.definePropClass('StdPropObject')
+    ER.propHelpers = helpers
     function StdPropObject:__init(id)
       PropObject.__init(self)
       self.id = id
@@ -54,7 +55,7 @@ function fibaro.__ER.modules.engine(ER)
         return tostring(a)
       end 
     }
-    function stdPropObject.getProp.key(id,prop,event) 
+    function stdPropObject.getProp.key(id,prop,event)
         return setmetatable({id=event.value.keyId,attr=event.value.keyAttribute},keyAttrMT) 
     end
     function stdPropObject.trigger.key(self,id) return {type='device', id=id, property='centralSceneEvent'} end

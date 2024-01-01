@@ -380,7 +380,12 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     args.ostime = {0,0}
     function builtin.ostime(i,st,p) st.push(os.time()) end
     args.global = {1,1}
-    function builtin.global(i,st)       st.push(api.post("/globalVariables/",{name=st.pop()})) end  
+    function builtin.global(i,st)  
+        local name = st.pop()
+        local s = fibaro.getGlobalVariable(name)     
+        api.post("/globalVariables/",{name=name})
+        st.push(s==nil)
+    end  
     args.listglobals = {0,0}
     function builtin.listglobals(i,st)  st.push(api.get("/globalVariables/")) end
     args.deleteglobal = {1,1}
@@ -542,6 +547,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         local env = p.env
         local kvar,vvar,fvar,lvar,v = table.unpack(i,4)
         local k,f,l = env.get(kvar)[1],env.get(fvar)[1],env.get(lvar)[1]
+        if type(l)~='table' then errorf(p,"ipairs expecting table") end
         k,v = f(l,k)
         env.set(kvar,k)
         env.set(vvar,v)
@@ -565,7 +571,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
             opts.user,opts.pwd=nil,nil
         end
         opts.data = data and json.encode(data)
-        opts.checkCertificate = false
+        --opts.checkCertificate = false
         local basket = {}
         net.HTTPClient():request(url,{
             options=opts,

@@ -303,15 +303,15 @@ function fibaro.__ER.modules.parser(ER)
     st.push({type='f_repeat', cond=cond, body=body, d=DB(nt)}) 
   end
   
-  local function for_fun(name,const,exprs)
-    return {type='forfun', name=name, const=const or {}, exprs=exprs or {}}
+  local function for_fun(name,const,exprs,nt)
+    return {type='forfun', name=name, const=const or {}, exprs=exprs or {}, d=DB(nt)}
   end
   
   function makeForList(kvar,vvar,expr,body,nt)
     if expr.type ~= 'call' then errorf(nt,"Bad for loop list - expected pairs/ipairs") end
     local fvar,lvar,svar = gensym(),gensym(),gensym()
-    local setup = for_fun('flsetup',{kvar,vvar,fvar,lvar,svar},{expr})
-    local flinc = for_fun('flinc',{kvar,vvar,fvar,lvar},{})
+    local setup = for_fun('flsetup',{kvar,vvar,fvar,lvar,svar},{expr},nt)
+    local flinc = for_fun('flinc',{kvar,vvar,fvar,lvar},{},nt)
     local pwhile = {
       type = 'f_while',
       cond = {type='var', name=kvar},
@@ -335,11 +335,11 @@ function fibaro.__ER.modules.parser(ER)
       if params.op ~= 'elist' then errorf(nt,"expected start,stop in for loop") end
       local sav,sov,se = params.args[1],params.args[2],params.args[3] or {type='num',value=1}
       local sgv,stopv,stepv = gensym(),gensym(),gensym()
-      local setup = for_fun('idxsetup',{idx,sgv,stopv,stepv},{sav,sov,se})
+      local setup = for_fun('idxsetup',{idx,sgv,stopv,stepv},{sav,sov,se},nt)
       local pwhile = {
         type = 'f_while',
-        cond = for_fun('idxcond',{idx,sgv,stopv}),
-        body = {type='op', op='progn', args={body,for_fun('idxinc',{idx,stepv})}}
+        cond = for_fun('idxcond',{idx,sgv,stopv},nil,nt),
+        body = {type='op', op='progn', args={body,for_fun('idxinc',{idx,stepv},nil,nt)}}
       }
       st.push({type='op', op='progn', args = {setup,pwhile}, d=DB(nt)})
       return
