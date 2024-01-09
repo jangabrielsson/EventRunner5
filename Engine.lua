@@ -8,7 +8,7 @@ Offical bughunters:
 
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 1.01
+local version = 1.02
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -542,14 +542,14 @@ function EventRunnerEngineCont(self,callback)
   local uptimeStr = fmt("%d days, %d hours, %d minutes",uptime // (24*3600),(uptime % 24*3600) // 3600, (uptime % 3600) // 60)
   ER.vars.uptimeStr = uptimeStr
   ER.vars.uptimeMinutes = uptime // 60
-  
+  local _mainInited = false
   local function starter()
     MODULES = MODULES or {}
     for _,m in ipairs(MODULES) do -- patch modules to set _inited flags
       local m0,l = m,m.loader
       m.loader = function(self,er) if not m0._inited then l(self,er) end m0._inited = true end
     end
-    local main, _mainInited = self.main, false
+    local main = self.main
     
     if main then -- patch main to only run once
       function self:main(er) if not _mainInited then main(self,er) _mainInited = true end end
@@ -578,7 +578,7 @@ function EventRunnerEngineCont(self,callback)
     for i,r in pairs(ER.rules) do r.disable() end
     return
   end
-  if err == false then
+  if err == false and not _mainInited then
     fibaro.error(__TAG,"No main/modules to load")
     return
   end
