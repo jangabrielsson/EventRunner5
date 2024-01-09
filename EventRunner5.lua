@@ -128,17 +128,6 @@ function QuickApp:onInit()
           return str
         end
 
-        MODULES = MODULES or {}
-        if self.main then
-            table.sort(MODULES,function(a,b) return a.prio < b.prio end) -- Sort modules in priority order
-            MODULES = MODULES or {}
-            MODULES[#MODULES+1]={name='main',prio=0,loader=self.main}
-        end
-        for _,m in ipairs(MODULES) do -- load modules
-            print("Loading rules from ",m.name)
-            m.loader(self,er)
-        end
-
         --[[
             Setup your own modules like this (or just add rules to main.lua):
             In QA file 'u_myrules'  (u_ prefix is required)

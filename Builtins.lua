@@ -164,7 +164,11 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         
         -- setProps helpers
         local function set(id,cmd,val) fibaro.call(id,cmd,val); return val end
-        local function set2(id,cmd,val) fibaro.call(id,cmd,table.unpack(val)); return val end
+        local function set2(id,cmd,val)
+            assert(type(val)=='table' and #val>=3,"setColor expects a table with 3 values")
+            fibaro.call(id,cmd,table.unpack(val)); 
+            return val 
+        end
         local function setProfile(id,_,val) if val then fibaro.profile("activateProfile",id) end return val end
         local function setState(id,_,val) fibaro.call(id,"updateProperty","state",val); return val end
         local function setProps(id,cmd,val) fibaro.call(id,"updateProperty",cmd,val); return val end
@@ -308,7 +312,10 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     args.cancel = {1,1}
     function builtin.cancel(i,st,p) Script.clearTimeout(p,st.pop()) st.push(nil) end
     
-    local function encodeObj(o) if getmetatable(o) then return tostring(o) else return encodeFast(o) end end
+    local function encodeObj(o)
+        local mt = getmetatable(o)
+        if mt and mt.__tostring then return tostring(o) else return encodeFast(o) end 
+    end
     args.log = {1,99}
     function builtin.log(i,st,p)
         local args,n = st.popm(i[3]),i[3]
@@ -347,10 +354,11 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         st.push(str)
     end
 
+    local function toArr(t) return {t[1],t[2],t[3],t[4],t[5],t[6],t[7],t[8],t[9],t[10],t[12]} end
     args.fmt = {1,99}
-    function builtin.fmt(i,st,p) st.push(fmt(table.unpack(st.lift(i[3])))) end
+    function builtin.fmt(i,st,p) st.push(fmt(table.unpack(toArr(st.lift(i[3]))))) end
     args.efmt = {1,99}
-    function builtin.efmt(i,st,p) st.push(eformat(table.unpack(st.lift(i[3])))) end
+    function builtin.efmt(i,st,p) st.push(eformat(table.unpack(toArr(st.lift(i[3]))))) end
     args.HM = {1,1}
     function builtin.HM(i,st,p) local t = st.pop(); st.push(os.date("%H:%M",t < os.time()-8760*3600 and t+midnight() or t)) end  
     args.HMS = {1,1}
@@ -595,7 +603,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     defVars.http = http
     
     local function hc3api(cb,method,api,data)
-        local creds = defVars._creds and defVars._creds[1]
+        local creds = defVars._creds
         if not creds then setTimeout(function() cb(nil,404) end,0) end
         net.HTTPClient():request("http://localhost/api"..api,{
             options = {
@@ -643,7 +651,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     local function nodePost(event,cb)
         event._from = quickApp.id
         event._IP = fibaro.getIPaddress()
-        local noderedURL = defVars.noderedURL and defVars.noderedURL[1]
+        local noderedURL = defVars.noderedURL
         assert(noderedURL,"noderedURL not defined")
         local params =  {
             options = {
@@ -852,15 +860,17 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   local function initChildren()
     quickApp:initChildren(ERchildren)
     for uid,c in pairs(quickApp.children) do 
-    defVars[uid]=c.id
-      defVars[uid.."_D"]=c
-      defVars[uid.."_ID"]=c.id
-      local d = api.get("/devices/"..c.id)
-      for name,_ in pairs(d.actions) do
-        c[name] = function(self,...) fibaro.post({type='UI',action=name,id=c.id,args={}}) end
-      end
+        defVars[uid]=c.id
+        defVars[uid.."_D"]=c
+        defVars[uid.."_ID"]=c.id
+        local d = api.get("/devices/"..c.id)
+        for name,_ in pairs(d.actions) do
+            c[name] = function(self,...) fibaro.post({type='UI',action=name,id=c.id,args={}}) end
+        end
+        c['prop'] = c.updateProperty
     end
   end
+
   local function child(uid,name,typ)
     ERchildren[uid] = {name=name,type=typ,className='QwikAppChild'}
   end

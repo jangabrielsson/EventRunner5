@@ -11,7 +11,7 @@ local entry = [[
   "vars":{
    "base1":"https://raw.githubusercontent.com/jangabrielsson/EventRunner5/ER5_%%VERSION%%",
   },     
-  "descr":"First version (alpha, not for production)",     
+  "descr":"First release",     
   "files":{    
    "ERlib":"$base1/ERlib.lua",
    "fibLib":"$base1/fibaroLib.lua", 

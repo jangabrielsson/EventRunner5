@@ -203,6 +203,7 @@ function fibaro.__ER.modules.vm(ER)
 end
 function instr.setgv(i,st,p) 
   local name,const,pop,v = i[3],i[4],i[5],nil
+  if select(2,api.get("/globalVariables/"..name)) == 404 then errorf(p,"Global variable '%s' does not exist",name) end
   if const then 
     v = copy(const[1])
     if not pop then st.push(v) end

@@ -19,11 +19,9 @@ function fibaro.__ER.modules.utilities(ER)
     function self.popn(n,v) v = v or {}; if n > 0 then local p0 = self.pop(); self.popn(n-1,v); v[#v+1]=p0 end return v end 
     function self.peek(n) return st[p-(n or 0)] end
     function self.lift(n) 
-      local s = {4} 
-      for i=1,n do 
-        table.insert(s,i,st[p-n+i]) 
-      end 
-      s[#s]=nil 
+      local s = {}
+      for i=1,n do s[i]=st[p-n+i] end --,st[p-n+2],st[p-n+3],st[p-n+4],st[p-n+5],st[p-n+6],st[p-n+7],st[p-n+8],st[p-n+9]} 
+      s[n+1]=nil 
       self.pop(n) 
       return s 
     end -- Need to do this to get correct size of result table
@@ -170,8 +168,10 @@ function fibaro.__ER.modules.utilities(ER)
   end
   
   local function table2str(t)
-    if type(t) == 'table' and not getmetatable(t) then
-      return encodeFast(t)
+    if type(t) == 'table' then
+      local mt = getmetatable(t)
+      if mt and mt.__tostring then return tostring(t)
+      else return encodeFast(t) end
     else return tostring(t) end
   end
   function Utils.argsStr(...)

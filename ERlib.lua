@@ -55,7 +55,7 @@ do -- fastEncode
   for i,s in ipairs(sortKeys) do sortOrder[s]="\n"..string.char(i+64).." "..s end
   local function encEsort(a,b)
     a,b=a[1],b[1]; a,b = sortOrder[a] or a, sortOrder[b] or b
-    return a < b
+    return tostring(a) < tostring(b)
   end
   function table.maxn(t) local c=0 for _ in pairs(t) do c=c+1 end return c end
   local encT={}

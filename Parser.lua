@@ -126,7 +126,8 @@ function fibaro.__ER.modules.parser(ER)
           args[#args+1] = expr
         end
       end
-      if tkns.peek().type == 'comma' then tkns.next() end
+      if tkns.peek().type == 'comma' then tkns.next()
+      elseif tkns.peek().type ~= stop then errorf(tkn,"Missing ',' or '%s'",stop) end
     end
     tkns.next()
     return args

@@ -137,7 +137,7 @@ function fibaro.__ER.modules.compiler(ER)
     if not k then compile(p.key,out) end
     local v = isParseConst(p.value)
     if not v then compile(p.value,out) end
-    out.instr(p,'aset',k[1],v,false) -- variable,constant key,constant value,pop value
+    out.instr(p,'aset',k and k[1] or nil,v,false) -- variable,constant key,constant value,pop value
   end
   
   function comp.putprop(p,out)
