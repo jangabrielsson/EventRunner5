@@ -450,8 +450,9 @@ function fibaro.__ER.modules.rule(ER)
       ev = ev or {type='start'}
       ruleStats.runs = ruleStats.runs + 1
       rule.last = os.time()
-      if rule._mode == 'killOthers' then rule.stop()
-      elseif rule._mode == 'killSelf' and  next(rule.runners) then return rule end
+      --if rule._mode == 'killOthers' then rule.stop() -- moved to success/fail
+      --elseif
+      if rule._mode == 'killSelf' and  next(rule.runners) then return rule end
 
       if not getmetatable(ev) then eventCustomToString(ev) end 
 
@@ -477,6 +478,7 @@ function fibaro.__ER.modules.rule(ER)
         conditionSucceeded = ok
         co._stats.status,co._stats.time = "true" or "fail",os.time(); updateRuleStats()
         if ok then ruleStats.successes = ruleStats.successes + 1
+          if rule._mode == 'killOthers' then rule.stop() end
         else ruleStats.fails = ruleStats.fails + 1 end
 
         local log = false
