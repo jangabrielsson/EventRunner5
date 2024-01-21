@@ -51,6 +51,7 @@ function fibaro.__ER.modules.compiler(ER)
   end
   function comp.gv(p,out) out.instr(p,'gv',p.name) end
   function comp.qv(p,out) out.instr(p,'qv',p.name) end
+  function comp.pv(p,out) out.instr(p,'pv',p.name) end
   function comp.addto(p,out) compile(p.arg,out); out.instr(p,p.type,p.const,p.rev) end
   function comp.multo(p,out) compile(p.arg,out); out.instr(p,p.type,p.const,p.rev) end
   function comp.subto(p,out) compile(p.arg,out); out.instr(p,p.type,p.const,p.rev) end
@@ -261,6 +262,15 @@ function fibaro.__ER.modules.compiler(ER)
     else
       compile(p.value,out)
       out.instr(p,'setqv',p.name,false,false)
+    end
+  end
+  function comp.setpv(p,out)
+    local c = isParseConst(p.value)
+    if c then 
+      out.instr(p,'setpv',p.name,c,false)
+    else
+      compile(p.value,out)
+      out.instr(p,'setpv',p.name,false,false)
     end
   end
   function comp_op.f_local(p,out)   -- like massign but assignments creates locals

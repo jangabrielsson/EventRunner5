@@ -21,7 +21,7 @@ end
 local function copy(t) if type(t) ~= 'table' then return t end local r = {} for k,v in pairs(t) do r[k] = copy(v) end return r end
 local function copyShallow(t) local r={} for k,v in pairs(t) do r[k]=v end return r end
 local function append(t1,t2) local r=copyShallow(t1); for _,e in ipairs(t2) do r[#r+1]=e end return r end
-local function maxn(t) local c=0 for _ in pairs(t) do c=c+1 end return c end
+local function maxn(t) local c=0 for i,_ in pairs(t) do c=i end return c end
 local function member(k,tab) for i,v in ipairs(tab) do if equal(v,k) then return i end end return false end
 local function map(f,l,s) s = s or 1; local r,m={},maxn(l) for i=s,m do r[#r+1] = f(l[i]) end return r end
 local function mapf(f,l,s) s = s or 1; local e=true for i=s,maxn(l) do e = f(l[i]) end return e end
@@ -37,8 +37,10 @@ local function intersection(l1,l2) local l,r = membermap(l1),{}; for _,e in ipai
 local function mapk(f,l) local r={}; for k,v in pairs(l) do r[k]=f(v) end; return r end
 local function mapkv(f,l) local r={}; for k,v in pairs(l) do k,v=f(k,v) if k then r[k]=v end end; return r end
 local function mapkl(f,l) local r={} for i,j in pairs(l) do r[#r+1]=f(i,j) end return r end
+local function packArray(arr,n) return {table.unpack(arr,1,n or maxn(arr))} end
 
 if not table.maxn then table.maxn = maxn end
+table.packArray = packArray
 table.copy,table.copyShallow,table.equal,table.max,table.member,table.map,table.mapf,table.delete,table.append,table.union,table.intersection = 
 copy,      copyShallow,      equal,      maxn,     member,      map,      mapf,      delete,      append,      union,      intersection
 table.mapAnd,table.mapOr,table.reduce,table.mapk,table.mapkv,table.mapkl = mapAnd,mapOr,reduce,mapk,mapkv,mapkl
@@ -57,7 +59,7 @@ do -- fastEncode
     a,b=a[1],b[1]; a,b = sortOrder[a] or a, sortOrder[b] or b
     return tostring(a) < tostring(b)
   end
-  function table.maxn(t) local c=0 for _ in pairs(t) do c=c+1 end return c end
+  function table.maxn(t) local c=0 for i,_ in pairs(t) do c=i end return c end
   local encT={}
   encT['nil'] = function(n,out) out[#out+1]='nil' end
   function encT.number(n,out) out[#out+1]=tostring(n) end
@@ -950,7 +952,7 @@ local eventMT = {
     --  }
     
     function match(...) return aEventEngine.match(...) end
-    function compile(...) return aEventEngine.compile(...) end
+    function compile(...) return aEventEngine.compilePattern(...) end
     
     function QuickApp.SUBSCRIPTION(_,e)
       fibaro.post(e)
@@ -1007,17 +1009,15 @@ local eventMT = {
         end
       end)
       
-      fibaro.event({
-        {type='deviceEvent',value='created'},                 -- If some QA is added or modified
-        {type='deviceEvent',value='modified'}
-      },
-      function(env)                                           -- update
+      local fun = function(env)                                           -- update
         local id = env.event.id
         if id ~= quickApp.id then
           DEBUG("QA:%s created/modified",id)
           checkVars(id,api.get("/devices/"..id).properties.quickAppVariables)
         end
-      end)
+      end
+      fibaro.event({type='deviceEvent',value='created'},fun)                 -- If some QA is added or modified
+      fibaro.event({type='deviceEvent',value='modified'},fun)
     end
   end
   

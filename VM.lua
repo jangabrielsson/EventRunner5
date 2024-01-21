@@ -99,6 +99,7 @@ function fibaro.__ER.modules.vm(ER)
     local name = i[3]; PA={name} st.push(marshallFrom(fibaro.getGlobalVariable(name)))
   end
   function instr.qv(i,st)      local name = i[3]; PA={name}   st.push(quickApp:getVariable(name)) end
+  function instr.pv(i,st)      local name = i[3]; PA={name}   st.push(quickApp:getVariable(name)) end
   function instr.var(i,st,p)   local name = i[3]; PA={name}   st.push((p.env.get(name) or Script.get(name) or {})[1]) end
   instr['local'] = function(i,st,p) local name = i[3]; PA={name} p.env.push(name,nil) end
 
@@ -110,7 +111,7 @@ function fibaro.__ER.modules.vm(ER)
   end
   
   function instr.call(i,st,p)
-    local args = st.popm(i[4])
+    local args = st.popm(i[4],true)
     --if not next(args) then args={nil,0} end --hack to get around lua limits...
     local name,f = i[3],nil
     if name then 
@@ -125,7 +126,7 @@ function fibaro.__ER.modules.vm(ER)
       if mt and mt.__call then local f0=f f = function(...) return mt.__call(f0,...) end end
       if type(f)~="function" then errorf(p,"'%s' is not a function",tostring(f)) end
     end
-    local res = {pcall(f,args[1],args[2],args[3],args[4],args[5],args[6],args[7])}
+    local res = {pcall(f,table.unpack(args))}
     if not res[1] then errorf(p,"calling '%s' - %s",name,res[2]) end
     if res[2] == '%magic_suspend%' then  -- Ok, this is the way to signal that the fun is async...
       local cb,msg = res[3],res[5]
@@ -155,7 +156,7 @@ function fibaro.__ER.modules.vm(ER)
     local s = st.popm(1) -- get ev. multiple values
     if #s>1 then st.push(s) return 'multiple_values' else st.push(s[1]) return true end 
   end
-  function instr.returnm(i,st,p) st.push((st.popm(i[3]))) return 'multiple_values' end
+  function instr.returnm(i,st,p) st.push((st.popm(i[3],true))) return 'multiple_values' end
   function instr.table(i,st)  -- Create table and push on stack
     local keys = i[3]
     local i,n = 1,#keys     -- ['%comp%','%value%',...] for computed indexes, [<key1>,<key2>,...] for named or integer indexes
@@ -220,6 +221,15 @@ function instr.setqv(i,st,p)
   else v = st.peek() end
   quickApp:setVariable(name,v)
 end
+function instr.setpv(i,st,p) 
+  local name,const,pop,v = i[3],i[4],i[5],nil
+  if const then 
+    v = copy(const[1])
+    if not pop then st.push(v) end
+  elseif pop then v=st.pop()
+  else v = st.peek() end
+  quickApp:setVariable(name,v)
+end
 function instr.aref(i,st,p) 
   local key; if i[4] then key = i[4][1] else key = st.pop() end
   local tab = st.pop()
@@ -276,16 +286,20 @@ function instr.putprop(i,st,p)
   local isTable,n,v = type(ids) == 'table',1,nil
   if isTable then n = maxn(ids) end
   if ids==nil or n == 0 then errorf(env or p,"No devices found for :%s",prop) end
-  local function itemFun(e) 
+  local function itemFun(e,v) 
     local dev = ER.getDeviceObject(e)
     if not dev then errorf(p,"%s is not a valid device",tostring(dev)) end
     if not dev.setProp[prop] then errorf(p,":%s is not a valid device set property for %s",prop,dev) end
-    return dev.setProp[prop](dev,prop,value,ER.propHelpers)
+    return dev.setProp[prop](dev,prop,v,ER.propHelpers)
   end
   if isTable then
     v = {}
-    for i=1,n do v[#v+1] = itemFun(ids[i]) end
-  else v = itemFun(ids) end
+    if type(value) == 'table' and #value == n then
+      for i=1,n do v[#v+1] = itemFun(ids[i],value[i]) end
+    else
+      for i=1,n do v[#v+1] = itemFun(ids[i],value) end
+    end
+  else v = itemFun(ids,value) end
   st.push(v)
 end
 
@@ -337,9 +351,9 @@ end
 -- setup debug formats for instructions
 for i,_ in pairs(instr) do ilog[i] = "%s/%s" end
 for i,n in pairs({
-  push=1,var=1,gv=1,qv=1,jmp=1,jmpf=1,jmpt=1,jmpfp=1,jmpfip=1,jmpp=1,eventm=1,prop=1,mvstart=1,mvend=1,
+  push=1,var=1,gv=1,qv=1,pv=1,jmp=1,jmpf=1,jmpt=1,jmpfp=1,jmpfip=1,jmpp=1,eventm=1,prop=1,mvstart=1,mvend=1,
   setvar=3,aset=3,call=1,callexpr=1,callobj=1,collect=2,mv=4,aref=1,addto=2,subto=2,multo=2,divto=2,modto=2,['local']=1,
-  setgv=3,setqv=3,
+  setgv=3,setqv=3,setpv=3,
 }) do ilog[i] = "%s/%s "..string.rep("%s",n," ") end
 
 -- setup error handlers for instructions
@@ -418,7 +432,7 @@ for _,i in ipairs({'call','callexpr','callobj',}) do
     end
     --assert(rtd.stack.size()==0,"stack not empty")
     ER.runningFun,ER.runningRule = nil,nil
-    if rtd.trace or fun.trace then print(fmt("Exit:%s %s",rtd.stack.size(),json.encode(stat))) rtd.stack.dump() end
+    --if rtd.trace or fun.trace then print(fmt("Exit:%s %s",rtd.stack.size(),json.encode(stat))) rtd.stack.dump() end
     if stat[2] == true then return table.unpack(stat,3) end
     if stat[2] == 'multiple_values' then return table.unpack(stat[3]) end
   end

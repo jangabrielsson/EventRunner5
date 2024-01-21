@@ -8,7 +8,7 @@ Offical bughunters:
 
 ---@diagnostic disable: undefined-global
 fibaro.__ER  = fibaro.__ER or { modules={} }
-local version = 1.03
+local version = 1.04
 QuickApp.E_SERIAL,QuickApp.E_VERSION,QuickApp.E_FIX = "UPD896846032517892",version,"N/A"
 
 local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
@@ -110,7 +110,7 @@ function fibaro.__ER.modules.engine(ER)
   end
   ER.runCoroutine = runCoroutine
   
-  local function eval(str,options)
+  local function eval(str,options) -- Evaluate rule and run coroutine
     assert(type(str)=='string',"first argument to eval must be a string (eventscript)")
     local str2 = str:gsub("(\xC2\xA0)","<*>")
     if str2 ~= str and not ER.settings.ignoreInvisibleChars then
@@ -332,6 +332,7 @@ function EventRunnerEngineCont(self,callback)
   local st = SourceTrigger()
   function fibaro.post(event,time,logStr,hook,customLog) return st:post(event,time,logStr,hook,customLog) end 
   function fibaro.event(event,fun) return st:subscribe(event,fun) end
+  function fibaro.removeEvent(event) return st:unsubscribe(event) end
   function fibaro.cancel(ref) clearTimeout(ref) end
   function fibaro.registerSourceTriggerCallback(fun) return st:registerCallback(fun) end
   function fibaro.postRemote(id,event) return st:postRemote(id,event) end
@@ -464,7 +465,7 @@ function EventRunnerEngineCont(self,callback)
     options = options and table.copy(options) or {}
     for k,v in pairs(er.ruleOpts) do if options[k]==nil then options[k]=v end end
     
-    options.error = options.error or function(err)
+    options.error = options.error or function(err) -- setup handlers for error,suspend,success
       LOGERR("%s",err)
       e_error(err)
     end

@@ -17,6 +17,7 @@ function fibaro.__ER.modules.parser(ER)
     ['+/']  ={op=true,  prio=14,  arity=1, trans='t_plus'},       -- from today time constant, +/10:00
     ['$']   ={op=true,  prio=14,  arity=1, trans='gv'},           -- global variable, $var
     ['$$']  ={op=true,  prio=14,  arity=1, trans='qv'},           -- quickApp variable, $var
+    ['$$$']  ={op=true,  prio=14,  arity=1, trans='pv'},          -- Persistent variable, $var
     ['.']   ={op=true,  prio=12.9,arity=2, trans='aref',la=true}, -- table accessor
     [':']   ={op=true,  prio=12.9,arity=2, trans='prop',la=true}, -- property accessor
     ['..']  ={op=true,  prio=9,   arity=2, trans='betw'},         -- between operator, 10:00..11:00
@@ -417,6 +418,7 @@ function fibaro.__ER.modules.parser(ER)
   local function assertType(t,v,msg) if not(type(v)=='table' and v.type==t) then errorf(v,msg or ("Expected "..t)) end end
   function trans_op.gv(p) assertType('var',p.args[1],"Expected name");    return {type='gv', name=p.args[1].name} end
   function trans_op.qv(p) assertType('var',p.args[1],"Expected name");    return {type='qv', name=p.args[1].name} end
+  function trans_op.pv(p) assertType('var',p.args[1],"Expected name");    return {type='pv', name=p.args[1].name} end
   function trans_op.progn(p) return trans_flatten(p,'op','progn') end
   function trans_op.dprogn(p) return trans_flatten(p,'op','progn') end
   function trans_op.elist(p) return trans_flatten(p,'op','elist') end
@@ -469,12 +471,13 @@ function fibaro.__ER.modules.parser(ER)
     else return {type='op', op='neg', args={t1}, d=p.d} end
   end
   
-  local _rvalues = {var='var',aref='aref',prop='prop',gv='gv',qv='qv'}
+  local _rvalues = {var='var',aref='aref',prop='prop',gv='gv',qv='qv',pv='pv'}
   local function isRvalue(p) return _rvalues[p.type] or _rvalues[p.op] end
   local _l2rvalue = {
     var = function(p,value) return {type='setvar', name=p.name, value=value, d=DB(p)} end,
     gv = function(p,value) return {type='setgv', name=p.name, value=value, d=DB(p)} end,
     qv = function(p,value) return {type='setqv', name=p.name, value=value, d=DB(p)} end,
+    pv = function(p,value) return {type='setpv', name=p.name, value=value, d=DB(p)} end,
     aref = function(p,value) return {type='aset', tab=p.tab, key=p.key, value=value,d=DB(p)} end,
     prop = function(p,value) return {type='putprop', device=p.args[1], prop=p.args[2], value=value, d=DB(p)} end,
   }

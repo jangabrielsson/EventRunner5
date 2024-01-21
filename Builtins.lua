@@ -340,9 +340,9 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     end
     args.elog = {1,99}
     function builtin.elog(i,st,p)
-        local args,n = st.popm(i[3]),i[3]
+        local args,n = st.popm(i[3],true),i[3]
         local opts = p.co.options or {}
-        local stat,str = pcall(eformat,args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8])
+        local stat,str = pcall(eformat,table.unpack(args))
         if not stat then
             str = str:gsub("#(%d+)",function(n) return "bad argument #"..(n-1) end)
             errorf(p,"elog format: %s",str) 
@@ -354,11 +354,10 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         st.push(str)
     end
 
-    local function toArr(t) return {t[1],t[2],t[3],t[4],t[5],t[6],t[7],t[8],t[9],t[10],t[12]} end
     args.fmt = {1,99}
-    function builtin.fmt(i,st,p) st.push(fmt(table.unpack(toArr(st.lift(i[3]))))) end
+    function builtin.fmt(i,st,p) st.push(fmt(table.unpack(st.lift(i[3],true)))) end
     args.efmt = {1,99}
-    function builtin.efmt(i,st,p) st.push(eformat(table.unpack(toArr(st.lift(i[3]))))) end
+    function builtin.efmt(i,st,p) st.push(eformat(table.unpack(st.lift(i[3],true)))) end
     args.HM = {1,1}
     function builtin.HM(i,st,p) local t = st.pop(); st.push(os.date("%H:%M",t < os.time()-8760*3600 and t+midnight() or t)) end  
     args.HMS = {1,1}
@@ -430,7 +429,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     end
     args.yield = {0,99}
     function builtin.yield(i,st,p) 
-        local args = st.popm(i[3])
+        local args = st.popm(i[3],true)
         p.yielded = true; 
         st.push(args); 
         return 'multiple_values'
@@ -541,7 +540,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         local env = p.env
         local kvar,vvar,fvar,lvar,svar = table.unpack(i,4)
         local args = st.popm(1)
-        local f,l,s = table.unpack(args)
+        local f,l,s = args[1],args[2],args[3]
         env.push(fvar,f)
         env.push(lvar,l)
         --env.push(svar,s)
@@ -555,7 +554,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         local env = p.env
         local kvar,vvar,fvar,lvar,v = table.unpack(i,4)
         local k,f,l = env.get(kvar)[1],env.get(fvar)[1],env.get(lvar)[1]
-        if type(l)~='table' then errorf(p,"ipairs expecting table") end
+        if type(l)~='table' then errorf(p,"ipairs expecting table - got %s",type(l)) end
         k,v = f(l,k)
         env.set(kvar,k)
         env.set(vvar,v)

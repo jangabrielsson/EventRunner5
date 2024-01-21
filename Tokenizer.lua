@@ -100,7 +100,7 @@ function fibaro.__ER.modules.tokenizer(ER)
   token(";",";;",function() return {type="t_dprogn", value=";;"} end)
   token("=","===",function (op) return {type="op", opval=trans(op)} end)    
   token(".","%.%.%.",function (op) return {type="op", opval=trans(op)} end)
-  token("$","%$%$", function (op) return {type="op", opval=trans(op)} end)
+  token("$","%$%$%$?", function (op) return {type="op", opval=trans(op)} end)
   token("@$=<>!+.-*&|/^~;:","[@%$=<>!+%.%-*&|/%^~;:][%+@=<>&|;:%.]?", function (op) return {type=checkOp(op), opval=trans(op)} end)
   token("{}(),[]#%","[{}%(%),%[%]#%%]", function (op) return {type=SW[op] or checkOp(op), opval=trans(op)} end)
   

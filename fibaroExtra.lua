@@ -63,7 +63,7 @@ _MODULES.base={ author = "jan@gabrielsson.com", version = '0.4', depends={},
     end
 
     if not table.maxn then 
-      function table.maxn(tbl) local c=0 for _ in pairs(tbl) do c=c+1 end return c end
+      function table.maxn(tbl) local c=0 for i,_ in pairs(tbl) do c=i end return c end
     end
 
     function table.member(k,tab) for i,v in ipairs(tab) do if equal(v,k) then return i end end return false end

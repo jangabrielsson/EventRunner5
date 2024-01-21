@@ -13,6 +13,8 @@ function QuickApp:main(er) -- Main function, place to define rules
     local rule,eval,var,triggerVar,Util = er.eval,er.eval,er.variables,er.triggerVariables,er
     self:enableTriggerType({"device","global-variable","custom-event","profile","alarm","weather","location","quickvar","user"}) -- types of events we want
 
+    -- example rules for main() - edit and create your own rules here
+    
     local HT = { -- Test Home Table with "fake" devices - create your own...
         keyfob = 46, 
         doorSensor = er.createBinaryDevice(),
