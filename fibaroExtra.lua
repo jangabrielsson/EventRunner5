@@ -17,6 +17,7 @@ Email: jan@gabrielsson.com
 -- luacheck: globals ignore utils hc3_emulator urlencode sceneId table string _MODULES
 ---@diagnostic disable: cast-local-type, undefined-field, need-check-nil
 fibaro,QuickApp = fibaro or {},QuickApp or {}
+--%%fullLua=true
 
 -------------------- Base ----------------------------------------------
 _MODULES = _MODULES or {} -- Global

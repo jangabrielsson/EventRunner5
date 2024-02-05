@@ -1,4 +1,5 @@
 --%%file=fibaroExtra.lua,extra;
+--%%fullLua=true
 
 local entry = [[
   {
