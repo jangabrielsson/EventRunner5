@@ -1,3 +1,4 @@
+--%%root=<automatic>
 --%%file=fibaroExtra.lua,extra;
 --%%fullLua=true
 
@@ -249,12 +250,13 @@ local entry = [[
 ]]
 
 function QuickApp:onInit()
-  local f = io.open("Engine.lua","r")
+  a=fibaro
+  local f = io.open("../EventRunner5/Engine.lua","r")
   local conf = f:read("*a")
   local version = conf:match("version%s*=%s*(%d+%.%d+)")
   version = tonumber(version)
   local config = entry:gsub("%%%%VERSION%%%%",version)
-  print("Version:",version)
+  print("Version: ER5_"..version)
   config = json.decode(config)
   local conf
   local f = io.open("Update.json","r")

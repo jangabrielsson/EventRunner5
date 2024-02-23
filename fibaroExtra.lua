@@ -2650,7 +2650,7 @@ _MODULES.pubsub={ author = "jan@gabrielsson.com", version = '0.4', depends={'bas
   end
 } -- PubSub
 --------------------------------
-if debug then                           -- Embedded call...
+if not fibaro.fibemu then                           -- Embedded call...
   local file = debug.getinfo(1)         -- Find out what file we are
   if file and file.source then
     file = file.source:sub(2)
