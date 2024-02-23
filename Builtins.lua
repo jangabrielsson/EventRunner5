@@ -875,4 +875,64 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
   end
   defVars.child=child
   defVars.initChildren=initChildren
+  
+  function ER.addStdPropFuns()
+    local stdPropObject = ER.stdPropObject
+    
+    local keyAttrMT = { 
+        __tostring = function(t) return string.format("%s:%s",t.id,t.attr) end,
+        __cmpVal = function(a) 
+            return tostring(a)
+        end 
+    }
+    function stdPropObject.getProp.key(id,prop,event)
+        return setmetatable({id=event.value.keyId,attr=event.value.keyAttribute},keyAttrMT) 
+    end
+    function stdPropObject.trigger.key(self,id) return {type='device', id=id, property='centralSceneEvent'} end
+    
+    fibaro.customMessageIdMap={}
+    
+    function stdPropObject.setProp.msg(obj,prop,value)
+        local id = obj.id
+
+        if not fibaro.customMessage then
+            fibaro.alert(fibaro._pushMethod, {id}, value, false, '', false)
+        else
+            local map,user = fibaro.customMessageIdMap,nil
+            if type(map)=='table' then user = map[id]
+            elseif type(map) == "function" then
+                user = map(id,value)
+            end
+            assert(user,"No user found for id "..id)
+            fibaro.customMessage(user,value)
+        end
+        return value 
+    end
+    
+    local appKey= "an1e3cqj3g1gx9shr3wqeq8kj8ynhw"
+    function fibaro.pushoverMessage(userid,msg)
+        --https://pushover.net/api
+        local url,data = "https://api.pushover.net/1/messages.json",nil
+        local headers = {["Content-Type"]="application/json"}
+        if type(msg) == 'string' then
+            data = {message=msg}
+        else
+            data = table.copy(msg)
+        end
+        data.token,data.user = fibaro.pushoverKey or appKey,userid
+        net.HTTPClient():request(url,{
+            options = {
+                method = 'POST',
+                headers = headers,
+                data = json.encode(data),
+                requireCertificate=false,
+            },
+            success = function(response)
+            end,
+            error = function(err)
+                fibaro.error(__TAG,string.format("Pushover %s %s %s",err,json.encode(msg)))
+            end
+        })
+    end
+  end
 end
