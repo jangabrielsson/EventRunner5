@@ -426,14 +426,18 @@ function fibaro.__ER.modules.utilities(ER)
     local d, hour, min, sec = str:match("(.-)%-?(%d+):(%d+):?(%d*)")
     local month, day, year = d:match("(%d*)/?(%d*)/?(%d*)")
     local t = os.date("*t")
+    t.isdst = false
     t.year, t.month, t.day = tn(year, t.year), tn(month, t.month), tn(day, t.day)
     t.hour, t.min, t.sec = tn(hour, t.hour), tn(min, t.min), tn(sec, 0)
     local t1 = os.time(t)
     local t2 = os.date("*t", t1)
-    if t.isdst ~= t2.isdst then
-        t.isdst = t2.isdst
-        t1 = oldTime(t)
-    end
+    t.isdst = t2.isdst
+    t1 = os.time(t)
+    -- if t.isdst ~= t2.isdst then
+    --     t.isdst = t2.isdst
+    --     t1 = oldTime(t)
+    -- end
+   -- if t2.isdst then t1 = t1 + 3600 end
     timeOffset = t1 - oldTime()
   end
 
