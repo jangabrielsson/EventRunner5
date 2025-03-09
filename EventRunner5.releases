@@ -10,6 +10,6 @@
       "description": "New release engine (was 1.05)",
       "exclude": ["main"],
       "date": "2025-03-09"
-    },
+    }
   ]
 }
