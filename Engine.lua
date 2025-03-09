@@ -18,6 +18,7 @@ PrintBuffer,sunData,LOG,LOGERR,htmlTable,evOpts
 local fmt = string.format
 local function trim(str) return str:gsub("^[%s%c]*(.-)[%s%c]*$","%1") end
 local ER = fibaro.__ER
+local macros = {}
 
 function fibaro.__ER.modules.engine(ER)
   local Script = ER.Script
@@ -273,7 +274,7 @@ function QuickApp:eval(str) -- Terminal eval function
     if type(opt)~='table' or not stat then self:error("///option",err) end
     str=r
   end
-  local stat,err = e_pcall(function()
+  local stat,err = (e_pcall or pcall)(function()
     ER.er.eval(str,opt)
   end)
   err = tostring(err)
@@ -443,7 +444,6 @@ function EventRunnerEngineCont(self,callback)
     local p = ER:parse(str,options)
     return ER:compile(p,options)
   end
-  local macros = {}
   
   function er.eval(name,str,options)         -- top-level eval for expressions - used by rule(...)
     if type(name)=='string' and type(str)=='string' then

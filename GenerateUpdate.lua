@@ -259,7 +259,7 @@ function QuickApp:onInit()
   print("Version: ER5_"..version)
   config = json.decode(config)
   local conf
-  local f = io.open("Update.json","r")
+  local f = io.open("../EventRunner5/Update.json","r")
   if f then 
     conf = f:read("*a")
     local stat,res = pcall(json.decode,conf)
@@ -284,7 +284,7 @@ function QuickApp:onInit()
   else
     conf = config
   end
-  f = io.open("Update.json","w")
+  f = io.open("../EventRunner5/Update.json","w")
   f:write((json.encodeFormated(conf)))
   f:close()
   print("Done")

@@ -54,7 +54,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         local function off(id,prop) return BN(fibaro.get(id,prop)) == 0 end
         local function call(id,cmd) fibaro.call(id,cmd); return true end
         local function toggle(id,prop) if on(id,prop) then fibaro.call(id,'turnOff') else fibaro.call(id,'turnOn') end return true end
-        local function profile(id,_) return api.get("/profiles/"..id.."?showHidden=true") end
+        local function profile(id,_) return api.get("/profiles/"..id) end
         local function child(id,_) return quickApp.childDevices[id] end
         local function last(id,prop) local _,t=fibaro.get(id,prop); local r = t and os.time()-t or 0; return r end
         local function cce(id,_,e) return e.type=='device' and e.property=='centralSceneEvent'and e.id==id and e.value or {} end
@@ -299,6 +299,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
 
     -------------- builtin functions -------------------------
     args.post = {1,3}
+    --D: post(event,time) => ref
     function builtin.post(i,st,p) 
         local env,r=p.args[1] or {},nil
         local args,n = st.popm(i[3]),i[3]
@@ -310,6 +311,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         st.push(r)
     end
     args.cancel = {1,1}
+    --D: cancel(ref)
     function builtin.cancel(i,st,p) Script.clearTimeout(p,st.pop()) st.push(nil) end
     
     local function encodeObj(o)
@@ -317,6 +319,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         if mt and mt.__tostring then return tostring(o) else return encodeFast(o) end 
     end
     args.log = {1,99}
+    --D: log(format,...) => str
     function builtin.log(i,st,p)
         local args,n = st.popm(i[3]),i[3]
         local opts = p.co.options or {}
@@ -339,6 +342,7 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
         st.push(str)
     end
     args.elog = {1,99}
+    --D: elog(format,...) => str
     function builtin.elog(i,st,p)
         local args,n = st.popm(i[3],true),i[3]
         local opts = p.co.options or {}
@@ -355,30 +359,43 @@ local stack,stream,errorMsg,isErrorMsg,e_error,e_pcall,errorLine,
     end
 
     args.fmt = {1,99}
+    --D: fmt(format,...) => str
     function builtin.fmt(i,st,p) st.push(fmt(table.unpack(st.lift(i[3],true)))) end
     args.efmt = {1,99}
+    --D: efmt(format,...) => str
     function builtin.efmt(i,st,p) st.push(eformat(table.unpack(st.lift(i[3],true)))) end
     args.HM = {1,1}
+    --D: HM(time) => "HH:MM"
     function builtin.HM(i,st,p) local t = st.pop(); st.push(os.date("%H:%M",t < os.time()-8760*3600 and t+midnight() or t)) end  
     args.HMS = {1,1}
+    --D: HMS(time) => "HH:MM:SS"
     function builtin.HMS(i,st,p) local t = st.pop(); st.push(os.date("%H:%M:%S",t < os.time()-8760*3600 and t+midnight() or t)) end  
     args.sign = {1,1}
+    --D: sign(n) => 1 or -1
     function builtin.sign(i,st,p) st.push(tonumber(st.pop()) < 0 and -1 or 1) end
     args.rnd = {1,2}
+    --D: rnd(max,min) => n
     function builtin.rnd(i,st,p) local ma,mi=st.pop(),i[3]>1 and st.pop() or 1 st.push(math.random(mi,ma)) end
     args.round = {1,1}
+    --D: round(float) => int, rounded to nearest integer
     function builtin.round(i,st,p) local v=st.pop(); st.push(math.floor(v+0.5)) end
     args.sum = {1,1}
+    --D: sum(list) => n
     function builtin.sum(i,st,p) local m,res=st.pop(),0 for _,x in ipairs(m) do res=res+x end st.push(res) end 
     args.average = {1,1}
+    --D: average(list) => n
     function builtin.average(i,st,p) local m,res=st.pop(),0 for _,x in ipairs(m) do res=res+x end st.push(res/#m) end 
     args.size = {1,1}
+    --D: size(list) => n
     function builtin.size(i,st,p) st.push(#(st.pop())) end
     args.min = {1,99}
+    --D: min(list) => n
     function builtin.min(i,st,p) st.push(math.min(table.unpack(type(st.peek())=='table' and st.pop() or st.lift(i[3])))) end
     args.max = {1,99}
+    --D: max(list) => n
     function builtin.max(i,st,p) st.push(math.max(table.unpack(type(st.peek())=='table' and st.pop() or st.lift(i[3])))) end
     args.sort = {1,99}
+    --D: sort(list) => list
     function builtin.sort(i,st,p) local a = type(st.peek())=='table' and st.pop() or st.lift(i[3]); table.sort(a) st.push(a) end
     --args.match = {2,2}
     --function builtin.match(i,st,p) local a,b=st.pop(),st.pop(); st.push(string.match(b,a)) end

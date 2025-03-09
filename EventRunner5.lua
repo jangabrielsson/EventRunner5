@@ -1,8 +1,15 @@
+_DEVELOP="../hc3emu"
+if require and not QuickApp then require('hc3emu') end
+
+--%%name=MyQA
+--%%type=com.fibaro.binarySwitch
 --%%root=<automatic>
 --%%include=Include.lua
 --%%name=EventRunner5
+--%%uid=UPD896846032517892
+--%%save=EventRunner5.fqa
 --%%remote=alarms/v1/partitions:1
---%%remote=devices:*
+--%%remote=profiles:*
 --%%debug=refresh:false
 --%%u1={label='title',text='EventRunner5'}
 --%%u2={{button='listRules',text='List rules', onReleased='listRules'},{button='listRulesExt',text='List rules ext.', onReleased='listRulesExt'}}
@@ -26,16 +33,19 @@ function QuickApp:main(er) -- Main function, place to define rules
         frontlight = er.createBinaryDevice(),
     }
 
+    -- er.setTime("03/07/2024 07:00")
+    -- rule("log(osdate('%c'))")
+
     er.defvars(HT) -- Make HomeTable variables available as variables in rules. 
     er.reverseMapDef(HT)
     --er.setTime("12/01/2023 12:00:00") --mm/dd/yyyy-hh:mm:ss
     --er.speedTime(2*24) -- 24 hours
-    rule([[#alarm{id='$id', property='breached'} =>  -- Log when a partition is breached
-        fibaro.warning(__TAG,efmt('BREACHED partition:%s',env.event.id))
-    ]])
-    rule([[#alarm{property='homeBreached'} =>   -- Log when home is breached
-        fibaro.warning(__TAG,efmt('BREACHED home'))
-    ]])
+    -- rule([[#alarm{id='$id', property='breached'} =>  -- Log when a partition is breached
+    --     fibaro.warning(__TAG,efmt('BREACHED partition:%s',env.event.id))
+    -- ]])
+    -- rule([[#alarm{property='homeBreached'} =>   -- Log when home is breached
+    --     fibaro.warning(__TAG,efmt('BREACHED home'))
+    -- ]])
 
     local msgOpts = { evalResult=false, userLogColor='yellow' }
     local function expr(str) return rule(str,msgOpts) end -- Helper function to create non-logging expr with msgOpts
@@ -45,6 +55,7 @@ function QuickApp:main(er) -- Main function, place to define rules
 
     expr("log('HC3 uptime %s',uptimeStr)")
     expr("elog('Sunrise at %t, Sunset at %t',sunrise,sunset)")
+    expr("log('Weather is %s',weather)")
     expr("log('Weather condition is %s',weather:condition)")
     expr("log('Temperature is %s°',weather:temperature)")
     expr("log('Wind is %sms',weather:wind)")
@@ -53,7 +64,11 @@ function QuickApp:main(er) -- Main function, place to define rules
     expr("elog('Devices with <50 battery are %l',[_:bat&_:bat<50,fmt('%s:%s',_,_:name) in devices])")
 
     var.i = 0 -- initialize ER variable
-    rule("@@00:00:05 => i=i+1; log('ping: %s seconds',i*5)",{ruleTrue=false}) -- test rule, ping every 5 seconds
+    --rule("@@00:00:05 => i=i+1; log('ping: %s seconds',i*5)",{ruleTrue=false}) -- test rule, ping every 5 seconds
+
+    R = rule("@now+10 => log('Ok %s',now+10)").disable() -- Rule that triggers 10 seconds from now
+    R.enable()
+    R._setupDailys(true)
 
     local ruleSet = {
         rule("@sunset+00:10 => log('Ok, sunset+00:10')"),

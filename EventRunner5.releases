@@ -1,0 +1,15 @@
+{
+  "uid": "UPD896846032517892",
+  "description": "Rule engine for home automation",
+  "author": "Author: jan@gabrielsson.com",
+  "versions":
+  [
+    {
+      "tag": "Rel1",
+      "version": "1.06",
+      "description": "New release engine (was 1.05)",
+      "exclude": ["main"],
+      "date": "2025-03-09"
+    },
+  ]
+}

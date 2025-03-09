@@ -1367,7 +1367,7 @@ _MODULES.triggers={ author = "jan@gabrielsson.com", version = '0.4', depends={'b
 
     function fibaro.unregisterSourceTriggerCallback(callback)
       __assert_type(callback,"function")
-      if member(callback,sourceTriggerCallbacks) then sourceTriggerCallbacks:remove(callback) end
+      if member(callback,sourceTriggerCallbacks) then table.delete(callback,sourceTriggerCallbacks) end
       if #sourceTriggerCallbacks == 0 then
         fibaro.unregisterRefreshStatesCallback(sourceTriggerTransformer) 
       end

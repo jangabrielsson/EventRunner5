@@ -1,4 +1,4 @@
---%%file=fibaroExtra.lua,extra;
+--%%file=../EventRunner5/fibaroExtra.lua,extra;
 
 local __version = "0.1"
 local __author = "Jan Gabrielsson"
